@@ -1,0 +1,130 @@
+name: CI
+
+# Gates 1 (static) and the migration-reversibility rule run on every push and PR.
+# Deploys: main → staging automatically; a v* tag → production behind the
+# `production` GitHub Environment (configure required reviewers in repo settings).
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Typecheck · contract · config · migrations
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: vip_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Gate 1 — typecheck
+        run: pnpm typecheck
+
+      - name: OpenAPI contract lint
+        run: pnpm lint:openapi
+
+      - name: Wrangler config — every env bundles with its own bindings
+        working-directory: apps/api
+        run: |
+          set -euo pipefail
+          for env in "" staging production; do
+            label="${env:-development}"
+            out=$(npx wrangler deploy --dry-run ${env:+--env "$env"} --outdir "$RUNNER_TEMP/wd-$label" 2>&1) || { echo "$out"; exit 1; }
+            if grep -qi "not inherited" <<<"$out"; then
+              echo "$out"; echo "::error::$label is missing a binding (bindings are not inherited by [env.*])"; exit 1
+            fi
+            echo "✓ $label"
+          done
+
+      - name: Migrations — apply, full rollback, re-apply, identical schema
+        working-directory: apps/api
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/vip_ci
+        run: node scripts/migrate-roundtrip.mjs
+
+      - name: Gate 2/3 — tests
+        # No test runner yet (STATE.md). This step starts failing the build the
+        # moment a `test` script exists and fails.
+        run: pnpm -r --if-present test
+
+  deploy-staging:
+    name: Deploy → staging
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: check
+    runs-on: ubuntu-latest
+    environment: staging
+    concurrency: deploy-staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Migrate staging (direct Neon URL, not Hyperdrive)
+        env: { DATABASE_URL: '${{ secrets.DATABASE_URL }}' }
+        run: pnpm db:migrate
+      - name: Preflight
+        env: { DATABASE_URL: '${{ secrets.DATABASE_URL }}' }
+        run: pnpm preflight --env staging
+      - name: Deploy
+        working-directory: apps/api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --env staging
+      - name: Smoke
+        run: curl -fsS --retry 5 --retry-delay 3 "${{ vars.API_BASE_URL }}/health"
+
+  deploy-production:
+    name: Deploy → production
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: check
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency: deploy-production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      # Migrations are expand-only by policy (docs/SCALE.md), so applying them
+      # before the new Worker is live is always safe for the old Worker.
+      - name: Migrate production
+        env: { DATABASE_URL: '${{ secrets.DATABASE_URL }}' }
+        run: pnpm db:migrate
+      - name: Preflight
+        env: { DATABASE_URL: '${{ secrets.DATABASE_URL }}' }
+        run: pnpm preflight --env production
+      - name: Deploy
+        working-directory: apps/api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy --env production
+      - name: Smoke
+        run: curl -fsS --retry 5 --retry-delay 3 "${{ vars.API_BASE_URL }}/health"

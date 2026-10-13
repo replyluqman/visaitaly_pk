@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "migrate": "node scripts/migrate.mjs up",
     "rollback": "node scripts/migrate.mjs down",
-    "preflight": "node scripts/preflight.mjs"
+    "preflight": "node scripts/preflight.mjs",
+    "migrate:roundtrip": "node scripts/migrate-roundtrip.mjs"
   },
   "dependencies": {
     "@visaitaly/shared": "workspace:*",

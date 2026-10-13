@@ -2,7 +2,7 @@
 /**
  * Preflight check. Run before any production deploy:
  *
- *   DATABASE_URL=... node scripts/preflight.mjs
+ *   DATABASE_URL=... node scripts/preflight.mjs --env staging|production
  *
  * A written launch checklist is a checklist someone skips at 2am. These are the
  * conditions that are cheap to verify mechanically and expensive to discover in
@@ -16,6 +16,14 @@ import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+/** `--env staging|production`; defaults to production, the deploy that matters most. */
+const envFlag = process.argv.indexOf('--env');
+const TARGET_ENV = envFlag > -1 ? process.argv[envFlag + 1] : 'production';
+if (!['development', 'staging', 'production'].includes(TARGET_ENV)) {
+  console.error(`Unknown --env '${TARGET_ENV}'. Use development | staging | production.`);
+  process.exit(1);
+}
 const failures = [];
 const warnings = [];
 
@@ -25,11 +33,35 @@ const warn = (m) => warnings.push(m);
 // ---------------------------------------------------------------------------
 // 1. wrangler.toml is fully configured
 // ---------------------------------------------------------------------------
+/**
+ * Lines of wrangler.toml that configure `env`. Top-level tables ([vars],
+ * [[hyperdrive]] …) belong to development; `[env.<name>…]` tables to <name>.
+ * Bindings are not inherited across environments, so a deploy to staging
+ * must not be blocked by development's placeholders, and vice versa.
+ */
+function sectionFor(toml, env) {
+  let owner = 'development';
+  const out = [];
+  for (const line of toml.split('\n')) {
+    const header = line.match(/^\s*\[\[?\s*([^\]]+?)\s*\]\]?\s*$/);
+    if (header) {
+      const m = header[1].match(/^env\.([^.]+)/);
+      owner = m ? m[1] : 'development';
+    }
+    if (owner === env) out.push(line);
+  }
+  return out.join('\n');
+}
+
 async function checkWrangler() {
   const toml = await readFile(join(ROOT, 'wrangler.toml'), 'utf8');
-  const placeholders = [...new Set([...toml.matchAll(/REPLACE_ME[A-Za-z0-9_]*/g)].map((m) => m[0]))];
+  const scoped = sectionFor(toml, TARGET_ENV);
+  if (TARGET_ENV !== 'development' && !scoped.trim()) {
+    fail(`wrangler.toml has no [env.${TARGET_ENV}] section.`);
+  }
+  const placeholders = [...new Set([...scoped.matchAll(/REPLACE_ME[A-Za-z0-9_]*/g)].map((m) => m[0]))];
   if (placeholders.length) {
-    fail(`wrangler.toml still has ${placeholders.length} unset binding(s): ${placeholders.join(', ')}`);
+    fail(`wrangler.toml [${TARGET_ENV}] still has ${placeholders.length} unset value(s): ${placeholders.join(', ')}`);
   }
   // A secret in the committed config is the one mistake with no clean recovery:
   // it is in git history the moment it is pushed.

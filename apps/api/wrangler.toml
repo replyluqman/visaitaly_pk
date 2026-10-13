@@ -6,26 +6,73 @@ compatibility_date = "2024-11-27"
 # import time, not at query time — the error is confusing if you forget it.
 compatibility_flags = ["nodejs_compat"]
 
+# Workers Logs: persists console.* output (structured JSON, docs/OBSERVABILITY.md).
+# Free-plan daily volume and retention are limited — verify current limits on the
+# account before relying on it for incident forensics.
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+# ─────────────────────────────────────────────────────────────────────────────
+# IMPORTANT: bindings (hyperdrive, kv_namespaces, r2_buckets, vars, triggers)
+# are NOT inherited by [env.*]. Every environment declares its own full set.
+# CI runs `wrangler deploy --dry-run` per environment and fails on the
+# "not inherited" warning, so a missing binding can't reach a deploy.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── development (top level, `wrangler dev`) ─────────────────────────────────
 [vars]
 ENVIRONMENT = "development"
-FIREBASE_PROJECT_ID = "REPLACE_ME_firebase_project_id"
+FIREBASE_PROJECT_ID = "REPLACE_ME_firebase_project_id_dev"
 PUBLIC_JWK_CACHE_KEY = "firebase-public-jwks"
 
 # Pooled Neon connection. PRD §4 — mandatory, not optional.
-# Create with: wrangler hyperdrive create visaitaly-db --connection-string="postgres://..."
+# Create with: wrangler hyperdrive create visaitaly-db-dev --connection-string="postgres://..."
+# Local dev without Hyperdrive: set WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE
+# in .dev.vars-adjacent shell env to a local Postgres URL.
 [[hyperdrive]]
 binding = "HYPERDRIVE"
-id = "REPLACE_ME_hyperdrive_id"
+id = "REPLACE_ME_hyperdrive_id_dev"
 
 # Caches Google's public JWKs so token verification is not a network round trip.
 # Create with: wrangler kv namespace create PUBLIC_JWK_CACHE_KV
 [[kv_namespaces]]
 binding = "PUBLIC_JWK_CACHE_KV"
-id = "REPLACE_ME_kv_namespace_id"
+id = "REPLACE_ME_kv_namespace_id_dev"
+
+# ── staging (`wrangler deploy --env staging`) ──────────────────────────────
+# Own Neon branch, own Firebase project, own KV. Never shares data with prod.
+[env.staging]
+name = "visaitaly-api-staging"
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+FIREBASE_PROJECT_ID = "REPLACE_ME_firebase_project_id_staging"
+PUBLIC_JWK_CACHE_KEY = "firebase-public-jwks"
+
+[[env.staging.hyperdrive]]
+binding = "HYPERDRIVE"
+id = "REPLACE_ME_hyperdrive_id_staging"
+
+[[env.staging.kv_namespaces]]
+binding = "PUBLIC_JWK_CACHE_KV"
+id = "REPLACE_ME_kv_namespace_id_staging"
+
+# ── production (`wrangler deploy --env production`) ─────────────────────────
+[env.production]
+name = "visaitaly-api"
 
 [env.production.vars]
 ENVIRONMENT = "production"
-FIREBASE_PROJECT_ID = "REPLACE_ME_firebase_project_id"
+FIREBASE_PROJECT_ID = "REPLACE_ME_firebase_project_id_prod"
 PUBLIC_JWK_CACHE_KEY = "firebase-public-jwks"
 
-# No secrets in this file. Set them with `wrangler secret put <NAME>`.
+[[env.production.hyperdrive]]
+binding = "HYPERDRIVE"
+id = "REPLACE_ME_hyperdrive_id_prod"
+
+[[env.production.kv_namespaces]]
+binding = "PUBLIC_JWK_CACHE_KV"
+id = "REPLACE_ME_kv_namespace_id_prod"
+
+# No secrets in this file. Set them with `wrangler secret put <NAME> --env <env>`.

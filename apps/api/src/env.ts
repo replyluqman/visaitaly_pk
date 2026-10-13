@@ -17,7 +17,7 @@ export interface Env {
   /** Cache key inside PUBLIC_JWK_CACHE_KV. */
   PUBLIC_JWK_CACHE_KEY: string;
 
-  /** 'development' | 'production'. Controls error verbosity only. */
+  /** 'development' | 'staging' | 'production'. Controls error verbosity only. */
   ENVIRONMENT: string;
 
   /**

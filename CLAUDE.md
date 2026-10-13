@@ -114,8 +114,16 @@ live column in place. See `docs/SCALE.md` for the full pattern.
 ## Before deploying
 
 ```
-pnpm preflight
+pnpm preflight --env staging|production
 ```
+
+CI runs this automatically before every deploy (`.github/workflows/ci.yml`).
+Environments, secrets and the deploy flow: `docs/ENVIRONMENTS.md`.
+Logs, alerts, Cron heartbeats: `docs/OBSERVABILITY.md`.
+
+Every migration change must pass `pnpm db:roundtrip` (apply → full rollback →
+re-apply → identical schema) against a throwaway `*_ci`/`*_test` database. CI
+enforces it.
 
 Asserts what a written checklist gets skipped on: no `REPLACE_ME` left in
 `wrangler.toml`, no secret committed there, every migration applied, no

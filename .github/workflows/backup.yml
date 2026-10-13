@@ -1,0 +1,63 @@
+name: Backup
+
+# Weekly logical backup of production Neon → private R2 bucket (docs/ENVIRONMENTS.md).
+# Complements Neon PITR; it does not replace it. The dump contains PII, so it is
+# encrypted before it leaves the runner. Keep BACKUP_PASSPHRASE in the team
+# password manager too — a backup nobody can decrypt is not a backup.
+#
+# Required in the `production` GitHub Environment:
+#   secrets.DATABASE_URL            direct Neon URL (read-only role recommended)
+#   secrets.BACKUP_PASSPHRASE
+#   secrets.R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY   token scoped to the backup bucket only
+#   vars.R2_ENDPOINT                https://<account_id>.r2.cloudflarestorage.com
+#   vars.BACKUP_BUCKET              visaitaly-backups
+# Retention (8 weeks) is an R2 lifecycle rule on the bucket, not done here.
+
+on:
+  schedule:
+    - cron: '30 21 * * 6'   # Sat 21:30 UTC = Sun 02:30 PKT, lowest traffic
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+    steps:
+      - name: Skip until configured
+        id: cfg
+        env: { DB: '${{ secrets.DATABASE_URL }}' }
+        run: |
+          if [ -z "$DB" ]; then echo "DATABASE_URL not set — skipping."; echo "skip=1" >> "$GITHUB_OUTPUT"; fi
+
+      - name: pg_dump (postgres:17 client — dumps any server ≤ 17)
+        if: steps.cfg.outputs.skip != '1'
+        env: { DATABASE_URL: '${{ secrets.DATABASE_URL }}' }
+        run: |
+          set -euo pipefail
+          docker run --rm -e DATABASE_URL postgres:17 \
+            sh -c 'pg_dump "$DATABASE_URL" --format=custom --no-owner --no-privileges' > db.dump
+          test -s db.dump
+          ls -lh db.dump
+
+      - name: Encrypt
+        if: steps.cfg.outputs.skip != '1'
+        env: { PASS: '${{ secrets.BACKUP_PASSPHRASE }}' }
+        run: |
+          set -euo pipefail
+          gpg --batch --yes --symmetric --cipher-algo AES256 --passphrase-fd 0 -o db.dump.gpg db.dump <<<"$PASS"
+          shred -u db.dump
+
+      - name: Upload to R2
+        if: steps.cfg.outputs.skip != '1'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+        run: |
+          key="neon/$(date -u +%Y/%m/%d)/visaitaly-prod-$(date -u +%Y%m%dT%H%M%SZ).dump.gpg"
+          aws s3 cp db.dump.gpg "s3://${{ vars.BACKUP_BUCKET }}/$key" --endpoint-url "${{ vars.R2_ENDPOINT }}"
+          echo "uploaded $key"
