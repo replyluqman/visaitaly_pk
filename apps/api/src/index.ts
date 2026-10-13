@@ -12,6 +12,7 @@ import { legalRoutes } from './modules/legal/legal.routes.js';
 import { onboardingRoutes } from './modules/onboarding/onboarding.routes.js';
 import { referenceRoutes } from './modules/reference/reference.routes.js';
 import { applicantRoutes } from './modules/applicants/applicants.routes.js';
+import { publicRoutes } from './modules/eligibility/eligibility.routes.js';
 import { applicantCaseRoutes, checklistRoutes } from './modules/checklist/checklist.routes.js';
 
 const app = new Hono<AppEnv>();
@@ -62,6 +63,7 @@ app.use('/v1/*', async (c, next) => {
 
 app.get('/health', (c) => c.json({ ok: true }));
 
+app.route('/v1/public', publicRoutes);
 app.route('/v1/auth', authRoutes);
 app.route('/v1/me', meRoutes);
 app.route('/v1/devices', deviceRoutes);

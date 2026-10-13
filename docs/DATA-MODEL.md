@@ -114,6 +114,10 @@ Current keys: `auth {max_active_devices: 2}`, `onboarding {max_applicants: 10}`,
   ≈ 1.9M rows at 30k users / 75k applicants / 25 requirements.
 - `app_config['checklist'] = {free_preview_items: 3}`.
 
+### `eligibility_check_versions` (0006)
+Versioned Quick Check copy: `questions` (≤ 6, with server-side `mapsTo`), `summaries` per category, `disclaimer`, optional `wa.me`
+link, `is_current` (at most one). Content is CMS/seed only.
+
 ## Indexes (non-PK)
 
 | Table | Index | Serves |
@@ -133,6 +137,7 @@ Current keys: `auth {max_active_devices: 2}`, `onboarding {max_applicants: 10}`,
 | applicants | `applicants_relationship_code_idx` | FK cover (0003) |
 | applicant_stage_events | `(applicant_id, created_at DESC)` | history |
 | relationships | `relationships_active_idx (sort_order) WHERE is_active` | picker |
+| eligibility_check_versions | `…_version_uq`, `…_current_uq (is_current) WHERE is_current` | uniqueness, current lookup |
 | sources | `sources_url_uq`, `sources_sweep_idx (last_checked_at) WHERE is_active` | uniqueness, daily hash sweep |
 | source_flags | `source_flags_open_uq (source_id) WHERE open` | badge lookup + FK cover + one-open-per-source |
 | source_flags | `source_flags_resolved_idx (resolved_at) WHERE status <> 'open'` | retention sweep |

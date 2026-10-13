@@ -16,6 +16,7 @@ import {
 import type { Db } from '../../db/client.js';
 import { AppError } from '../../lib/errors.js';
 import { CHECKLIST_CONFIG_FALLBACK, readConfig } from '../../lib/app-config.js';
+import { requirementApplies } from './applicability.js';
 import { assertWritable, resolveAccess, type AccessInputs } from '../applicants/access.js';
 
 // ---------------------------------------------------------------------------
@@ -46,18 +47,12 @@ export async function generateCase(
     INSERT INTO applicant_requirements
            (user_id, applicant_id, requirement_id, is_applicable, seen_requirement_version)
     SELECT a.user_id, a.id, r.id,
-           (CASE a.relationship_category
-              WHEN 'spouse' THEN r.applies_spouse
-              WHEN 'child'  THEN r.applies_child
-              WHEN 'parent' THEN r.applies_parent
-            END)
-           AND (r.applies_locations IS NULL OR a.current_location = ANY (r.applies_locations))
-           AND (r.requires_nulla_osta_status IS NULL
-                OR a.nulla_osta_status = ANY (r.requires_nulla_osta_status))
-           AND (r.min_age_years IS NULL OR a.date_of_birth IS NULL
-                OR date_part('year', age(CURRENT_DATE, a.date_of_birth)) >= r.min_age_years)
-           AND (r.max_age_years IS NULL OR a.date_of_birth IS NULL
-                OR date_part('year', age(CURRENT_DATE, a.date_of_birth)) <= r.max_age_years),
+           ${requirementApplies({
+             category: sql`a.relationship_category`,
+             location: sql`a.current_location`,
+             nullaOstaStatus: sql`a.nulla_osta_status`,
+             dateOfBirth: sql`a.date_of_birth`,
+           })},
            r.version
       FROM applicants a
      CROSS JOIN requirements r

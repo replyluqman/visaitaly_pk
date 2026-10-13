@@ -1,0 +1,14 @@
+{
+  "_comment": "User-facing copy must never read as a verdict or advice (PRD §18 Risk 1, Screens §Copy Rules). Case-insensitive substrings. Enforced by `pnpm preflight` and test/eligibility.test.ts.",
+  "forbiddenPhrases": [
+    "you are eligible",
+    "you will qualify",
+    "you qualify",
+    "you will be approved",
+    "we advise",
+    "recommended strategy",
+    "eligibility verdict",
+    "guaranteed to"
+  ],
+  "placeholderMarker": "[DEV PLACEHOLDER]"
+}

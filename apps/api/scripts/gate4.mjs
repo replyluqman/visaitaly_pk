@@ -63,6 +63,14 @@ const RANKED = `
 const { rows: [item] } = await client.query(`SELECT id FROM applicant_requirements WHERE applicant_id = $1 LIMIT 1`, [ap.id]);
 
 const QUERIES = {
+  'quick check: current version': [`SELECT version, questions, summaries, disclaimer, whatsapp_url FROM eligibility_check_versions WHERE is_current`, []],
+  'quick check: typical items': [`
+    SELECT coalesce(r.title->>'en', r.title->>'en'), coalesce(r.purpose->>'en', r.purpose->>'en'), count(*) OVER ()::int
+      FROM requirements r
+     WHERE r.verification_status='published'
+       AND ((CASE 'spouse'::text WHEN 'spouse' THEN r.applies_spouse WHEN 'child' THEN r.applies_child WHEN 'parent' THEN r.applies_parent END)
+            AND (r.applies_locations IS NULL OR 'pakistan'::text = ANY (r.applies_locations)))
+     ORDER BY r.stage_order, r.sort_order, r.id LIMIT 3`, []],
   'checklist list (free preview, page 1)': [`
     WITH ranked AS (${RANKED})
     SELECT *, now() AS synced_at FROM ranked WHERE (is_applicable AND rn <= 3)

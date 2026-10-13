@@ -1,4 +1,10 @@
-# State — Modules 1–3 built and gated · Module 3c (Eligibility Quick Check) / 3b (documents) next
+# State — Modules 1–3 + 3c built and gated · Module 3b (documents + Today) next
+
+## Phase 2b — Module 3c Eligibility Quick Check (done)
+
+Migration `0006`; `apps/api/MODULE-03C-ELIGIBILITY.md`. 110 tests. All copy is data: dev placeholder in
+`seed/seed_dev_eligibility.sql`; `pnpm preflight` blocks placeholder copy and verdict phrases (`copy-rules.json`).
+**Owner action:** lawyer review of the Quick Check copy first (PRD §18); WhatsApp number (PRD §24) → `whatsapp_url`.
 
 ## Phase 2 — Module 3 checklist engine (done, gates 1–5)
 

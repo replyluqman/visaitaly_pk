@@ -25,7 +25,7 @@ requirements, stages and pricing — additive expand-migrations plus relaxing a 
 
 Gates 1–5 have run for Modules 1–3 (`apps/api/MODULE-0N-*.md`). One cross-cutting gap remains for all of them:
 **Worker CPU p99 (10 ms ceiling) is unmeasured** — it needs a deployed staging Worker.
-Eligibility Quick Check (public, CMS-driven) is split out as Module 3c.
+Eligibility Quick Check (public, CMS-driven) shipped as Module 3c (migration 0006).
 
 ## Phases and honest estimates (one full-time developer)
 

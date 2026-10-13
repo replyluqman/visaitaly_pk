@@ -50,3 +50,9 @@ SELECT a.user_id, a.id, r.id,
        r.version, (ARRAY['not_started','in_progress','ready','issue_found'])[1 + (r.sort_order % 4)]
   FROM applicants a CROSS JOIN requirements r;
 UPDATE applicants SET case_generated_at = now();
+
+-- Module 3c: one current Quick Check version.
+TRUNCATE eligibility_check_versions;
+INSERT INTO eligibility_check_versions (version, questions, summaries, disclaimer, is_current, published_at)
+VALUES (1, '[{"id":"who","mapsTo":"relationship_category","text":{"en":"q"},"options":[{"value":"spouse","label":{"en":"s"}}]}]',
+        '{"spouse":{"en":"x"}}', '{"en":"d"}', true, now());

@@ -112,6 +112,22 @@ async function checkDb(client) {
     `SELECT count(*)::int AS n FROM requirements WHERE verification_status = 'published'`);
   if (pubCount[0].n === 0) warn('No published requirements — every new case will be empty.');
 
+  // 2b''. Quick Check copy (highest §18 Risk 1 exposure): not a placeholder, no verdict language.
+  const rules = JSON.parse(await readFile(join(ROOT, 'copy-rules.json'), 'utf8'));
+  const { rows: qc } = await client.query(
+    `SELECT version, questions::text || summaries::text || disclaimer::text AS copy
+       FROM eligibility_check_versions WHERE is_current`);
+  if (qc.length === 0) warn('No current Eligibility Quick Check version published.');
+  for (const r of qc) {
+    const lower = r.copy.toLowerCase();
+    if (r.copy.includes(rules.placeholderMarker)) {
+      fail(`Quick Check v${r.version} is placeholder copy. Publish lawyer-reviewed text.`);
+    }
+    for (const phrase of rules.forbiddenPhrases) {
+      if (lower.includes(phrase)) fail(`Quick Check v${r.version} contains forbidden phrase "${phrase}".`);
+    }
+  }
+
   // 2c. Every document type the app gates on has a current version. Missing
   // text does not error — it silently deadlocks onboarding at
   // disclaimer_pending, which looks like an app bug, not a content gap.

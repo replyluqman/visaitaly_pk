@@ -156,6 +156,15 @@ onboarding is `complete`).
 
 ## Planned (not built — do not call)
 
+### Public (no auth) — Eligibility Quick Check (Module 3c)
+
+| Method | Path | Success | Errors |
+|---|---|---|---|
+| GET | `/v1/public/eligibility-check?locale` | `{version, disclaimer, questions[{id, text, options[{value,label}]}]}`, `Cache-Control: public, max-age=3600` | 404 |
+| POST | `/v1/public/eligibility-check` `{version, answers{questionId: optionValue}}` | `{summary, typicalItems[{title, why}], lockedCount, disclaimer, whatsappUrl}`, `no-store` | 404, 422 (`details.version` ⇒ reload questions) |
+
+Stateless: nothing is stored. All wording is CMS-owned; the result is orientation, never a verdict. Rate limiting is an edge rule.
+
 ### Checklist (Module 3) — all session-authenticated
 
 | Method | Path | Success | Errors |

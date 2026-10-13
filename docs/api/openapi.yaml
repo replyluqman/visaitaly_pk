@@ -72,7 +72,7 @@ paths:
       tags: [public]
       summary: Quick Check question set (Screen 2)
       security: []
-      x-status: planned
+      x-status: live
       x-module: 3
       description: CMS-driven questions. Cached at the edge (Cache-Control public, 1h).
       responses:
@@ -81,7 +81,7 @@ paths:
       tags: [public]
       summary: Orientation result — never a verdict (PRD §11, §18 risk 1)
       security: []
-      x-status: planned
+      x-status: live
       x-module: 3
       description: Stateless. Answers are not persisted server-side. Rate-limited per IP.
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/EligibilityAnswers' } } } }
