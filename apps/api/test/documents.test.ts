@@ -388,6 +388,23 @@ describe('list + delete', () => {
     }
   });
 
+  it('keyset is exact below the millisecond: same-ms rows are neither skipped nor repeated', async () => {
+    const u = await onboarded();
+    const a = await applicant(u);
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i++) ids.push((await upload(u, a, PNG(64 + i))).id);
+    const stamps = ['2030-01-01 00:00:00.123900+00', '2030-01-01 00:00:00.123456+00', '2030-01-01 00:00:00.123100+00'];
+    for (const [i, id] of ids.entries()) await q(`UPDATE documents SET created_at = $2::timestamptz WHERE id = $1`, [id, stamps[i]]);
+    const seen: string[] = [];
+    let cursor: string | null = null;
+    do {
+      const r: any = await as(u)('GET', `/v1/documents?limit=1${cursor ? `&cursor=${cursor}` : ''}`);
+      seen.push(...r.body.items.map((d: any) => d.id));
+      cursor = r.body.nextCursor;
+    } while (cursor);
+    expect(seen).toEqual(ids); // newest (…123900) first
+  });
+
   it('delete removes the R2 object then the row; viewing afterwards is 404', async () => {
     const u = await onboarded();
     const a = await applicant(u);

@@ -21,6 +21,8 @@ const STATUS_BY_CODE: Record<ErrorCode, ContentfulStatusCode> = {
   UPLOAD_TOO_LARGE: 413,
   UPLOAD_QUOTA_EXCEEDED: 413,
   UPLOAD_REJECTED: 422,
+  ADMIN_FORBIDDEN: 403,
+  ADMIN_MFA_REQUIRED: 403,
   VALIDATION_FAILED: 422,
   NOT_FOUND: 404,
   CONFLICT: 409,
@@ -173,6 +175,17 @@ export class AppError extends Error {
   static uploadRejected(): AppError {
     return new AppError(
       ErrorCode.UPLOAD_REJECTED, 'That file could not be accepted. Please upload a JPEG, PNG or PDF.',
+    );
+  }
+
+  /** Not an active admin, or the admin lacks the scope. Admin routes are not an id-enumeration surface. */
+  static adminForbidden(message = 'You do not have access to this.'): AppError {
+    return new AppError(ErrorCode.ADMIN_FORBIDDEN, message);
+  }
+
+  static adminMfaRequired(): AppError {
+    return new AppError(
+      ErrorCode.ADMIN_MFA_REQUIRED, 'Two-factor authentication is required for admin access.',
     );
   }
 

@@ -1,4 +1,11 @@
-# State — Modules 1–3, 3b, 3c built and gated · Module 4 (CMS) next
+# State — Modules 1–3, 3b, 3c, 4a built and gated · Module 4b (CMS + verification workflow) next
+
+## Phase 3a — Module 4a Admin foundation (done)
+
+Migration `0008`; ADR 0012; `apps/api/MODULE-04A-ADMIN.md`. **173 tests.** Admin tokens come from a separate Firebase project (proven with real signed JWTs);
+MFA via config; pre-registration + link-on-verified-email; audit log append-only, written in the action's transaction.
+Found+fixed while building it: keyset cursors lost sub-millisecond precision and could skip/repeat rows (also fixed in the 3b documents list).
+**Owner actions:** create the 3 admin Firebase projects + enrol MFA; run `scripts/create-super-admin.mjs` per environment.
 
 ## Phase 2c — Module 3b Documents (R2) & Today (done)
 

@@ -5,3 +5,4 @@ export * from './applicant.types.js';
 export * from './checklist.types.js';
 export * from './eligibility.types.js';
 export * from './document.types.js';
+export * from './admin.types.js';

@@ -25,5 +25,21 @@ vi.mock('../src/lib/firebase.js', async (orig) => {
         emailVerified: true,
       };
     },
+    /**
+     * Admin tokens: `Bearer admin:<uid>:<email>:<emailVerified 1|0>:<mfa 1|0>`. The REAL audience
+     * separation (user token vs admin project) is proven separately in admin-token.test.ts with
+     * genuinely signed JWTs.
+     */
+    verifyAdminIdToken: async (header: string | undefined) => {
+      if (!header) throw AppError.unauthenticated('Missing Authorization header.');
+      const [prefix, uid, email, verified, mfa] = header.replace(/^Bearer\s+/i, '').trim().split(':');
+      if (prefix !== 'admin' || !uid) throw AppError.unauthenticated('Session expired. Please sign in again.');
+      return {
+        uid,
+        email: email ? email.toLowerCase() : null,
+        emailVerified: verified !== '0',
+        mfa: mfa === '1',
+      };
+    },
   };
 });

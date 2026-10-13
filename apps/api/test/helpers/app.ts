@@ -41,6 +41,8 @@ export const SIGNING_KEY = 'test-signing-key-0123456789abcdef0123456789abcdef';
 export const env: Env = {
   DOCS_BUCKET: {} as R2Bucket,
   DOCUMENTS_SIGNING_KEY: SIGNING_KEY,
+  ADMIN_FIREBASE_PROJECT_ID: 'test-admin',
+  ADMIN_REQUIRE_MFA: 'true',
   HYPERDRIVE: { connectionString: testDatabaseUrl() },
   FIREBASE_PROJECT_ID: 'test',
   PUBLIC_JWK_CACHE_KV: {} as KVNamespace,
@@ -50,6 +52,8 @@ export const env: Env = {
 };
 
 export interface CallOpts {
+  /** Admin identity: sends `Bearer admin:…` instead of a user token. */
+  admin?: { uid: string; email?: string; verified?: boolean; mfa?: boolean };
   bytes?: Uint8Array;
   uid?: string;
   email?: string;
@@ -69,6 +73,10 @@ export interface Res<T = any> {
 /** Drives the real Hono app in-process: real middleware, real SQL. */
 export async function call<T = any>(method: string, path: string, o: CallOpts = {}): Promise<Res<T>> {
   const headers: Record<string, string> = { ...(o.headers ?? {}) };
+  if (o.admin) {
+    const a = o.admin;
+    headers.Authorization = `Bearer admin:${a.uid}:${a.email ?? ''}:${a.verified === false ? 0 : 1}:${a.mfa === false ? 0 : 1}`;
+  }
   if (o.uid) headers.Authorization = `Bearer test:${o.uid}${o.email ? `:${o.email}` : ''}`;
   if (o.deviceId) headers['X-Device-Id'] = o.deviceId;
   let body: string | undefined;
@@ -126,3 +134,18 @@ export async function rawFetch(path: string, init: RequestInit = {}): Promise<Re
   const ctx = { waitUntil: () => {}, passThroughOnException: () => {} } as unknown as ExecutionContext;
   return app.fetch(new Request(`http://t${path}`, init), env, ctx);
 }
+
+export interface TestAdmin {
+  uid: string;
+  email: string;
+}
+
+export const newAdminIdentity = (n = randomUUID().slice(0, 8)): TestAdmin => ({
+  uid: `a_${n}`,
+  email: `${n}@admin.example.com`,
+});
+
+/** Authenticated admin request. */
+export const asAdmin = (a: TestAdmin, extra: { mfa?: boolean; verified?: boolean } = {}) =>
+  (method: string, path: string, body?: unknown) =>
+    call(method, path, { admin: { uid: a.uid, email: a.email, ...extra }, body });

@@ -13,6 +13,7 @@ Legend: ⏱ long lead time (weeks) · 🔒 blocks a module · 🚀 blocks public
 - [ ] 🔒 Cloudflare edge rate-limit rules: `/v1/auth/*`, `/v1/public/*`, `/v1/documents/upload-url` (per IP) — none of these are limited in code.
 - [ ] 🔒 Create per env (ENVIRONMENTS.md): Hyperdrive ×3, KV ×3, R2 buckets (docs ×3, backups, logs)
 - [ ] 🔒 Neon project; branches `dev`, `staging`; region co-located with Workers (PRD §4 constraint 1). Paid plan before launch for PITR window
+- [ ] 🔒 Bootstrap the first super admin per env with `scripts/create-super-admin.mjs`, sign in once to link, enrol MFA, then create the other admins in the CMS.
 - [ ] 🔒 Firebase projects: user ×3 (dev/staging/prod) + admin ×3. Enable MFA on admin prod. App Check (Play Integrity) on prod
 - [ ] 🔒 GitHub: Environments `staging` + `production` (required reviewer on production), secrets/vars per ENVIRONMENTS.md
 - [ ] Replace the 9 `REPLACE_ME` values in `apps/api/wrangler.toml`

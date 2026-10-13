@@ -17,8 +17,9 @@ Status values: `Proposed` · `Accepted` · `Superseded by NNNN` · `Rejected`.
 | 0007 | Content never ships in migrations; `preflight` enforces | Accepted |
 | 0008 | `/v1/me` as a top-level, single-round-trip launch snapshot | Accepted |
 | 0009 | Flutter stack: Riverpod, Dio, go_router, freezed | Accepted |
-| 0010 | Checklist engine data design (Module 3) | Proposed — re-confirm |
+| 0010 | Checklist engine data design (Module 3) | Accepted (built on owner instruction; revisit by superseding) |
 | 0011 | Three environments with per-env bindings | Proposed — re-confirm |
+| 0012 | Admin identity (separate Firebase project), RBAC scopes, audit log | Accepted |
 
 ## Template
 

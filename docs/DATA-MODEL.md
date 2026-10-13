@@ -118,6 +118,10 @@ Current keys: `auth {max_active_devices: 2}`, `onboarding {max_applicants: 10}`,
 Versioned Quick Check copy: `questions` (≤ 6, with server-side `mapsTo`), `summaries` per category, `disclaimer`, optional `wa.me`
 link, `is_current` (at most one). Content is CMS/seed only.
 
+### Admin foundation (0008) — see `apps/api/MODULE-04A-ADMIN.md`
+`admins` (nullable unique `firebase_uid`, unique lower-case `email`, `is_super`, `status`, `created_by`), `admin_permissions` PK `(admin_id, scope)`
+with the 12 PRD §16 scopes + `granted_by`, `audit_log` (append-only, trigger-enforced; 12-month retention, then archive to R2 — Module 10 Cron).
+
 ### Documents & Today (0007) — see `apps/api/MODULE-03B-DOCUMENTS-TODAY.md`
 - `documents` — metadata only; bytes live in the private R2 bucket under `r2_key = u/<user>/<doc>`. `status pending|active|deleted`;
   `client_sha256` is client-asserted; **no filename**. ≈ 200k rows at 30k users.
@@ -144,6 +148,9 @@ link, `is_current` (at most one). Content is CMS/seed only.
 | applicants | `applicants_relationship_code_idx` | FK cover (0003) |
 | applicant_stage_events | `(applicant_id, created_at DESC)` | history |
 | relationships | `relationships_active_idx (sort_order) WHERE is_active` | picker |
+| admins | `admins_firebase_uid_uq` (partial), `admins_email_uq`, `admins_created_by_idx`, `admins_list_idx (created_at, id)` | login, first-login link, FK cover, list |
+| admin_permissions | PK `(admin_id, scope)`, `admin_permissions_granted_by_idx` | scope load, FK cover |
+| audit_log | `(target_type, target_id, created_at DESC)`, `(actor_id, created_at DESC)`, `(created_at DESC, id DESC)`, `(action, created_at DESC, id DESC)` | per-target / per-actor history, viewer, filter by action |
 | documents | `documents_user_active_idx (user_id, created_at, id) WHERE active` | My Documents cursor list |
 | documents | `documents_applicant_idx (applicant_id, created_at, id) WHERE active` | per-applicant list, FK cover |
 | documents | `documents_item_idx (applicant_requirement_id) WHERE active` | item count/detail, FK cover |
@@ -175,6 +182,8 @@ CI asserts every FK has a covering index (leading column).
 | applicant_requirements | ≈ 1.9M | life of applicant (CASCADE) |
 | requirements, sources | tens–low hundreds | CMS catalogue; archived, never deleted |
 | source_flags | a few per source per year | resolved rows purged after 24 months |
+| audit_log | ≈ 0.5M / year at a busy-admin volume | 12 months hot (trigger-enforced), then R2 archive |
+| admins | tens | for life (disabled, never deleted) |
 | documents | ≈ 200k | `pending` purged after 2× URL TTL; `deleted` after 30 days; `active` with the applicant |
 | next_actions | ≈ 75k (one per applicant) | overwritten in place |
 

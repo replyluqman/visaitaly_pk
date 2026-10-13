@@ -20,7 +20,7 @@ be able to touch a production row.
 | Seeds | dev seeds allowed | dev seeds allowed | **never** (preflight blocks draft legal) |
 | Deploy trigger | manual | push to `main` | tag `v*` + required reviewer |
 
-Admin users live in a **separate Firebase project** (ERD Module 11): a user ID token
+Worker vars `ADMIN_FIREBASE_PROJECT_ID` (never equal to `FIREBASE_PROJECT_ID` — `preflight` fails it) and `ADMIN_REQUIRE_MFA="true"` (staging/prod — `preflight` fails anything else). First super admin: `DATABASE_URL=<direct url> node apps/api/scripts/create-super-admin.mjs owner@company.com`, then that person signs in to the admin project with that verified email. Admin users live in a **separate Firebase project** (ERD Module 11): a user ID token
 can never validate against admin routes, even if a scope check is forgotten.
 
 Neon: staging is a **branch of production schema, not data**. Never create staging

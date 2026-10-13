@@ -13,6 +13,15 @@ export interface Env {
   /** Firebase project that issues the ID tokens we verify. Not a secret. */
   FIREBASE_PROJECT_ID: string;
 
+  /**
+   * Firebase project that issues ADMIN tokens — deliberately NOT the user project (ADR 0012), so a
+   * user token (audience = user project) can never authenticate an admin route.
+   */
+  ADMIN_FIREBASE_PROJECT_ID: string;
+
+  /** 'true' in staging/production: admin tokens must carry a second factor. `pnpm preflight` enforces it. */
+  ADMIN_REQUIRE_MFA: string;
+
   /** KV namespace caching Google's public JWKs so we don't refetch per request. */
   PUBLIC_JWK_CACHE_KV: KVNamespace;
   /** Cache key inside PUBLIC_JWK_CACHE_KV. */
@@ -39,6 +48,14 @@ export interface Env {
   FIREBASE_AUTH_EMULATOR_HOST: string | undefined;
 }
 
+/** Resolved admin identity, set by requireAdmin. */
+export interface AdminContext {
+  id: string;
+  email: string;
+  isSuper: boolean;
+  scopes: ReadonlySet<string>;
+}
+
 /** Resolved caller identity, set by requireSession. */
 export interface Session {
   /** users.id — the internal uuid, never the Firebase uid. */
@@ -61,6 +78,7 @@ export interface AppEnv {
     db: Db;
     auth: VerifiedToken;
     session: Session;
+    admin: AdminContext;
     store: ObjectStore;
     requestId: string;
   };

@@ -69,3 +69,17 @@ SELECT ar.user_id, ar.applicant_id, ar.id, 'load/' || gen_random_uuid(), 'image/
  WHERE ar.n % 9 = 0;
 TRUNCATE next_actions;
 ANALYZE;
+
+-- Module 4a: 20 admins, 500,000 audit rows (12 months of retention at a busy-admin volume).
+TRUNCATE admins, audit_log CASCADE;
+INSERT INTO admins (firebase_uid, email, is_super, status)
+SELECT 'admin_' || g, 'admin' || g || '@admin.example.com', g = 1, 'active' FROM generate_series(1, 20) g;
+INSERT INTO admin_permissions (admin_id, scope)
+SELECT a.id, s FROM admins a, unnest(ARRAY['verification_manage','read_only','support_manage']) s WHERE NOT a.is_super;
+INSERT INTO audit_log (actor_type, actor_id, action, target_type, target_id, metadata, created_at)
+SELECT 'admin', (SELECT id FROM admins WHERE firebase_uid = 'admin_' || (1 + g % 20)),
+       (ARRAY['requirement.publish','case.lookup','admin.update','source.flag.resolve'])[1 + g % 4],
+       (ARRAY['requirement','user','admin','source'])[1 + g % 4], (g % 5000)::text, '{}'::jsonb,
+       now() - make_interval(secs => g * 60)
+  FROM generate_series(1, 500000) g;
+ANALYZE;

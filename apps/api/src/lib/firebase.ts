@@ -1,4 +1,4 @@
-import { Auth, WorkersKVStoreSingle } from 'firebase-auth-cloudflare-workers';
+import { Auth, WorkersKVStoreSingle, type KeyStorer } from 'firebase-auth-cloudflare-workers';
 import type { Env } from '../env.js';
 import { AppError } from './errors.js';
 
@@ -58,6 +58,72 @@ export async function verifyFirebaseIdToken(
   } catch {
     // Expired, wrong project, bad signature — all the same to the client:
     // re-authenticate. Never echo the underlying reason.
+    throw AppError.unauthenticated('Session expired. Please sign in again.');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// admin tokens — a SEPARATE Firebase project (ADR 0012)
+// ---------------------------------------------------------------------------
+
+export interface VerifiedAdminToken {
+  uid: string;
+  email: string | null;
+  emailVerified: boolean;
+  /** The token carries `firebase.sign_in_second_factor` (the admin completed MFA). */
+  mfa: boolean;
+}
+
+/**
+ * `Auth.getOrInitialize` is a process-wide singleton that IGNORES the project id after the
+ * first call, so using it for a second project would silently verify admin tokens against the
+ * user project (or the reverse). The admin verifier therefore builds its own BaseAuth, cached
+ * per project id.
+ */
+const adminAuthByProject = new Map<string, Auth>();
+
+/**
+ * The library marks `Auth`'s constructor private precisely to force the singleton; the cast below
+ * is the one deliberate escape from that. `test/admin-token.test.ts` verifies against REAL tokens
+ * that a token for the user project is rejected here and vice versa — if a library upgrade ever
+ * changes the constructor, that test fails.
+ */
+const AuthCtor = Auth as unknown as new (projectId: string, keyStore: KeyStorer) => Auth;
+
+export function adminAuthFor(projectId: string, keyStore: KeyStorer): Auth {
+  let auth = adminAuthByProject.get(projectId);
+  if (!auth) {
+    auth = new AuthCtor(projectId, keyStore);
+    adminAuthByProject.set(projectId, auth);
+  }
+  return auth;
+}
+
+function adminAuth(env: Env): Auth {
+  return adminAuthFor(
+    env.ADMIN_FIREBASE_PROJECT_ID,
+    // Separate cache key: the admin project's JWKs must not overwrite the user project's.
+    WorkersKVStoreSingle.getOrInitialize(`${env.PUBLIC_JWK_CACHE_KEY}:admin`, env.PUBLIC_JWK_CACHE_KV),
+  );
+}
+
+export async function verifyAdminIdToken(
+  authorizationHeader: string | undefined,
+  env: Env,
+): Promise<VerifiedAdminToken> {
+  if (!authorizationHeader) throw AppError.unauthenticated('Missing Authorization header.');
+  const jwt = authorizationHeader.replace(/^Bearer\s+/i, '').trim();
+  if (!jwt) throw AppError.unauthenticated('Malformed Authorization header.');
+
+  try {
+    const token = await adminAuth(env).verifyIdToken(jwt, false, libraryEnv(env));
+    return {
+      uid: token.uid,
+      email: typeof token.email === 'string' ? token.email.toLowerCase() : null,
+      emailVerified: token.email_verified === true,
+      mfa: typeof token.firebase?.sign_in_second_factor === 'string',
+    };
+  } catch {
     throw AppError.unauthenticated('Session expired. Please sign in again.');
   }
 }

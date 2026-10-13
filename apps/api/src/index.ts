@@ -17,6 +17,7 @@ import { publicRoutes } from './modules/eligibility/eligibility.routes.js';
 import { documentRoutes } from './modules/documents/documents.routes.js';
 import { purgeStaleDocuments } from './modules/documents/documents.service.js';
 import { refreshNextActions } from './modules/today/today.service.js';
+import { adminRoutes } from './modules/admin/admin.routes.js';
 import { todayRoutes } from './modules/today/today.routes.js';
 import { applicantCaseRoutes, checklistRoutes } from './modules/checklist/checklist.routes.js';
 
@@ -91,6 +92,7 @@ export function createApp(deps: AppDeps = {}): Hono<AppEnv> {
   app.route('/v1/checklist', checklistRoutes);
   app.route('/v1/documents', documentRoutes);
   app.route('/v1/today', todayRoutes);
+  app.route('/v1/admin', adminRoutes);
 
   // ---------------------------------------------------------------------------
   // errors

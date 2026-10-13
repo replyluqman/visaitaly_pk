@@ -50,6 +50,8 @@ only on `VALIDATION_FAILED`. Quote `requestId` in support tickets.
 | `UPLOAD_TOO_LARGE` | 413 | no | File over the per-file cap — message states it. |
 | `UPLOAD_QUOTA_EXCEEDED` | 413 | no | Storage limit reached — offer to delete files. |
 | `UPLOAD_REJECTED` | 422 | no | Object failed verification and was discarded — ask the user to re-pick. |
+| `ADMIN_FORBIDDEN` | 403 | no (CMS) | Not an active admin / missing the scope — hide the screen. |
+| `ADMIN_MFA_REQUIRED` | 403 | no (CMS) | Prompt second-factor enrolment, then retry. |
 | `VALIDATION_FAILED` | 422 | no | Show `details` per field. |
 | `NOT_FOUND` | 404 | no | Item gone or not yours. |
 | `CONFLICT` | 409 | no | Show message. |
@@ -167,6 +169,13 @@ onboarding is `complete`).
 | POST | `/v1/public/eligibility-check` `{version, answers{questionId: optionValue}}` | `{summary, typicalItems[{title, why}], lockedCount, disclaimer, whatsappUrl}`, `no-store` | 404, 422 (`details.version` ⇒ reload questions) |
 
 Stateless: nothing is stored. All wording is CMS-owned; the result is orientation, never a verdict. Rate limiting is an edge rule.
+
+### Admin (Module 4a) — Bearer = Firebase ID token from the ADMIN project
+
+`GET /v1/admin/me` · `GET|POST /v1/admin/admins` · `PATCH /v1/admin/admins/:id` (super only) · `GET /v1/admin/audit-log` (any active admin).
+`AdminProfile {id, email, displayName, isSuper, status, scopes[], linked, lastLoginAt, createdAt}`. Denial is `403 ADMIN_FORBIDDEN` (not 404 —
+admin routes are not an id-enumeration surface); a token without a second factor gets `403 ADMIN_MFA_REQUIRED` when MFA is enforced.
+Admins are pre-registered by a super admin and link on first sign-in with a verified matching email; there is no signup. List endpoints are keyset-paginated.
 
 ### Documents & Today (Module 3b) — session-authenticated unless noted
 

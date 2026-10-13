@@ -11,6 +11,7 @@ import type { Db } from '../../db/client.js';
 import { AppError } from '../../lib/errors.js';
 import { UPLOADS_CONFIG_FALLBACK, readConfig } from '../../lib/app-config.js';
 import type { ObjectStore } from '../../lib/storage.js';
+import { decodeTsCursor, encodeTsCursor } from '../../lib/cursor.js';
 import { signDocumentUrl } from '../../lib/signed-url.js';
 import { assertWritable, loadApplicantAccess } from '../applicants/access.js';
 import { assertItemVisible } from '../checklist/checklist.service.js';
@@ -218,7 +219,7 @@ export async function listDocuments(
   const cfg = await readConfig(db, 'uploads', UPLOADS_CONFIG_FALLBACK);
   let cursorClause = sql``;
   if (q.cursor) {
-    const [at, id] = decodeCursor(q.cursor);
+    const [at, id] = decodeTsCursor(q.cursor);
     cursorClause = sql`AND (d.created_at, d.id) < (${at}::timestamptz, ${id}::uuid)`;
   }
   const rows = await db.execute<DocumentRow>(sql`
@@ -234,31 +235,12 @@ export async function listDocuments(
   const last = page[page.length - 1];
   return {
     items: page.map((r) => toDocument(r)),
-    nextCursor: rows.rows.length > q.limit && last ? encodeCursor(last) : null,
+    nextCursor: rows.rows.length > q.limit && last ? encodeTsCursor(last.created_at_raw, last.id) : null,
     quota: {
       usedBytes: await usedBytes(db, userId, cfg.upload_url_ttl_seconds),
       maxBytes: cfg.max_bytes_per_user,
     },
   };
-}
-
-const encodeCursor = (r: DocumentRow) =>
-  Buffer.from(JSON.stringify([new Date(r.created_at).toISOString(), r.id])).toString('base64url');
-
-function decodeCursor(raw: string): [string, string] {
-  try {
-    const v: unknown = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'));
-    if (
-      Array.isArray(v) && v.length === 2 && typeof v[0] === 'string' && typeof v[1] === 'string' &&
-      !Number.isNaN(Date.parse(v[0])) &&
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v[1])
-    ) {
-      return [v[0], v[1]];
-    }
-  } catch {
-    // fall through
-  }
-  throw AppError.validation({ cursor: ['Invalid cursor.'] });
 }
 
 /** Metadata only. 404 for "not yours" and "does not exist" alike. */

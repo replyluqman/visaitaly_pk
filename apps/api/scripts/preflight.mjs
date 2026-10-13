@@ -68,6 +68,18 @@ async function checkWrangler() {
   if (TARGET_ENV !== 'development' && /FIREBASE_AUTH_EMULATOR_HOST/.test(scoped)) {
     fail(`wrangler.toml [${TARGET_ENV}] declares FIREBASE_AUTH_EMULATOR_HOST (unsigned tokens accepted).`);
   }
+  // Admin identity (ADR 0012): MFA on, and a Firebase project that is NOT the user project —
+  // otherwise a user token would authenticate admin routes.
+  if (TARGET_ENV !== 'development') {
+    const grab = (k) => scoped.match(new RegExp(`^${k}\\s*=\\s*"([^"]*)"`, 'm'))?.[1];
+    if (grab('ADMIN_REQUIRE_MFA') !== 'true') {
+      fail(`wrangler.toml [${TARGET_ENV}] must set ADMIN_REQUIRE_MFA = "true".`);
+    }
+    const user = grab('FIREBASE_PROJECT_ID');
+    const admin = grab('ADMIN_FIREBASE_PROJECT_ID');
+    if (!admin) fail(`wrangler.toml [${TARGET_ENV}] has no ADMIN_FIREBASE_PROJECT_ID.`);
+    else if (admin === user) fail(`ADMIN_FIREBASE_PROJECT_ID equals FIREBASE_PROJECT_ID in [${TARGET_ENV}] — admin must be a separate project.`);
+  }
   // A secret in the committed config is the one mistake with no clean recovery:
   // it is in git history the moment it is pushed.
   if (/(?:secret|private_key|password|api_key)\s*=/i.test(toml)) {

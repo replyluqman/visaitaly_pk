@@ -39,6 +39,9 @@ head_sampling_rate = 1
 [vars]
 ENVIRONMENT = "development"
 FIREBASE_PROJECT_ID = "REPLACE_ME_firebase_project_id_dev"
+# Admin tokens come from a SEPARATE Firebase project (ADR 0012). Never the same id as above.
+ADMIN_FIREBASE_PROJECT_ID = "REPLACE_ME_admin_firebase_project_id_dev"
+ADMIN_REQUIRE_MFA = "false"
 PUBLIC_JWK_CACHE_KEY = "firebase-public-jwks"
 
 # Pooled Neon connection. PRD §4 — mandatory, not optional.
@@ -74,6 +77,8 @@ name = "visaitaly-api-staging"
 [env.staging.vars]
 ENVIRONMENT = "staging"
 FIREBASE_PROJECT_ID = "REPLACE_ME_firebase_project_id_staging"
+ADMIN_FIREBASE_PROJECT_ID = "REPLACE_ME_admin_firebase_project_id_staging"
+ADMIN_REQUIRE_MFA = "true"
 PUBLIC_JWK_CACHE_KEY = "firebase-public-jwks"
 
 [[env.staging.hyperdrive]]
@@ -98,6 +103,8 @@ name = "visaitaly-api"
 [env.production.vars]
 ENVIRONMENT = "production"
 FIREBASE_PROJECT_ID = "REPLACE_ME_firebase_project_id_prod"
+ADMIN_FIREBASE_PROJECT_ID = "REPLACE_ME_admin_firebase_project_id_prod"
+ADMIN_REQUIRE_MFA = "true"
 PUBLIC_JWK_CACHE_KEY = "firebase-public-jwks"
 
 [[env.production.hyperdrive]]

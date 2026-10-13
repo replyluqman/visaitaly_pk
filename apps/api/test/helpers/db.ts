@@ -20,7 +20,7 @@ export async function closePool(): Promise<void> {
  */
 export async function resetDb(): Promise<void> {
   await testPool().query(
-    'TRUNCATE users, legal_versions, requirements, sources, source_flags RESTART IDENTITY CASCADE',
+    'TRUNCATE users, legal_versions, requirements, sources, source_flags, admins, audit_log RESTART IDENTITY CASCADE',
   );
 }
 
@@ -116,4 +116,19 @@ export async function seedCatalogue(reqs: Req[] = TEST_REQUIREMENTS): Promise<Ca
     ids[r.code] = row!.id;
   }
   return { sourceId: src!.id, ids };
+}
+
+/** Inserts an already-linked admin directly (the bootstrap path used by scripts/create-super-admin.mjs). */
+export async function seedAdmin(
+  a: { uid: string; email: string },
+  opts: { isSuper?: boolean; scopes?: string[]; status?: string } = {},
+): Promise<string> {
+  const [row] = await q<{ id: string }>(
+    `INSERT INTO admins (firebase_uid, email, is_super, status) VALUES ($1,$2,$3,$4) RETURNING id`,
+    [a.uid, a.email, opts.isSuper ?? false, opts.status ?? 'active'],
+  );
+  for (const scope of opts.scopes ?? []) {
+    await q(`INSERT INTO admin_permissions (admin_id, scope) VALUES ($1,$2)`, [row!.id, scope]);
+  }
+  return row!.id;
 }

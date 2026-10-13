@@ -25,7 +25,10 @@ Rule: any change to `docs/API-CONTRACT.md` gets a line here, and anything that b
 
 - **Module 3b — documents & Today.** `POST /v1/documents/upload-url`, `PUT|GET /v1/documents/:id/content` (HMAC capability URLs, no session), `POST /v1/documents/:id/complete`, `GET /v1/documents[/:id]`, `DELETE /v1/documents/:id`, `GET /v1/today`. Migration `0007` (`documents`, `next_actions`, `app_config` `uploads`/`today`). New codes `UPLOAD_TOO_LARGE`/`UPLOAD_QUOTA_EXCEEDED` (413), `UPLOAD_REJECTED` (422). `ChecklistItem.documentCount` is now real and `ChecklistItemDetail.documents` populated. Worker gains an R2 binding (`DOCS_BUCKET`), the `DOCUMENTS_SIGNING_KEY` secret and a `*/10` cron (`scheduled`: Today materialisation + document retention). Today's actions are structured (no server prose) — `TodayResponse` in `openapi.yaml` changed from the planned prose shape before any client shipped.
 
+- **Module 4a — admin foundation.** `GET /v1/admin/me`, `GET|POST|PATCH /v1/admin/admins`, `GET /v1/admin/audit-log`; migration `0008` (`admins`, `admin_permissions`, `audit_log`); `requireAdmin(scope, access)`; admin tokens verified against a **separate Firebase project** (`ADMIN_FIREBASE_PROJECT_ID`, `ADMIN_REQUIRE_MFA`); `scripts/create-super-admin.mjs`; ADR 0012. New codes `ADMIN_FORBIDDEN`, `ADMIN_MFA_REQUIRED`.
+
 ### Fixed
+- **Keyset pagination skipped/repeated rows that share a millisecond** (cursor was rebuilt from a ms-precision JS Date). Timestamps now travel as exact Postgres text (`lib/cursor.ts`); affected the Module 3b documents list, fixed before any client shipped.
 - `createDb` now awaits `client.connect()`; previously every query hung.
 - `POST /v1/auth/session` on a deleted account returns `USER_DELETED` (403) without rewriting PII.
 - `X-Request-Id` response header on every response.

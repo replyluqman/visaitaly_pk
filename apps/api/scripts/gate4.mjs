@@ -157,6 +157,22 @@ const REFRESH = `
 `;
 
 const QUERIES = {
+  'admin: auth lookup + scopes': [`
+    SELECT a.id, a.email, a.is_super, a.status, coalesce(array_agg(p.scope) FILTER (WHERE p.scope IS NOT NULL), '{}')
+      FROM admins a LEFT JOIN admin_permissions p ON p.admin_id = a.id WHERE a.firebase_uid = 'admin_7' GROUP BY a.id`, []],
+  'admin: link by email': [`UPDATE admins SET last_login_at = now() WHERE email = 'admin7@admin.example.com' AND firebase_uid IS NULL AND status='active'`, []],
+  'audit: newest page': [`
+    SELECT id, actor_type, action, metadata, created_at, created_at::text AS created_at_raw FROM audit_log
+     ORDER BY created_at DESC, id DESC LIMIT 51`, []],
+  'audit: by target': [`
+    SELECT id FROM audit_log WHERE target_type = 'requirement' AND target_id = '42' ORDER BY created_at DESC, id DESC LIMIT 51`, []],
+  'audit: by actor (keyset)': [`
+    SELECT id FROM audit_log WHERE actor_id = (SELECT id FROM admins WHERE firebase_uid='admin_3')
+       AND (created_at, id) < (now(), 'ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid)
+     ORDER BY created_at DESC, id DESC LIMIT 51`, []],
+  'audit: rare action': [`SELECT id FROM audit_log WHERE action = 'admin.bootstrap_super' ORDER BY created_at DESC, id DESC LIMIT 51`, []],
+  'audit: filter by action only': [`
+    SELECT id FROM audit_log WHERE action = 'case.lookup' ORDER BY created_at DESC, id DESC LIMIT 51`, []],
   'documents: list (cursor, newest first)': [`
     SELECT d.id, d.applicant_id, d.mime, d.size_bytes::int, d.created_at FROM documents d
      WHERE d.user_id=$1 AND d.status='active' AND (d.created_at, d.id) < (now(), 'ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid)
