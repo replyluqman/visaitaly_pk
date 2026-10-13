@@ -105,7 +105,6 @@ Current keys: `auth {max_active_devices: 2}`, `onboarding {max_applicants: 10}`,
 | Table | Index | Serves |
 |---|---|---|
 | users | `users_firebase_uid_uq` | login upsert |
-| users | `users_email_lower_uq` (partial) | uniqueness |
 | devices | `devices_user_device_uq (user_id, device_id)` | session lookup, upsert |
 | devices | `devices_user_active_idx (user_id, last_login_at DESC) WHERE active` | eviction, device list |
 | devices | `devices_fcm_token_idx (user_id) WHERE active AND fcm_token NOT NULL` | push fan-out |
@@ -141,11 +140,9 @@ recorded here and in the next migration's header comment.
 
 ## Known model risks
 
-1. **Email uniqueness vs Firebase.** If a user deletes their Firebase account and
-   signs up again with the same email, Firebase issues a new uid; the upsert inserts
-   a second `users` row with the same email and hits `users_email_lower_uq` → 500 on
-   login. Decide before launch: drop the unique index (identity is `firebase_uid`), or
-   look up by email and re-link. Recommendation: drop it — email is not the identity.
+1. ~~Email uniqueness vs Firebase~~ — **resolved in 0004**: `users_email_lower_uq` dropped;
+   identity is `firebase_uid`. Email is not unique and must never be used as a lookup key
+   for authorisation.
 2. **Deleted-user login re-populates PII** — see `API-CONTRACT.md` §Session.
 3. `published_by` / `updated_by` have no FK until the admin table exists — add
    `NOT VALID` FKs then validate, per expand–contract.

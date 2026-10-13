@@ -13,7 +13,7 @@ requirements, stages and pricing — additive expand-migrations plus relaxing a 
 |---|---|---|---|---|---|
 | 1 | Auth + device sessions | built (0001) | G1 ✓ · G4 partial · G2/G3/G5 ✗ | not started | — |
 | 2 | Legal gate + applicant profiles + onboarding | built (0002, 0003) | G1 ✓ · G4 partial · G2/G3/G5 ✗ | not started | — |
-| 3 | Checklist engine (5 statuses, badges, non-applicable with reason) + Eligibility Quick Check | next (0004) | — | 8–12, 2 | — |
+| 3 | Checklist engine (5 statuses, badges, non-applicable with reason) + Eligibility Quick Check | next (0005) | — | 8–12, 2 | — |
 | 3b | Documents (R2 uploads) + Today / next actions | | | 9, 14 | — |
 | 4 | CMS / content + verification workflow + hash-change flags | | | 15 | 39, 40 |
 | 5 | Notifications — Cron generation + FCM + notification centre | | | 13 | — |

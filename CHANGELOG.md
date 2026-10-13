@@ -12,6 +12,7 @@ Rule: any change to `docs/API-CONTRACT.md` gets a line here, and anything that b
 - `[observability]` (Workers Logs) enabled in `wrangler.toml`.
 - **Module 1 — auth & devices.** `POST /v1/auth/session`, `GET /v1/me`, `GET /v1/devices`, `DELETE /v1/devices/:deviceId`. Firebase ID-token verification, 2-device rule with silent eviction, remote sign-out. Migration `0001`.
 - **Module 2 — legal gate, onboarding, applicants.** `/v1/legal/*`, `PATCH /v1/onboarding/applicant-count`, `GET /v1/reference/relationships`, `/v1/applicants` CRUD + `PATCH /v1/applicants/:id/stage`. Migration `0002`.
+- Migration `0004` — drops `users_email_lower_uq`; email is no longer unique (identity is `firebase_uid`). Fixes 500 on re-signup after Firebase account deletion. Rollback fails if duplicate live emails exist (see `.down.sql`).
 - Migration `0003` — covering indexes for `applicants.relationship_code` and `legal_acceptances.legal_version_id`.
 - Tooling: `scripts/migrate.mjs` (up/down/status, checksum-guarded; `pnpm db:status`), `scripts/preflight.mjs` (production deploy gate), CI workflow, Docker Compose Postgres, Dependabot, PR/issue templates.
 - Claude Code: `.claude/commands/` (`/new-module`, `/migration`, `/gate-check`, `/security-review`), `.claude/settings.json` deny rules for secrets and production deploys; `apps/mobile/CLAUDE.md`.
@@ -34,7 +35,6 @@ Rule: any change to `docs/API-CONTRACT.md` gets a line here, and anything that b
 
 ### Known gaps
 - `GET /v1/applicants` is not paginated — bounded by `app_config.onboarding.max_applicants`; documented exemption in `API-CONTRACT.md`.
-- Re-signup with the same email after Firebase account deletion fails with 500 (`users_email_lower_uq`).
 - Login does not refuse a deleted account and rewrites its email/name.
 - No `X-Request-Id` response header; no rate limiting.
 - No automated tests yet (Gates 2, 3 and 5 unstarted for Modules 1–2).

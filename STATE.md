@@ -11,7 +11,7 @@
 | Analytics plan, privacy/consent/erasure design, content templates, canned responses draft, owner checklist | `docs/ANALYTICS.md`, `DATA-PRIVACY.md`, `content/`, `LAUNCH-CHECKLIST.md` |
 
 Two parallel working copies of this project were merged on branch `claude/baseline-import`; module numbering follows
-`docs/ROADMAP.md` (checklist = Module 3, migration 0004).
+`docs/ROADMAP.md` (checklist = Module 3, migration 0005).
 
 **Blocking decisions for the owner:** ERD **O1** (payable currency — blocks Module 6), courier partner, lawyer engagement,
 verified requirement content. ADR 0010 and 0011 are still **Proposed**.
@@ -68,7 +68,7 @@ tables are small when this runs. If a future index targets a large table, it
 belongs in its own migration run manually outside the transactional runner —
 noted in the migration header.
 
-**The checklist engine is now `0004`, not `0003`.**
+**The checklist engine is now `0005`, not `0003`.**
 
 ## B — resolved: placeholder legal text out of the migration chain
 
@@ -130,8 +130,7 @@ DELETE /v1/applicants/:id             PATCH /v1/applicants/:id/stage
 
 ### P1 — before any deployed environment
 1. ~~Emulator bypass guard~~ — **done** (`libraryEnv()` + `preflight`).
-2. **Email uniqueness.** Decide: drop `users_email_lower_uq` (recommended — identity is
-   `firebase_uid`) or re-link by email. Needs a migration (`DATA-MODEL.md` risk 1).
+2. ~~Email uniqueness~~ — **done** (migration 0004 drops `users_email_lower_uq`).
 3. ~~`preflight` scope~~ — **done** (`--env`).
 
 ### P2 — before launch
@@ -170,7 +169,7 @@ pnpm db:roundtrip                  # against a throwaway *_ci DB
 pnpm api:dev
 ```
 
-## Next — Module 3: checklist engine (migration 0004)
+## Next — Module 3: checklist engine (migration 0005)
 
 Schema draft: `docs/ERD.md` §Module 3. Contract draft: `docs/api/openapi.yaml` (`x-module: 3`).
 
@@ -181,7 +180,7 @@ Design recorded as ADR 0010 (Proposed).
 non-applicable-with-reason output. Fill `generateCase()` in
 `modules/checklist/checklist.service.ts`, set `case_generated_at`.
 
-Decisions (agreed in discussion, re-confirm before writing 0004):
+Decisions (agreed in discussion, re-confirm before writing 0005):
 
 1. The migration carries `requirements` rather than waiting on CMS, and ships
    the final read shape so the CMS migration is purely additive.

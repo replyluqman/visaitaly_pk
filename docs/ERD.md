@@ -3,7 +3,7 @@
 **Scope:** Pakistan → Italy, Family Reunification. Single program, single origin.
 **Status:** Design. Tables marked ✅ exist (migrations 0001–0003). Everything else
 is planned and lands in its module's migration, in build order (PRD §25). Module numbers match
-`docs/ROADMAP.md`; migration numbers are assigned when each is written (checklist engine = `0004`).
+`docs/ROADMAP.md`; migration numbers are assigned when each is written (checklist engine = `0005`).
 **Rules:** `CLAUDE.md` invariants and `docs/SCALE.md` apply to every table here.
 
 ---
@@ -86,7 +86,7 @@ columns listed under each module below.
 
 ---
 
-## Module 3 — Checklist engine (`0004`)
+## Module 3 — Checklist engine (`0005`)
 
 ADR 0010 (Proposed — re-confirm before the migration is written). `requirements` ships with its final read shape
 so the Module 4 CMS migration is additive. Definitions are seed/CMS content, never migration content (ADR 0007).

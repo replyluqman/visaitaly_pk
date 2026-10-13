@@ -1,5 +1,4 @@
 import { pgTable, uuid, text, smallint, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
 
 export const users = pgTable(
   'users',
@@ -25,9 +24,6 @@ export const users = pgTable(
   },
   (t) => ({
     firebaseUidUq: uniqueIndex('users_firebase_uid_uq').on(t.firebaseUid),
-    emailLowerUq: uniqueIndex('users_email_lower_uq')
-      .on(sql`lower(${t.email})`)
-      .where(sql`${t.email} IS NOT NULL AND ${t.deletedAt} IS NULL`),
   }),
 );
 

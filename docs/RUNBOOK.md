@@ -49,9 +49,8 @@ No current `disclaimer` row = nobody can pass (content gap, not a bug). Publish 
 
 ## User cannot sign in after deleting and re-creating their account
 
-Known: `users_email_lower_uq` collision (`DATA-MODEL.md` risk 1). Log shows
-`duplicate key … users_email_lower_uq`. Fix the model; do not hand-edit rows without
-recording it.
+Fixed by migration 0004 (the `users_email_lower_uq` index no longer exists). If login
+still fails, look elsewhere; do not hand-edit rows without recording it.
 
 ## Premium shows wrong
 

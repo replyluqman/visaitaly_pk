@@ -104,6 +104,6 @@ Owner and contact list in `docs/runbooks/breach.md` (create before launch).
 
 - **Login must refuse a deleted account before the upsert.** Today `registerSession` writes `email` /
   `display_name` back onto a `status='deleted'` row, undoing the PII wipe (`API-CONTRACT.md` §Session).
-- **Email uniqueness.** `users_email_lower_uq` makes re-signup with the same email after a Firebase deletion
-  fail (new uid, same email). Decision pending: drop the index (identity is `firebase_uid`) — see `STATE.md` P1.
+- **Email uniqueness.** Resolved: migration 0004 dropped `users_email_lower_uq`; re-signup after a Firebase
+  deletion creates a new row (new uid).
 - **Google Play** requires an in-app deletion entry point *and* a public web URL for the request.
