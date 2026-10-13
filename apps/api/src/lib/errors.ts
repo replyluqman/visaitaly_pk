@@ -18,6 +18,9 @@ const STATUS_BY_CODE: Record<ErrorCode, ContentfulStatusCode> = {
   APPLICANT_READ_ONLY: 403,
   PREMIUM_REQUIRED: 402,
   CHECKLIST_CONFLICT: 409,
+  UPLOAD_TOO_LARGE: 413,
+  UPLOAD_QUOTA_EXCEEDED: 413,
+  UPLOAD_REJECTED: 422,
   VALIDATION_FAILED: 422,
   NOT_FOUND: 404,
   CONFLICT: 409,
@@ -152,6 +155,25 @@ export class AppError extends Error {
     message = 'This item changed while you were offline. Please review it.',
   ): AppError {
     return new AppError(ErrorCode.CHECKLIST_CONFLICT, message);
+  }
+
+  static uploadTooLarge(maxBytes: number): AppError {
+    return new AppError(
+      ErrorCode.UPLOAD_TOO_LARGE, `Files can be up to ${Math.floor(maxBytes / 1_048_576)} MB.`,
+    );
+  }
+
+  static uploadQuotaExceeded(): AppError {
+    return new AppError(
+      ErrorCode.UPLOAD_QUOTA_EXCEEDED, 'You have reached your storage limit. Delete a file to upload another.',
+    );
+  }
+
+  /** The object in storage is not what the client declared. It has been discarded. */
+  static uploadRejected(): AppError {
+    return new AppError(
+      ErrorCode.UPLOAD_REJECTED, 'That file could not be accepted. Please upload a JPEG, PNG or PDF.',
+    );
   }
 
   /** An onboarding step was skipped — the client is out of order, not invalid. */

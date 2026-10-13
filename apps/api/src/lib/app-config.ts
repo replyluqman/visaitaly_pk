@@ -45,6 +45,39 @@ export interface ChecklistConfigValue {
   free_preview_items: number;
 }
 
+/** app_config['uploads'] */
+export interface UploadsConfigValue {
+  max_file_bytes: number;
+  max_bytes_per_user: number;
+  upload_url_ttl_seconds: number;
+  view_url_ttl_seconds: number;
+  /** Soft-deleted document rows are purged after this many days. */
+  deleted_retention_days: number;
+  allowed_mimes: string[];
+}
+
+/** app_config['today'] */
+export interface TodayConfigValue {
+  max_actions: number;
+  expiry_window_days: number;
+  /** Applicants refreshed per Cron run, stalest first. */
+  batch_size: number;
+}
+
+export const UPLOADS_CONFIG_FALLBACK: UploadsConfigValue = {
+  max_file_bytes: 10_485_760,
+  max_bytes_per_user: 524_288_000,
+  upload_url_ttl_seconds: 900,
+  view_url_ttl_seconds: 300,
+  deleted_retention_days: 30,
+  allowed_mimes: ['image/jpeg', 'image/png', 'application/pdf'],
+};
+export const TODAY_CONFIG_FALLBACK: TodayConfigValue = {
+  max_actions: 5,
+  expiry_window_days: 30,
+  batch_size: 15000,
+};
+
 export const AUTH_CONFIG_FALLBACK: AuthConfigValue = { max_active_devices: 2 };
 export const ONBOARDING_CONFIG_FALLBACK: OnboardingConfigValue = { max_applicants: 10 };
 export const CHECKLIST_CONFIG_FALLBACK: ChecklistConfigValue = { free_preview_items: 3 };
@@ -59,6 +92,8 @@ export interface AppConfigMap {
   onboarding: OnboardingConfigValue;
   nulla_osta: NullaOstaConfigValue;
   checklist: ChecklistConfigValue;
+  uploads: UploadsConfigValue;
+  today: TodayConfigValue;
 }
 
 export type AppConfigKey = keyof AppConfigMap;

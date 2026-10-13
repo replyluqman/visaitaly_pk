@@ -23,6 +23,8 @@ Rule: any change to `docs/API-CONTRACT.md` gets a line here, and anything that b
 
 - **Module 3c — Eligibility Quick Check.** Public `GET|POST /v1/public/eligibility-check`; migration `0006` (`eligibility_check_versions`); one shared applicability definition for case generation and the Quick Check; `copy-rules.json` + preflight guard on verdict language and placeholder copy.
 
+- **Module 3b — documents & Today.** `POST /v1/documents/upload-url`, `PUT|GET /v1/documents/:id/content` (HMAC capability URLs, no session), `POST /v1/documents/:id/complete`, `GET /v1/documents[/:id]`, `DELETE /v1/documents/:id`, `GET /v1/today`. Migration `0007` (`documents`, `next_actions`, `app_config` `uploads`/`today`). New codes `UPLOAD_TOO_LARGE`/`UPLOAD_QUOTA_EXCEEDED` (413), `UPLOAD_REJECTED` (422). `ChecklistItem.documentCount` is now real and `ChecklistItemDetail.documents` populated. Worker gains an R2 binding (`DOCS_BUCKET`), the `DOCUMENTS_SIGNING_KEY` secret and a `*/10` cron (`scheduled`: Today materialisation + document retention). Today's actions are structured (no server prose) — `TodayResponse` in `openapi.yaml` changed from the planned prose shape before any client shipped.
+
 ### Fixed
 - `createDb` now awaits `client.connect()`; previously every query hung.
 - `POST /v1/auth/session` on a deleted account returns `USER_DELETED` (403) without rewriting PII.

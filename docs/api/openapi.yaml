@@ -364,7 +364,7 @@ paths:
     get:
       tags: [documents]
       summary: My Documents (Screen 14)
-      x-status: planned
+      x-status: live
       x-module: "3b"
       parameters:
         - { name: applicantId, in: query, schema: { type: string, format: uuid } }
@@ -376,28 +376,50 @@ paths:
     post:
       tags: [documents]
       summary: Step 1 — get a short-lived signed PUT URL. Quota + type checked here.
-      x-status: planned
+      x-status: live
       x-module: "3b"
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UploadUrlInput' } } } }
       responses:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/UploadUrlResponse' } } } }
+        '402': { $ref: '#/components/responses/PremiumRequired' }
         '413': { description: 'Quota exceeded or file too large. Code UPLOAD_TOO_LARGE / UPLOAD_QUOTA_EXCEEDED.' }
   /v1/documents/{id}/complete:
     parameters: [ { $ref: '#/components/parameters/Id' } ]
     post:
       tags: [documents]
       summary: Step 2 — confirm upload; server verifies size + magic bytes from R2 head/range read
-      x-status: planned
+      x-status: live
       x-module: "3b"
       responses:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Document' } } } }
         '422': { description: 'Magic bytes do not match declared type. Code UPLOAD_REJECTED.' }
+  /v1/documents/{id}/content:
+    parameters: [ { $ref: '#/components/parameters/Id' }, { name: exp, in: query, required: true, schema: { type: integer } }, { name: sig, in: query, required: true, schema: { type: string } } ]
+    put:
+      tags: [documents]
+      summary: The upload. Capability URL from upload-url — no session. Body = raw bytes; Content-Length and Content-Type must match what was reserved.
+      security: []
+      x-status: live
+      x-module: "3b"
+      responses:
+        '204': { description: stored }
+        '404': { description: 'Bad/expired/wrong-verb signature, or not an open upload — always opaque' }
+        '422': { description: 'UPLOAD_REJECTED — length or type differs from the reservation' }
+    get:
+      tags: [documents]
+      summary: The bytes. Capability URL from GET /v1/documents/{id} (viewUrl) — no session. Streamed, no-store, nosniff.
+      security: []
+      x-status: live
+      x-module: "3b"
+      responses:
+        '200': { description: ok }
+        '404': { description: opaque }
   /v1/documents/{id}:
     parameters: [ { $ref: '#/components/parameters/Id' } ]
     get:
       tags: [documents]
       summary: Metadata + short-lived signed GET URL
-      x-status: planned
+      x-status: live
       x-module: "3b"
       responses:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Document' } } } }
@@ -405,7 +427,7 @@ paths:
     delete:
       tags: [documents]
       summary: Deletes the R2 object, not only the row (SECURITY.md)
-      x-status: planned
+      x-status: live
       x-module: "3b"
       responses:
         '204': { description: deleted }
@@ -415,7 +437,7 @@ paths:
     get:
       tags: [today]
       summary: Top 3–5 actions across applicants, read from next_actions (Screen 9)
-      x-status: planned
+      x-status: live
       x-module: "3b"
       responses:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/TodayResponse' } } } }
@@ -825,12 +847,12 @@ components:
               description: |
                 Live: UNAUTHENTICATED DEVICE_HEADER_MISSING DEVICE_UNKNOWN DEVICE_EVICTED DEVICE_SIGNED_OUT USER_DELETED
                 APPLICANT_LIMIT_REACHED APPLICANT_READ_ONLY LEGAL_ACCEPTANCE_REQUIRED ONBOARDING_STEP_INVALID
-                PREMIUM_REQUIRED CHECKLIST_CONFLICT
+                PREMIUM_REQUIRED CHECKLIST_CONFLICT UPLOAD_TOO_LARGE UPLOAD_QUOTA_EXCEEDED UPLOAD_REJECTED
                 VALIDATION_FAILED NOT_FOUND CONFLICT RATE_LIMITED INTERNAL.
                 Each new code also needs a row in STATUS_BY_CODE (apps/api/src/lib/errors.ts; compiler-enforced) and a
                 decision on whether it is session-terminal. UNAUTHENTICATED: refresh the token once and retry before signing out.
                 Planned (add to packages/shared/src/errors.ts with their module): see x-module on each path
-                UPLOAD_TOO_LARGE UPLOAD_QUOTA_EXCEEDED UPLOAD_REJECTED PRICE_CHANGED APPLICANT_ALREADY_PREMIUM
+                PRICE_CHANGED APPLICANT_ALREADY_PREMIUM
                 ORDER_NOT_AWAITING_PAYMENT ORDER_NOT_PENDING RECEIPT_NOT_READY REFUND_NOT_ELIGIBLE REFUND_ALREADY_OPEN
                 SUPPORT_TOPIC_NOT_ALLOWED REFERRAL_ALREADY_CLAIMED REFERRAL_SELF REFERRAL_TOO_LATE INSUFFICIENT_CREDIT
                 BELOW_MIN_WITHDRAWAL PAYOUT_ACCOUNT_MISSING REAUTH_REQUIRED APP_VERSION_UNSUPPORTED ADMIN_SCOPE_REQUIRED.
@@ -1116,17 +1138,20 @@ components:
           maxItems: 5
           items:
             type: object
+            description: Structured — the client composes the sentence. No server prose.
             properties:
-              kind: { type: string, enum: [expiring, blocking, ready_to_do, waiting_on_us] }
-              title: { type: string }
-              subtitle: { type: string }
+              kind: { type: string, enum: [expiring, blocking, todo] }
+              reason: { type: string, enum: [document_expires, nulla_osta_expires, blocks_submission, issue_found, in_progress, not_started] }
+              title: { type: [string, 'null'], description: CMS requirement title; null for applicant-level actions }
               applicantId: { type: string, format: uuid }
-              deepLink: { type: string }
+              itemId: { type: [string, 'null'], format: uuid }
               dueDate: { type: [string, 'null'], format: date }
+              deepLink: { type: string, description: 'App-relative path, e.g. /checklist/<id>' }
         allClear:
           type: [object, 'null']
-          properties: { nextMilestone: { type: string }, inDays: { type: integer } }
-        computedAt: { type: string, format: date-time }
+          description: Present only when actions is empty.
+          properties: { nextStage: { oneOf: [ { $ref: '#/components/schemas/JourneyStage' }, { type: 'null' } ] } }
+        computedAt: { type: [string, 'null'], format: date-time, description: 'Oldest materialisation among the user''s premium applicants; null = not computed yet' }
 
     Notification:
       type: object

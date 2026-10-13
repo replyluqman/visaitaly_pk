@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { JourneyStage } from './applicant.types.js';
+import type { Document } from './document.types.js';
 
 /** Statuses the server stores and a client may write. `not_applicable` is derived. */
 export const ItemStatus = {
@@ -86,7 +87,7 @@ export interface ChecklistItemDetail extends ChecklistItem {
     document: string | null;
     publishedAt: string | null;
   } | null;
-  documents: never[];
+  documents: Document[];
   canWrite: boolean;
 }
 

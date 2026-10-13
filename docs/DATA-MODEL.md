@@ -118,6 +118,13 @@ Current keys: `auth {max_active_devices: 2}`, `onboarding {max_applicants: 10}`,
 Versioned Quick Check copy: `questions` (≤ 6, with server-side `mapsTo`), `summaries` per category, `disclaimer`, optional `wa.me`
 link, `is_current` (at most one). Content is CMS/seed only.
 
+### Documents & Today (0007) — see `apps/api/MODULE-03B-DOCUMENTS-TODAY.md`
+- `documents` — metadata only; bytes live in the private R2 bucket under `r2_key = u/<user>/<doc>`. `status pending|active|deleted`;
+  `client_sha256` is client-asserted; **no filename**. ≈ 200k rows at 30k users.
+- `next_actions` — one row per applicant (`actions` jsonb, ≤ `max_actions`), overwritten by the Cron Worker.
+- `app_config['uploads']` `{max_file_bytes, max_bytes_per_user, upload_url_ttl_seconds, view_url_ttl_seconds, deleted_retention_days, allowed_mimes}`,
+  `['today']` `{max_actions, expiry_window_days, batch_size}`.
+
 ## Indexes (non-PK)
 
 | Table | Index | Serves |
@@ -137,6 +144,13 @@ link, `is_current` (at most one). Content is CMS/seed only.
 | applicants | `applicants_relationship_code_idx` | FK cover (0003) |
 | applicant_stage_events | `(applicant_id, created_at DESC)` | history |
 | relationships | `relationships_active_idx (sort_order) WHERE is_active` | picker |
+| documents | `documents_user_active_idx (user_id, created_at, id) WHERE active` | My Documents cursor list |
+| documents | `documents_applicant_idx (applicant_id, created_at, id) WHERE active` | per-applicant list, FK cover |
+| documents | `documents_item_idx (applicant_requirement_id) WHERE active` | item count/detail, FK cover |
+| documents | `documents_user_quota_idx (user_id) WHERE active or pending` | quota sum |
+| documents | `documents_expiry_idx (expiry_date) WHERE active AND not null` | Today "expiring", Module 5 reminders |
+| documents | `documents_purge_idx (created_at) WHERE status <> 'active'`, `documents_r2_key_uq` | retention sweep, uniqueness |
+| next_actions | `next_actions_user_idx (user_id)`, `next_actions_computed_idx (computed_at)` | Today read, stalest-first refresh |
 | eligibility_check_versions | `…_version_uq`, `…_current_uq (is_current) WHERE is_current` | uniqueness, current lookup |
 | sources | `sources_url_uq`, `sources_sweep_idx (last_checked_at) WHERE is_active` | uniqueness, daily hash sweep |
 | source_flags | `source_flags_open_uq (source_id) WHERE open` | badge lookup + FK cover + one-open-per-source |
@@ -161,6 +175,8 @@ CI asserts every FK has a covering index (leading column).
 | applicant_requirements | ≈ 1.9M | life of applicant (CASCADE) |
 | requirements, sources | tens–low hundreds | CMS catalogue; archived, never deleted |
 | source_flags | a few per source per year | resolved rows purged after 24 months |
+| documents | ≈ 200k | `pending` purged after 2× URL TTL; `deleted` after 30 days; `active` with the applicant |
+| next_actions | ≈ 75k (one per applicant) | overwritten in place |
 
 The CLAUDE.md rule "append-only tables declare retention in the creating migration"
 was not followed for `applicant_stage_events` and `legal_acceptances` (0002). The

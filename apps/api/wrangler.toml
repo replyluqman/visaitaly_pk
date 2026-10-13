@@ -55,6 +55,17 @@ id = "REPLACE_ME_hyperdrive_id_dev"
 binding = "PUBLIC_JWK_CACHE_KV"
 id = "REPLACE_ME_kv_namespace_id_dev"
 
+# Private bucket for user documents. Never enable public access or issue S3 credentials: the
+# Worker is the only reader/writer (docs/SECURITY.md). Create: wrangler r2 bucket create <name>
+# Secret (not here): DOCUMENTS_SIGNING_KEY — `openssl rand -base64 48 | wrangler secret put DOCUMENTS_SIGNING_KEY`
+[[r2_buckets]]
+binding = "DOCS_BUCKET"
+bucket_name = "replace-me-r2-bucket-dev"
+
+# Cron Worker: Today materialisation + document retention (never on a user request, PRD §15).
+[triggers]
+crons = ["*/10 * * * *"]
+
 # ── staging (`wrangler deploy --env staging`) ──────────────────────────────
 # Own Neon branch, own Firebase project, own KV. Never shares data with prod.
 [env.staging]
@@ -73,6 +84,13 @@ id = "REPLACE_ME_hyperdrive_id_staging"
 binding = "PUBLIC_JWK_CACHE_KV"
 id = "REPLACE_ME_kv_namespace_id_staging"
 
+[[env.staging.r2_buckets]]
+binding = "DOCS_BUCKET"
+bucket_name = "replace-me-r2-bucket-staging"
+
+[env.staging.triggers]
+crons = ["*/10 * * * *"]
+
 # ── production (`wrangler deploy --env production`) ─────────────────────────
 [env.production]
 name = "visaitaly-api"
@@ -89,5 +107,12 @@ id = "REPLACE_ME_hyperdrive_id_prod"
 [[env.production.kv_namespaces]]
 binding = "PUBLIC_JWK_CACHE_KV"
 id = "REPLACE_ME_kv_namespace_id_prod"
+
+[[env.production.r2_buckets]]
+binding = "DOCS_BUCKET"
+bucket_name = "replace-me-r2-bucket-prod"
+
+[env.production.triggers]
+crons = ["*/10 * * * *"]
 
 # No secrets in this file. Set them with `wrangler secret put <NAME> --env <env>`.

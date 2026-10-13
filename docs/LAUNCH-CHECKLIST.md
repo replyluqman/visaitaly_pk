@@ -9,6 +9,8 @@ Legend: ⏱ long lead time (weeks) · 🔒 blocks a module · 🚀 blocks public
 
 - [ ] 🔒 Domain `visaitaly.pk` (or final domain) → Cloudflare DNS. *Needed for `api.` / `admin.` / CORS.*
 - [ ] 🔒 Cloudflare account (Workers Paid $5/mo recommended from day 1 — removes the 10 ms CPU risk, PRD §4)
+- [ ] 🔒 **First staging upload** (Module 3b): set `DOCUMENTS_SIGNING_KEY`, then reserve → PUT → complete → view one real PDF and one JPEG from a phone; confirm the object is in the bucket under `u/<user>/<doc>`, the bucket is private, and delete removes it. The R2 adapter (`lib/storage.ts`) has only run against an in-memory fake until then.
+- [ ] 🔒 Cloudflare edge rate-limit rules: `/v1/auth/*`, `/v1/public/*`, `/v1/documents/upload-url` (per IP) — none of these are limited in code.
 - [ ] 🔒 Create per env (ENVIRONMENTS.md): Hyperdrive ×3, KV ×3, R2 buckets (docs ×3, backups, logs)
 - [ ] 🔒 Neon project; branches `dev`, `staging`; region co-located with Workers (PRD §4 constraint 1). Paid plan before launch for PITR window
 - [ ] 🔒 Firebase projects: user ×3 (dev/staging/prod) + admin ×3. Enable MFA on admin prod. App Check (Play Integrity) on prod

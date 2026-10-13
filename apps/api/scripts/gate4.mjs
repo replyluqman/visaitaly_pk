@@ -20,6 +20,14 @@ if (!url || !/_(test|ci)$/.test(new URL(url).pathname.slice(1))) {
 const BUDGET_MS = Number(process.env.GATE4_BUDGET_MS ?? 50);
 const BIG_ROWS = 10_000;
 
+function walk(node, hits) {
+  if (node['Node Type'] === 'Seq Scan' && node['Plan Rows'] !== undefined) {
+    hits.push({ rel: node['Relation Name'], rows: node['Plan Rows'], actual: node['Actual Rows'] });
+  }
+  for (const c of node.Plans ?? []) walk(c, hits);
+}
+
+
 const client = new pg.Client({ connectionString: url });
 await client.connect();
 await client.query('ANALYZE');
@@ -62,7 +70,110 @@ const RANKED = `
    WHERE ar.applicant_id = $1::uuid AND ar.user_id = $2`;
 const { rows: [item] } = await client.query(`SELECT id FROM applicant_requirements WHERE applicant_id = $1 LIMIT 1`, [ap.id]);
 
+// Mirrors today.service.refreshNextActions. Runs in the Cron Worker, off the request path, so it
+// has its own budget (GATE4_CRON_BUDGET_MS) — but it must still be index-driven.
+const REFRESH = `
+    WITH batch AS (
+      SELECT a.id, a.user_id, a.current_stage, a.nulla_osta_status, a.nulla_osta_expiry_date
+        FROM applicants a
+        LEFT JOIN next_actions n ON n.applicant_id = a.id
+       WHERE a.status = 'active' AND a.case_generated_at IS NOT NULL
+       ORDER BY n.computed_at NULLS FIRST, a.id
+       LIMIT $1
+    ),
+    cand AS (
+      -- 1a. documents about to expire
+      SELECT b.id AS applicant_id, 1 AS kind_rank, 'expiring' AS kind, 'document_expires' AS reason,
+             r.title AS title, ar.id AS item_id, d.expiry_date AS due_date, 0 AS sub_rank,
+             coalesce(r.stage_order, 0) AS stage_order, coalesce(r.sort_order, 0) AS sort_order
+        FROM batch b
+        CROSS JOIN LATERAL (
+          SELECT d.applicant_requirement_id, d.expiry_date FROM documents d
+           WHERE d.applicant_id = b.id AND d.status = 'active' AND d.expiry_date IS NOT NULL
+             AND d.expiry_date <= CURRENT_DATE + $2::int
+          OFFSET 0
+        ) d
+        LEFT JOIN applicant_requirements ar ON ar.id = d.applicant_requirement_id
+        LEFT JOIN requirements r ON r.id = ar.requirement_id
+      UNION ALL
+      -- 1b. Nulla Osta about to expire
+      SELECT b.id, 1, 'expiring', 'nulla_osta_expires', NULL::jsonb, NULL::uuid,
+             b.nulla_osta_expiry_date, 0, 0, 0
+        FROM batch b
+       WHERE b.nulla_osta_status = 'received' AND b.nulla_osta_expiry_date IS NOT NULL
+         AND b.nulla_osta_expiry_date <= CURRENT_DATE + $2::int
+      UNION ALL
+      -- 2. blocking submission
+      SELECT b.id, 2, 'blocking', 'blocks_submission', r.title, ar.id, NULL::date, 0,
+             r.stage_order, r.sort_order
+        FROM batch b
+        CROSS JOIN LATERAL (
+          SELECT ar.id, ar.requirement_id, ar.status FROM applicant_requirements ar
+           WHERE ar.applicant_id = b.id AND ar.is_applicable AND ar.status <> 'ready'
+          OFFSET 0 -- planner fence: one index probe per batch applicant, never a scan of the table
+        ) ar
+        JOIN requirements r ON r.id = ar.requirement_id AND r.blocks_submission
+      UNION ALL
+      -- 3. to do in the current stage
+      SELECT b.id, 3, 'todo',
+             CASE ar.status WHEN 'issue_found' THEN 'issue_found' WHEN 'in_progress' THEN 'in_progress'
+                            ELSE 'not_started' END,
+             r.title, ar.id, NULL::date,
+             CASE ar.status WHEN 'issue_found' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END,
+             r.stage_order, r.sort_order
+        FROM batch b
+        CROSS JOIN LATERAL (
+          SELECT ar.id, ar.requirement_id, ar.status FROM applicant_requirements ar
+           WHERE ar.applicant_id = b.id AND ar.is_applicable AND ar.status <> 'ready'
+          OFFSET 0
+        ) ar
+        JOIN requirements r ON r.id = ar.requirement_id AND r.stage = b.current_stage
+    ),
+    best AS (
+      -- An item that qualifies twice appears once, at its best rank.
+      SELECT DISTINCT ON (applicant_id, coalesce(item_id::text, kind || reason)) *
+        FROM cand
+       ORDER BY applicant_id, coalesce(item_id::text, kind || reason), kind_rank, sub_rank
+    ),
+    ranked AS (
+      SELECT *, row_number() OVER (
+               PARTITION BY applicant_id
+               ORDER BY kind_rank, due_date NULLS LAST, sub_rank, stage_order, sort_order, item_id) AS rn
+        FROM best
+    ),
+    agg AS (
+      SELECT applicant_id,
+             jsonb_agg(jsonb_build_object(
+               'kind', kind, 'reason', reason, 'title', title, 'itemId', item_id,
+               'dueDate', to_char(due_date, 'YYYY-MM-DD'), 'rank', kind_rank) ORDER BY rn) AS actions
+        FROM ranked WHERE rn <= $3
+       GROUP BY applicant_id
+    )
+    INSERT INTO next_actions (applicant_id, user_id, actions, computed_at)
+    SELECT b.id, b.user_id, coalesce(agg.actions, '[]'::jsonb), now()
+      FROM batch b LEFT JOIN agg ON agg.applicant_id = b.id
+    ON CONFLICT (applicant_id) DO UPDATE
+       SET actions = EXCLUDED.actions, user_id = EXCLUDED.user_id, computed_at = EXCLUDED.computed_at
+`;
+
 const QUERIES = {
+  'documents: list (cursor, newest first)': [`
+    SELECT d.id, d.applicant_id, d.mime, d.size_bytes::int, d.created_at FROM documents d
+     WHERE d.user_id=$1 AND d.status='active' AND (d.created_at, d.id) < (now(), 'ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid)
+     ORDER BY d.created_at DESC, d.id DESC LIMIT 21`, [u.id]],
+  'documents: list for applicant': [`
+    SELECT d.id FROM documents d WHERE d.user_id=$1 AND d.status='active' AND d.applicant_id=$2::uuid
+     ORDER BY d.created_at DESC, d.id DESC LIMIT 21`, [u.id, ap.id]],
+  'documents: quota sum': [`
+    SELECT coalesce(sum(size_bytes),0)::bigint FROM documents WHERE user_id=$1
+       AND (status='active' OR (status='pending' AND created_at > now() - make_interval(secs => 900)))`, [u.id]],
+  'documents: by id (owner)': [`
+    SELECT d.id FROM documents d WHERE d.id=(SELECT id FROM documents WHERE user_id=$1 AND status='active' LIMIT 1) AND d.user_id=$1 AND d.status='active'`, [u.id]],
+  'documents: count for item (checklist)': [`SELECT count(*)::int FROM documents d WHERE d.applicant_requirement_id=$1::uuid AND d.status='active'`, [item.id]],
+  'today: read next_actions': [`
+    SELECT a.id, a.current_stage, a.premium_status, n.actions, n.computed_at FROM applicants a
+      LEFT JOIN next_actions n ON n.applicant_id = a.id AND n.user_id = a.user_id
+     WHERE a.user_id=$1 AND a.status='active' ORDER BY a.created_at`, [u.id]],
   'quick check: current version': [`SELECT version, questions, summaries, disclaimer, whatsapp_url FROM eligibility_check_versions WHERE is_current`, []],
   'quick check: typical items': [`
     SELECT coalesce(r.title->>'en', r.title->>'en'), coalesce(r.purpose->>'en', r.purpose->>'en'), count(*) OVER ()::int
@@ -144,14 +255,32 @@ const QUERIES = {
                     WHERE a.user_id=$1 AND av.doc_type='disclaimer' AND av.version='load-draft')`, [u.id]],
 };
 
-function walk(node, hits) {
-  if (node['Node Type'] === 'Seq Scan' && node['Plan Rows'] !== undefined) {
-    hits.push({ rel: node['Relation Name'], rows: node['Plan Rows'], actual: node['Actual Rows'] });
-  }
-  for (const c of node.Plans ?? []) walk(c, hits);
-}
 
 let failed = false;
+
+// Cron statement: measured separately, then dropped from the request-path loop below.
+{
+  await client.query('BEGIN');
+  try {
+    const CRON_BUDGET_MS = Number(process.env.GATE4_CRON_BUDGET_MS ?? 5000);
+    const { rows } = await client.query(`EXPLAIN (ANALYZE, FORMAT JSON) ${REFRESH}`, [Number(process.env.GATE4_BATCH ?? 15000), 30, 5]);
+    const plan = rows[0]['QUERY PLAN'][0];
+    const ms = plan['Execution Time'];
+    const seq = [];
+    walk(plan.Plan, seq);
+    const { rows: sizes } = await client.query(
+      `SELECT relname, reltuples::bigint AS n FROM pg_class WHERE relname = ANY($1)`, [seq.map((s) => s.rel)]);
+    // The batch scan of applicants is inherently a scan (it picks the stalest N of all); everything
+    // else must use an index, in particular the 1.9M-row applicant_requirements and documents.
+    const bigSeq = seq.filter((s) => s.rel !== 'applicants' && s.rel !== 'next_actions'
+      && (sizes.find((z) => z.relname === s.rel)?.n ?? 0) > BIG_ROWS);
+    const ok = bigSeq.length === 0 && ms <= CRON_BUDGET_MS;
+    if (!ok) failed = true;
+    console.log(`${ok ? 'PASS' : 'FAIL'}  ${ms.toFixed(0).padStart(7)} ms  [cron] refresh next_actions, batch ${process.env.GATE4_BATCH ?? 15000}${bigSeq.length ? `  SEQ SCAN ${bigSeq.map((s) => s.rel)}` : ''}`);
+  } finally {
+    await client.query('ROLLBACK');
+  }
+}
 const { rows: counts } = await client.query(
   `SELECT (SELECT count(*) FROM users) u, (SELECT count(*) FROM applicants) a, (SELECT count(*) FROM devices) d, (SELECT count(*) FROM applicant_requirements) ar`);
 console.log(`volume: users=${counts[0].u} applicants=${counts[0].a} devices=${counts[0].d} applicant_requirements=${counts[0].ar}\n`);

@@ -1,5 +1,6 @@
 import type { Db } from './db/client.js';
 import type { VerifiedToken } from './lib/firebase.js';
+import type { ObjectStore } from './lib/storage.js';
 
 /**
  * Worker bindings. Every one of these is declared in wrangler.toml.
@@ -16,6 +17,15 @@ export interface Env {
   PUBLIC_JWK_CACHE_KV: KVNamespace;
   /** Cache key inside PUBLIC_JWK_CACHE_KV. */
   PUBLIC_JWK_CACHE_KEY: string;
+
+  /**
+   * Private R2 bucket for user documents. Never public, no S3 credentials issued: objects are
+   * reachable only through this binding, i.e. through the Worker, behind a short-lived HMAC URL.
+   */
+  DOCS_BUCKET: R2Bucket;
+
+  /** Secret. HMAC key (>= 32 random bytes) for document URLs. `wrangler secret put`. */
+  DOCUMENTS_SIGNING_KEY: string;
 
   /** 'development' | 'staging' | 'production'. Controls error verbosity only. */
   ENVIRONMENT: string;
@@ -51,6 +61,7 @@ export interface AppEnv {
     db: Db;
     auth: VerifiedToken;
     session: Session;
+    store: ObjectStore;
     requestId: string;
   };
 }

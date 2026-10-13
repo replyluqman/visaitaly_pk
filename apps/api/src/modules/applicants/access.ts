@@ -3,6 +3,9 @@ import {
   PremiumStatus,
   type Applicant,
 } from '@visaitaly/shared';
+import { sql } from 'drizzle-orm';
+import type { JourneyStage } from '@visaitaly/shared';
+import type { Db } from '../../db/client.js';
 import { AppError } from '../../lib/errors.js';
 
 /** The columns access resolution reads. Shared by applicants and checklist. */
@@ -58,4 +61,22 @@ export function assertWritable(row: AccessInputs): void {
       ? 'This applicant is read-only during the grace period.'
       : 'Access for this applicant has ended. Request renewal to make changes.',
   );
+}
+
+export type ApplicantAccessRow = AccessInputs & { id: string; current_stage: JourneyStage | null };
+
+/** Ownership + access inputs in one WHERE. 404 for "not yours" and "does not exist" alike. */
+export async function loadApplicantAccess(
+  db: Db,
+  userId: string,
+  applicantId: string,
+): Promise<ApplicantAccessRow> {
+  const r = await db.execute<ApplicantAccessRow>(sql`
+    SELECT id, current_stage, premium_status, access_until, grace_until
+      FROM applicants
+     WHERE id = ${applicantId}::uuid AND user_id = ${userId} AND status = 'active'
+  `);
+  const row = r.rows[0];
+  if (!row) throw AppError.notFound('Applicant not found.');
+  return row;
 }

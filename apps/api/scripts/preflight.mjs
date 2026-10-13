@@ -59,7 +59,7 @@ async function checkWrangler() {
   if (TARGET_ENV !== 'development' && !scoped.trim()) {
     fail(`wrangler.toml has no [env.${TARGET_ENV}] section.`);
   }
-  const placeholders = [...new Set([...scoped.matchAll(/REPLACE_ME[A-Za-z0-9_]*/g)].map((m) => m[0]))];
+  const placeholders = [...new Set([...scoped.matchAll(/REPLACE_ME[A-Za-z0-9_]*|replace-me-[a-z0-9-]+/g)].map((m) => m[0]))];
   if (placeholders.length) {
     fail(`wrangler.toml [${TARGET_ENV}] still has ${placeholders.length} unset value(s): ${placeholders.join(', ')}`);
   }
@@ -143,7 +143,7 @@ async function checkDb(client) {
   // 2d. Config keys the API reads should exist rather than falling back.
   // A fallback in production means behaviour depends on whether a row loaded.
   const { rows: cfg } = await client.query(`
-    SELECT d.key FROM (VALUES ('auth'),('onboarding'),('nulla_osta'),('checklist')) AS d(key)
+    SELECT d.key FROM (VALUES ('auth'),('onboarding'),('nulla_osta'),('checklist'),('uploads'),('today')) AS d(key)
      WHERE NOT EXISTS (SELECT 1 FROM app_config c WHERE c.key = d.key)
   `);
   for (const r of cfg) warn(`app_config['${r.key}'] missing — the API will use its coded fallback.`);

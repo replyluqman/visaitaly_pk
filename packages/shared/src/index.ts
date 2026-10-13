@@ -4,3 +4,4 @@ export * from './legal.types.js';
 export * from './applicant.types.js';
 export * from './checklist.types.js';
 export * from './eligibility.types.js';
+export * from './document.types.js';

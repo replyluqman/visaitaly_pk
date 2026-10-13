@@ -1,4 +1,11 @@
-# State — Modules 1–3 + 3c built and gated · Module 3b (documents + Today) next
+# State — Modules 1–3, 3b, 3c built and gated · Module 4 (CMS) next
+
+## Phase 2c — Module 3b Documents (R2) & Today (done)
+
+Migration `0007`; `apps/api/MODULE-03B-DOCUMENTS-TODAY.md`. **149 tests**, Gate 4 at 208k documents / 1.875M checklist rows (32 queries pass;
+Cron refresh 2.4 s per 15,000 applicants, index-driven). Documents use Worker-mediated HMAC URLs over a private R2 bucket (no S3 creds).
+**Not verified here:** the real R2 adapter (`lib/storage.ts`) and the cron `scheduled` entry — both first run on staging. Owner/infra
+actions: create 3 R2 buckets, set `DOCUMENTS_SIGNING_KEY` per env, fill the `replace-me-r2-bucket-*` names in `wrangler.toml`.
 
 ## Phase 2b — Module 3c Eligibility Quick Check (done)
 

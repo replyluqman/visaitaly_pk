@@ -21,6 +21,11 @@ export const ErrorCode = {
   PREMIUM_REQUIRED: 'PREMIUM_REQUIRED',           // 402 item beyond the free preview
   CHECKLIST_CONFLICT: 'CHECKLIST_CONFLICT',       // 409 offline mutation hit a changed item (PRD §12)
 
+  // domain — added in Module 3b
+  UPLOAD_TOO_LARGE: 'UPLOAD_TOO_LARGE',           // 413 file over the per-file cap
+  UPLOAD_QUOTA_EXCEEDED: 'UPLOAD_QUOTA_EXCEEDED', // 413 user storage quota would be exceeded
+  UPLOAD_REJECTED: 'UPLOAD_REJECTED',             // 422 uploaded object failed size/type verification
+
   // generic
   VALIDATION_FAILED: 'VALIDATION_FAILED',         // 422
   NOT_FOUND: 'NOT_FOUND',                         // 404

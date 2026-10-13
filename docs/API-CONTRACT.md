@@ -47,6 +47,9 @@ only on `VALIDATION_FAILED`. Quote `requestId` in support tickets.
 | `APPLICANT_READ_ONLY` | 403 | no | Grace/expired banner; disable write UI. |
 | `PREMIUM_REQUIRED` | 402 | no | Item is beyond the free preview — show the paywall (Screen 16). |
 | `CHECKLIST_CONFLICT` | 409 | no | Offline mutation was not applied; item now has `needs_review`. Show the "X items updated while you were offline" banner. |
+| `UPLOAD_TOO_LARGE` | 413 | no | File over the per-file cap — message states it. |
+| `UPLOAD_QUOTA_EXCEEDED` | 413 | no | Storage limit reached — offer to delete files. |
+| `UPLOAD_REJECTED` | 422 | no | Object failed verification and was discarded — ask the user to re-pick. |
 | `VALIDATION_FAILED` | 422 | no | Show `details` per field. |
 | `NOT_FOUND` | 404 | no | Item gone or not yours. |
 | `CONFLICT` | 409 | no | Show message. |
@@ -165,6 +168,28 @@ onboarding is `complete`).
 
 Stateless: nothing is stored. All wording is CMS-owned; the result is orientation, never a verdict. Rate limiting is an edge rule.
 
+### Documents & Today (Module 3b) — session-authenticated unless noted
+
+| Method | Path | Success | Errors |
+|---|---|---|---|
+| POST | `/v1/documents/upload-url` `{mime,sizeBytes,sha256,applicantId,checklistItemId?,expiryDate?}` | `{id, uploadUrl, expiresAt, requiredHeaders}` | 402, 403, 404, 413, 422 |
+| PUT | `uploadUrl` — **no session**; send exactly `requiredHeaders` and `Content-Length`; body = raw bytes | 204 | 404, 422 `UPLOAD_REJECTED` |
+| POST | `/v1/documents/:id/complete` | `Document` (idempotent) | 404, 422 `UPLOAD_REJECTED`, 413 quota |
+| GET | `/v1/documents?applicantId&cursor&limit` | `{items[], nextCursor, quota{usedBytes,maxBytes}}`, newest first | 422 |
+| GET | `/v1/documents/:id` | `Document` incl. short-lived `viewUrl` | 404 |
+| GET | `viewUrl` — **no session**; use directly in an image/PDF viewer | bytes, `no-store` | 404 |
+| DELETE | `/v1/documents/:id` | 204 (R2 object removed first) | 403 read-only, 404 |
+| GET | `/v1/today?locale` | `{actions[≤5], allClear, computedAt}` | 402 (free / expired) |
+
+`Document {id, applicantId, checklistItemId, mime, sizeBytes, expiryDate, createdAt, viewUrl}`. Upload is *reserve → PUT → complete*;
+until `complete` succeeds the file does not exist for any other call. Allowed types, per-file cap, per-user quota and URL TTLs come from
+`app_config` — the client reads limits from the 413 message / `quota`, never hard-codes them.
+
+`TodayAction {kind: expiring|blocking|todo, reason, title|null, applicantId, itemId|null, dueDate|null, deepLink}`: structured, **no
+server prose** — the client builds the sentence from `kind`/`reason`/`dueDate` and shows `title` (CMS requirement title). `computedAt`
+is the oldest materialisation among the user's premium applicants (`null` = not computed yet; show nothing, not "all clear").
+`allClear` is non-null only when `actions` is empty. Today is Premium (grace is readable); free/expired → `PREMIUM_REQUIRED`.
+
 ### Checklist (Module 3) — all session-authenticated
 
 | Method | Path | Success | Errors |
@@ -188,7 +213,7 @@ Rules the client relies on:
   `clientMutationAt`, the change is **not applied**, the item gets the `needs_review` badge and the call returns
   `CHECKLIST_CONFLICT`. Re-fetch the item; clear with `acknowledge-review`.
 - `badges`: `blocking` (blocks submission and not ready), `needs_review`, `source_under_review` (open hash flag on its source).
-- `documentCount` is always `0` until Module 3b.
+- `documentCount` is the number of active documents on the item; `ChecklistItemDetail.documents` lists them (no `viewUrl` — fetch `GET /v1/documents/:id`).
 - The list is ordered by journey stage then `sort_order`; the cursor is opaque. Pagination is keyset on
   `(stage_order, sort_order, id)` — the one documented deviation from the `(created_at, id)` rule.
 - `Applicant.readiness` `{percent, applicableCount, readyCount, blockingCount, notApplicableCount, categorySpecificCount}`

@@ -6,6 +6,7 @@ import {
   ItemStatus,
   STAGE_SEQUENCE,
   type ChecklistItem,
+  type Document,
   type ChecklistItemDetail,
   type ChecklistQuery,
   type ChecklistResponse,
@@ -16,8 +17,15 @@ import {
 import type { Db } from '../../db/client.js';
 import { AppError } from '../../lib/errors.js';
 import { CHECKLIST_CONFIG_FALLBACK, readConfig } from '../../lib/app-config.js';
+import { DOC_COLUMNS, toDocument, type DocumentRow } from '../documents/document.mapper.js';
 import { requirementApplies } from './applicability.js';
-import { assertWritable, resolveAccess, type AccessInputs } from '../applicants/access.js';
+import {
+  assertWritable,
+  loadApplicantAccess,
+  resolveAccess,
+  type AccessInputs,
+  type ApplicantAccessRow,
+} from '../applicants/access.js';
 
 // ---------------------------------------------------------------------------
 // case generation (called from applicants.service, inside its transaction)
@@ -91,6 +99,7 @@ type ItemRow = {
   version: number;
   updated_at: string;
   source_under_review: boolean;
+  document_count: number;
   rn: number;
 };
 
@@ -130,6 +139,8 @@ const rankedItems = (userId: string, applicantId: string, locale: string): SQL =
          coalesce(s.name->>${locale}, s.name->>'en')                             AS source_name,
          s.url AS source_url, r.source_document,
          to_char(r.source_published_at, 'YYYY-MM-DD')                            AS source_published_at,
+         (SELECT count(*)::int FROM documents d
+           WHERE d.applicant_requirement_id = ar.id AND d.status = 'active')    AS document_count,
          EXISTS (SELECT 1 FROM source_flags f
                   WHERE f.source_id = r.source_id AND f.status = 'open')         AS source_under_review,
          row_number() OVER (PARTITION BY ar.is_applicable
@@ -162,7 +173,7 @@ function toItem(r: ItemRow): ChecklistItem {
     apostilleRequired: r.apostille_required,
     lastVerifiedAt: iso(r.last_verified_at),
     requirementVersion: r.version,
-    documentCount: 0, // Module 3b
+    documentCount: r.document_count,
     updatedAt: new Date(r.updated_at).toISOString(),
   };
 }
@@ -171,26 +182,12 @@ function toItem(r: ItemRow): ChecklistItem {
 // applicant gate
 // ---------------------------------------------------------------------------
 
-type ApplicantGate = AccessInputs & { id: string; current_stage: JourneyStage | null };
+type ApplicantGate = ApplicantAccessRow;
 
-/** Ownership + access in one WHERE. 404 for "not yours" and "does not exist" alike. */
-async function loadApplicantGate(
-  db: Db,
-  userId: string,
-  applicantId: string,
-): Promise<ApplicantGate> {
-  const r = await db.execute<ApplicantGate>(sql`
-    SELECT id, current_stage, premium_status, access_until, grace_until
-      FROM applicants
-     WHERE id = ${applicantId}::uuid AND user_id = ${userId} AND status = 'active'
-  `);
-  const row = r.rows[0];
-  if (!row) throw AppError.notFound('Applicant not found.');
-  return row;
-}
+const loadApplicantGate = loadApplicantAccess;
 
 /** Free tier shows only the first N applicable items (PRD §8). Everyone else sees all. */
-async function previewCap(db: Db, access: AccessInputs): Promise<number | null> {
+export async function previewCap(db: Db, access: AccessInputs): Promise<number | null> {
   if (resolveAccess(access).level !== AccessLevel.FREE) return null;
   return (await readConfig(db, 'checklist', CHECKLIST_CONFIG_FALLBACK)).free_preview_items;
 }
@@ -327,10 +324,16 @@ export async function getChecklistItem(
   locale: string,
 ): Promise<ChecklistItemDetail> {
   const { row, gate } = await loadItem(db, userId, itemId, locale);
-  return toDetail(row, gate);
+  const docs = await db.execute<DocumentRow>(sql`
+    SELECT ${DOC_COLUMNS('d')}
+      FROM documents d
+     WHERE d.applicant_requirement_id = ${itemId}::uuid AND d.user_id = ${userId} AND d.status = 'active'
+     ORDER BY d.created_at, d.id
+  `);
+  return toDetail(row, gate, docs.rows.map((d) => toDocument(d)));
 }
 
-function toDetail(r: DetailRow, gate: AccessInputs): ChecklistItemDetail {
+function toDetail(r: DetailRow, gate: AccessInputs, documents: Document[]): ChecklistItemDetail {
   return {
     ...toItem(r),
     purpose: r.purpose,
@@ -346,7 +349,7 @@ function toDetail(r: DetailRow, gate: AccessInputs): ChecklistItemDetail {
           publishedAt: r.source_published_at,
         }
       : null,
-    documents: [],
+    documents,
     canWrite: r.is_applicable && resolveAccess(gate).canWrite,
   };
 }
@@ -416,7 +419,13 @@ async function lockForWrite(
   return row;
 }
 
-async function assertVisible(tx: Db, userId: string, itemId: string, gate: WriteGate): Promise<void> {
+/** Free tier: the item must be inside the preview. 402 otherwise. Ownership is checked by callers. */
+export async function assertItemVisible(
+  tx: Db,
+  userId: string,
+  itemId: string,
+  gate: AccessInputs & { applicant_id: string },
+): Promise<void> {
   const cap = await previewCap(tx, gate);
   if (cap === null) return;
   const r = await tx.execute<{ rn: number; is_applicable: boolean }>(sql`
@@ -453,7 +462,7 @@ export async function setChecklistStatus(
 ): Promise<ChecklistItem> {
   const outcome = await db.transaction(async (tx) => {
     const gate = await lockForWrite(tx, userId, itemId);
-    await assertVisible(tx, userId, itemId, gate);
+    await assertItemVisible(tx, userId, itemId, gate);
     if (!gate.is_applicable) {
       throw AppError.conflict('This item does not apply to this applicant.');
     }
@@ -493,7 +502,7 @@ export async function acknowledgeReview(
 ): Promise<ChecklistItem> {
   await db.transaction(async (tx) => {
     const gate = await lockForWrite(tx, userId, itemId);
-    await assertVisible(tx, userId, itemId, gate);
+    await assertItemVisible(tx, userId, itemId, gate);
     await tx.execute(sql`
       UPDATE applicant_requirements
          SET needs_review = false, seen_requirement_version = ${gate.version}

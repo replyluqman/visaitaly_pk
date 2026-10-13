@@ -1,9 +1,46 @@
 import { randomUUID } from 'node:crypto';
-import app from '../../src/index.js';
+import { createApp } from '../../src/index.js';
 import type { Env } from '../../src/env.js';
+import type { ObjectStore } from '../../src/lib/storage.js';
 import { testDatabaseUrl } from './config.js';
 
-const env: Env = {
+/** In-memory R2 stand-in: the same ObjectStore contract the production adapter implements. */
+export class FakeStore implements ObjectStore {
+  objects = new Map<string, { bytes: Uint8Array; contentType: string }>();
+  failDeletes = false;
+
+  async put(key: string, body: ReadableStream | ArrayBuffer | Uint8Array, contentType: string) {
+    const bytes =
+      body instanceof Uint8Array ? body : new Uint8Array(await new Response(body as BodyInit).arrayBuffer());
+    this.objects.set(key, { bytes, contentType });
+  }
+  async head(key: string) {
+    const o = this.objects.get(key);
+    return o ? { size: o.bytes.length } : null;
+  }
+  async readHead(key: string, n: number) {
+    return this.objects.get(key)?.bytes.slice(0, n) ?? null;
+  }
+  async get(key: string) {
+    const o = this.objects.get(key);
+    if (!o) return null;
+    const bytes = o.bytes;
+    return { body: new Response(bytes).body!, size: bytes.length };
+  }
+  async delete(key: string) {
+    if (this.failDeletes) throw new Error('r2 unavailable');
+    this.objects.delete(key);
+  }
+}
+
+export const store = new FakeStore();
+const app = createApp({ createStore: () => store });
+
+export const SIGNING_KEY = 'test-signing-key-0123456789abcdef0123456789abcdef';
+
+export const env: Env = {
+  DOCS_BUCKET: {} as R2Bucket,
+  DOCUMENTS_SIGNING_KEY: SIGNING_KEY,
   HYPERDRIVE: { connectionString: testDatabaseUrl() },
   FIREBASE_PROJECT_ID: 'test',
   PUBLIC_JWK_CACHE_KV: {} as KVNamespace,
@@ -13,6 +50,7 @@ const env: Env = {
 };
 
 export interface CallOpts {
+  bytes?: Uint8Array;
   uid?: string;
   email?: string;
   deviceId?: string;
@@ -24,6 +62,8 @@ export interface CallOpts {
 export interface Res<T = any> {
   status: number;
   body: T;
+  bytes: Uint8Array;
+  headers: Headers;
 }
 
 /** Drives the real Hono app in-process: real middleware, real SQL. */
@@ -42,10 +82,20 @@ export async function call<T = any>(method: string, path: string, o: CallOpts = 
     passThroughOnException: () => {},
   } as unknown as ExecutionContext;
 
-  const res = await app.fetch(new Request(`http://t${path}`, { method, headers, body }), env, ctx);
+  const res = await app.fetch(
+    new Request(`http://t${path}`, { method, headers, body: o.bytes ?? body }),
+    env,
+    ctx,
+  );
   await Promise.all(pending);
-  const text = await res.text();
-  return { status: res.status, body: text ? JSON.parse(text) : null };
+  const buf = new Uint8Array(await res.arrayBuffer());
+  const isJson = (res.headers.get('content-type') ?? '').includes('json');
+  return {
+    status: res.status,
+    body: isJson && buf.length ? JSON.parse(new TextDecoder().decode(buf)) : null,
+    bytes: buf,
+    headers: res.headers,
+  };
 }
 
 export interface TestUser {

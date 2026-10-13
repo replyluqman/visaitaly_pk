@@ -56,3 +56,16 @@ TRUNCATE eligibility_check_versions;
 INSERT INTO eligibility_check_versions (version, questions, summaries, disclaimer, is_current, published_at)
 VALUES (1, '[{"id":"who","mapsTo":"relationship_category","text":{"en":"q"},"options":[{"value":"spouse","label":{"en":"s"}}]}]',
         '{"spouse":{"en":"x"}}', '{"en":"d"}', true, now());
+
+-- Module 3b: ~200,000 documents (≈2.7 per applicant on average over a third of applicants… tuned to the target).
+TRUNCATE documents RESTART IDENTITY CASCADE;
+INSERT INTO documents (user_id, applicant_id, applicant_requirement_id, r2_key, mime, size_bytes,
+                       client_sha256, status, completed_at, expiry_date, created_at)
+SELECT ar.user_id, ar.applicant_id, ar.id, 'load/' || gen_random_uuid(), 'image/png', 200000 + (n % 5000),
+       repeat('a', 64), 'active', now(),
+       CASE WHEN n % 7 = 0 THEN CURRENT_DATE + (n % 90)::int END,
+       now() - make_interval(secs => n % 100000)
+  FROM (SELECT ar.*, row_number() OVER () AS n FROM applicant_requirements ar) ar
+ WHERE ar.n % 9 = 0;
+TRUNCATE next_actions;
+ANALYZE;
