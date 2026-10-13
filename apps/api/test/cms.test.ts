@@ -132,6 +132,29 @@ describe('requirements: create + read', () => {
     expect((await cms('POST', '/v1/admin/requirements', REQ('ok_code', { sourceId: '00000000-0000-4000-8000-000000000000' }))).status).toBe(422);
   });
 
+  it('array fields (locations, Nulla Osta statuses) are stored as real arrays, round-trip, and drive applicability', async () => {
+    const u = await onboarded();
+    const a = await applicant(u); // wife, in Pakistan, Nulla Osta not started
+    const src = await source();
+    const c = await cms('POST', '/v1/admin/requirements', REQ('italy_only', {
+      sourceId: src.id, appliesLocations: ['italy'], requiresNullaOstaStatus: ['received', 'in_process'],
+    }));
+    expect(c.status).toBe(201);
+    expect(c.body).toMatchObject({ appliesLocations: ['italy'], requiresNullaOstaStatus: ['received', 'in_process'] });
+    await act(c.body.id, 'verify');
+    await act(c.body.id, 'publish');
+    expect((await items(u, a))[0]).toMatchObject({ requirementCode: 'italy_only', status: 'not_applicable' });
+
+    // widening the rule on a published requirement re-evaluates every case
+    const p = await cms('PATCH', `/v1/admin/requirements/${c.body.id}`, {
+      appliesLocations: ['pakistan', 'italy'], requiresNullaOstaStatus: null, reverify: true, changeSummary: { en: 'Now applies in Pakistan' },
+    });
+    expect(p.body).toMatchObject({ appliesLocations: ['pakistan', 'italy'], requiresNullaOstaStatus: null, version: 2 });
+    expect((await items(u, a))[0]).toMatchObject({ requirementCode: 'italy_only', status: 'not_started' });
+    const cleared = await cms('PATCH', `/v1/admin/requirements/${c.body.id}`, { appliesLocations: null, reverify: true, changeSummary: { en: 'Applies everywhere' } });
+    expect(cleared.body.appliesLocations).toBeNull();
+  });
+
   it('creates as `created` v1 with defaults; duplicate code 409; get/list', async () => {
     const c = await cms('POST', '/v1/admin/requirements', REQ('passport_copy'));
     expect(c.status).toBe(201);
@@ -424,7 +447,9 @@ describe('the daily hash sweep (Cron)', () => {
     if (v instanceof Uint8Array) return { bytes: v, contentType: 'application/pdf' };
     return { bytes: html(v ?? ''), contentType: 'text/html' };
   };
-  const run = async (f: SourceFetcher) => {
+  /** Simulates the next day's tick: sources become due again unless `age` is false. */
+  const run = async (f: SourceFetcher, age = true) => {
+    if (age) await q(`UPDATE sources SET last_checked_at = now() - interval '21 hours' WHERE last_checked_at IS NOT NULL`);
     const { db, close } = await createDb({ ...env, HYPERDRIVE: { connectionString: process.env.TEST_DATABASE_URL! } });
     try { return await sweepSources(db, f); } finally { await close(); }
   };
@@ -491,6 +516,20 @@ describe('the daily hash sweep (Cron)', () => {
     expect((await cms('GET', '/v1/admin/sources')).body.items[0]).toMatchObject({ consecutiveFailures: 2, lastError: 'timeout' });
     await run(fetcherOf({ 'https://example.test/a': 'ok' }));
     expect(await row(s.id)).toMatchObject({ last_error: null, consecutive_failures: 0 });
+  });
+
+  it('a source checked recently is NOT re-fetched (the sweep runs every tick but acts once a day)', async () => {
+    await source({ url: 'https://example.test/a' });
+    let calls = 0;
+    const f: SourceFetcher = async () => { calls++; return { bytes: html('x'), contentType: 'text/html' }; };
+    await run(f);
+    expect((await run(f, false)).checked).toBe(0);
+    expect(calls).toBe(1);
+    await q(`UPDATE sources SET last_checked_at = now() - interval '19 hours'`);
+    expect((await run(f, false)).checked).toBe(0); // still inside recheck_after_hours (20)
+    await q(`UPDATE sources SET last_checked_at = now() - interval '21 hours'`);
+    expect((await run(f, false)).checked).toBe(1);
+    expect(calls).toBe(2);
   });
 
   it('inactive sources are skipped; the batch is bounded and oldest-checked first', async () => {

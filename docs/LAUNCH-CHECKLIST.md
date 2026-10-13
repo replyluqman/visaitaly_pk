@@ -9,6 +9,8 @@ Legend: ⏱ long lead time (weeks) · 🔒 blocks a module · 🚀 blocks public
 
 - [ ] 🔒 Domain `visaitaly.pk` (or final domain) → Cloudflare DNS. *Needed for `api.` / `admin.` / CORS.*
 - [ ] 🔒 Cloudflare account (Workers Paid $5/mo recommended from day 1 — removes the 10 ms CPU risk, PRD §4)
+- [ ] 🔒 **First staging push** (Module 5): create the FCM service account for the user project, `wrangler secret put FCM_SERVICE_ACCOUNT --env staging`, register a device, trigger a reminder/publish, confirm the phone receives it and the notification is marked sent. `lib/fcm.ts` has only run against a fake `fetch` until then. Free-tier ceiling: ≈ 40 pushes per 5-minute tick (50-subrequest limit) — a large publish drains over several ticks; consider Workers Paid before launch if updates fan out to thousands.
+- [ ] 🔒 **Notification wording**: author the five templates (`notification-types.json`) in the CMS/DB and put them in the lawyer review; `pnpm preflight` blocks placeholder or verdict-style copy.
 - [ ] 🔒 **First staging upload** (Module 3b): set `DOCUMENTS_SIGNING_KEY`, then reserve → PUT → complete → view one real PDF and one JPEG from a phone; confirm the object is in the bucket under `u/<user>/<doc>`, the bucket is private, and delete removes it. The R2 adapter (`lib/storage.ts`) has only run against an in-memory fake until then.
 - [ ] 🔒 Cloudflare edge rate-limit rules: `/v1/auth/*`, `/v1/public/*`, `/v1/documents/upload-url` (per IP) — none of these are limited in code.
 - [ ] 🔒 Create per env (ENVIRONMENTS.md): Hyperdrive ×3, KV ×3, R2 buckets (docs ×3, backups, logs)

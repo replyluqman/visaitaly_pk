@@ -446,7 +446,7 @@ paths:
     get:
       tags: [notifications]
       summary: Inbox per tab (Screen 13)
-      x-status: planned
+      x-status: live
       x-module: 5
       parameters:
         - { name: tab, in: query, required: true, schema: { type: string, enum: [reminder, update, activity] } }
@@ -458,7 +458,7 @@ paths:
     get:
       tags: [notifications]
       summary: Bell badge — single indexed count (PRD §4 constraint 5)
-      x-status: planned
+      x-status: live
       x-module: 5
       responses:
         '200': { description: ok, content: { application/json: { schema: { type: object, properties: { total: { type: integer }, byTab: { type: object, properties: { reminder: { type: integer }, update: { type: integer }, activity: { type: integer } } } } } } } }
@@ -466,26 +466,26 @@ paths:
     parameters: [ { $ref: '#/components/parameters/Id' } ]
     post:
       tags: [notifications]
-      x-status: planned
+      x-status: live
       x-module: 5
       responses: { '204': { description: marked } }
   /v1/notifications/read-all:
     post:
       tags: [notifications]
-      x-status: planned
+      x-status: live
       x-module: 5
       requestBody: { content: { application/json: { schema: { type: object, properties: { tab: { type: string, enum: [reminder, update, activity] } } } } } }
       responses: { '204': { description: marked } }
   /v1/notification-preferences:
     get:
       tags: [account]
-      x-status: planned
+      x-status: live
       x-module: 5
       responses:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/NotificationPreferences' } } } }
     put:
       tags: [account]
-      x-status: planned
+      x-status: live
       x-module: 5
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/NotificationPreferences' } } } }
       responses: { '200': { description: ok } }

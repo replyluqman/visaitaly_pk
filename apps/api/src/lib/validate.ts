@@ -18,6 +18,17 @@ export function parseOrThrow<T extends z.ZodTypeAny>(schema: T, input: unknown):
   throw AppError.validation(details);
 }
 
+/** For endpoints whose body is optional: an empty body is `{}`, a non-empty one must still be valid JSON. */
+export async function optionalJsonBody(req: Request): Promise<unknown> {
+  const text = await req.text();
+  if (text.trim() === '') return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw AppError.validation({ _: ['Body must be valid JSON.'] });
+  }
+}
+
 /** Body parser that treats malformed JSON as a validation error, not a 500. */
 export async function jsonBody(req: Request): Promise<unknown> {
   try {

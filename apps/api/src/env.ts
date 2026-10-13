@@ -36,6 +36,12 @@ export interface Env {
   /** Secret. HMAC key (>= 32 random bytes) for document URLs. `wrangler secret put`. */
   DOCUMENTS_SIGNING_KEY: string;
 
+  /**
+   * Secret. Firebase service-account JSON (user project) used ONLY by the Cron to send FCM pushes
+   * (HTTP v1). Absent → pushes are skipped and the inbox still works (Neon is the record, PRD §14).
+   */
+  FCM_SERVICE_ACCOUNT?: string;
+
   /** 'development' | 'staging' | 'production'. Controls error verbosity only. */
   ENVIRONMENT: string;
 

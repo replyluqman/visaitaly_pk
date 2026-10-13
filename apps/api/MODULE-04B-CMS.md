@@ -7,7 +7,7 @@ Builds on Module 4a (admin identity, scopes, audit).
 
 ## 2. Scope
 In: migration `0009`; `/v1/admin/sources|requirements|source-flags`; workflow Created → Verified → Published (+ unpublish, archive, re-verify);
-publish **fan-out** to existing cases; daily hash-sweep Cron; `GET /v1/public/verification-summary`; "only published is visible" across all user queries.
+publish **fan-out** to existing cases; hash-sweep Cron job; `GET /v1/public/verification-summary`; "only published is visible" across all user queries.
 Out: the CMS web UI; the **Updates notification** on publish (Module 5 reads `requirement_versions`); CSV import tool.
 
 ## 3. Contract (all admin routes: scope `verification_manage`; read also by `read_only`/super)
@@ -38,7 +38,7 @@ deferred from 0005 (`NOT VALID` + `VALIDATE`, all values NULL), `requirements_st
    the old version surface as `CHECKLIST_CONFLICT`. Applicants without a case get theirs at Screen 7.
 4. **`version` counts published revisions only** (trigger replaced in 0009): drafting edits don't bump it, so the first publication is v1 and clients' `baseVersion` is meaningful.
 5. **Only `published` is visible to users** — checklist, detail, patch, journey, readiness, Today; unpublish/archive hides, republish restores with progress intact.
-6. **Hash sweep** (02:00 PKT = `0 21 * * *`, multiplexed on `event.cron`): oldest-checked active sources, `hash_sweep_batch` per run (free tier: 50 subrequests/invocation).
+6. **Hash sweep** (runs every 5-minute tick but only touches sources unchecked for `verification.recheck_after_hours` = 20, so each source is checked about daily; Module 5 consolidated the crons): oldest-checked active sources, `hash_sweep_batch` per run (free tier: 50 subrequests/invocation).
    HTML is reduced to visible text before hashing (scripts/styles/comments/whitespace ignored), PDFs are hashed byte-exact. First sight = baseline, not a change.
    One open flag per source (a second change moves `new_hash`). A **failed fetch never looks like a change**: hash untouched, `consecutive_failures++`, `last_error` shown to admins.
    We store only a hash — never page content. Known limit: pages with dynamic *visible* text can raise false flags; an admin dismisses them.
@@ -49,7 +49,7 @@ deferred from 0005 (`NOT VALID` + `VALIDATE`, all values NULL), `requirements_st
 
 | Gate | Result |
 |---|---|
-| 1 Static | typecheck clean; wrangler bundles 3 envs with both crons |
+| 1 Static | typecheck clean; wrangler bundles 3 envs |
 | 2/3 | scopes (anonymous 401, user token 401, other-scope 403, `read_only` reads/never writes, scoped + super write); source & requirement validation, duplicates, unknown source; catalogue-order list + keyset; the full workflow incl. every illegal transition; published-edit protection (409/422), re-verify, version history + append-only; audit trail; atomicity; **fan-out** (existing cases get the row, case-less don't, applicability flips preserve progress, offline conflict after a version bump); **visibility** (unpublish/archive hides in 5 places, republish restores); flags (list, reverified re-stamps, dismissed doesn't, double-resolve 409); sweep (baseline, noise ignored, change → one flag, system audit, failure ≠ change, counters, inactive skipped, batch bounded, PDFs, normaliser); How We Verify (counts, %, last sweep, open flags, recent updates, empty catalogue) |
 | 4 | publish fan-out across **75,000 applicants: 1.4 s** (re-publish, conflict path; admin action, inherently a scan of `applicants`); sweep selection 0.03 ms; list 0.07 ms; summary 0.05 ms. Cron refresh (Today) unchanged: ~2.8 s / 15k. 44 queries pass |
 | 5 | admin scope enforced in middleware; no content stored from sources (hash only); outbound fetch is https-only to admin-entered URLs with timeout + size cap; audit append-only; **open:** rate limiting (edge); first-ever sweep against real sites happens on staging |

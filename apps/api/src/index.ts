@@ -15,10 +15,10 @@ import { referenceRoutes } from './modules/reference/reference.routes.js';
 import { applicantRoutes } from './modules/applicants/applicants.routes.js';
 import { publicRoutes } from './modules/eligibility/eligibility.routes.js';
 import { documentRoutes } from './modules/documents/documents.routes.js';
-import { purgeStaleDocuments } from './modules/documents/documents.service.js';
-import { refreshNextActions } from './modules/today/today.service.js';
+import { runScheduledJobs } from './jobs.js';
+import { pushSenderFor } from './lib/fcm.js';
+import { notificationPreferenceRoutes, notificationRoutes } from './modules/notifications/notifications.routes.js';
 import { cmsRoutes, verificationPublicRoutes } from './modules/cms/cms.routes.js';
-import { sweepSources } from './modules/cms/cms.service.js';
 import { adminRoutes } from './modules/admin/admin.routes.js';
 import { todayRoutes } from './modules/today/today.routes.js';
 import { applicantCaseRoutes, checklistRoutes } from './modules/checklist/checklist.routes.js';
@@ -94,6 +94,8 @@ export function createApp(deps: AppDeps = {}): Hono<AppEnv> {
   app.route('/v1/checklist', checklistRoutes);
   app.route('/v1/documents', documentRoutes);
   app.route('/v1/today', todayRoutes);
+  app.route('/v1/notifications', notificationRoutes);
+  app.route('/v1/notification-preferences', notificationPreferenceRoutes);
   app.route('/v1/admin', adminRoutes);
   app.route('/v1/admin', cmsRoutes);
   app.route('/v1/public', verificationPublicRoutes);
@@ -143,34 +145,20 @@ export function createApp(deps: AppDeps = {}): Hono<AppEnv> {
 
 const app = createApp();
 
-/** 02:00 PKT (UTC+5) = 21:00 UTC. Every other tick is the frequent job set. Must match wrangler.toml. */
-const DAILY_SWEEP_CRON = '0 21 * * *';
-
 /**
- * Cron Worker entry (wrangler `[triggers] crons`). Everything slow lives here, never on a user
- * request (PRD §4, §15): the Today materialisation and document retention. Each job is
- * independent — one failing must not starve the other — and failures are logged, not thrown,
- * so the next tick retries.
+ * Cron Worker entry (wrangler `[triggers] crons`, one every-5-minutes trigger). Everything slow lives here, never
+ * on a user request (PRD §4): see runScheduledJobs. Failures are logged, not thrown, so the next tick
+ * retries.
  */
-async function scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+async function scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
   const job = async () => {
     const { db, close } = await createDb(env);
     try {
-      const jobs: Array<[string, () => Promise<unknown>]> =
-        event.cron === DAILY_SWEEP_CRON
-          ? [['source_hash_sweep', () => sweepSources(db)]]
-          : [
-              ['next_actions', () => refreshNextActions(db)],
-              ['document_retention', () => purgeStaleDocuments(db, createR2Store(env))],
-            ];
-      for (const [name, run] of jobs) {
-        try {
-          console.log(JSON.stringify({ level: 'info', job: name, result: await run() }));
-        } catch (err) {
-          console.error(
-            JSON.stringify({ level: 'error', job: name, message: err instanceof Error ? err.message : String(err) }),
-          );
-        }
+      const pushSender = pushSenderFor(env);
+      if (!pushSender) console.warn(JSON.stringify({ level: 'warn', job: 'push', message: 'FCM_SERVICE_ACCOUNT not set; push skipped' }));
+      const report = await runScheduledJobs(db, { store: createR2Store(env), pushSender });
+      for (const [name, r] of Object.entries(report)) {
+        console.log(JSON.stringify(r.ok ? { level: 'info', job: name, result: r.result } : { level: 'error', job: name, message: r.error }));
       }
     } finally {
       await close();

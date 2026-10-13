@@ -140,6 +140,22 @@ async function checkDb(client) {
     }
   }
 
+  // 2b'''. Notification wording: every type the code can emit has an English template, none is a
+  // placeholder, none reads as a verdict (PRD §14, §18). A missing template means that notification is
+  // never created, so this is a launch blocker, not a warning.
+  const types = Object.keys(JSON.parse(await readFile(join(ROOT, 'src/lib/notification-types.json'), 'utf8')))
+    .filter((t) => !t.startsWith('_'));
+  const { rows: tpl } = await client.query(`SELECT type, locale, title || ' ' || body AS copy FROM notification_templates`);
+  for (const t of types) {
+    if (!tpl.some((r) => r.type === t && r.locale === 'en')) fail(`No English notification template for '${t}'.`);
+  }
+  for (const r of tpl) {
+    if (r.copy.includes(rules.placeholderMarker)) fail(`Notification template '${r.type}' (${r.locale}) is placeholder copy.`);
+    for (const phrase of rules.forbiddenPhrases) {
+      if (r.copy.toLowerCase().includes(phrase)) fail(`Notification template '${r.type}' contains forbidden phrase "${phrase}".`);
+    }
+  }
+
   // 2c. Every document type the app gates on has a current version. Missing
   // text does not error — it silently deadlocks onboarding at
   // disclaimer_pending, which looks like an app bug, not a content gap.
@@ -155,7 +171,7 @@ async function checkDb(client) {
   // 2d. Config keys the API reads should exist rather than falling back.
   // A fallback in production means behaviour depends on whether a row loaded.
   const { rows: cfg } = await client.query(`
-    SELECT d.key FROM (VALUES ('auth'),('onboarding'),('nulla_osta'),('checklist'),('uploads'),('today')) AS d(key)
+    SELECT d.key FROM (VALUES ('auth'),('onboarding'),('nulla_osta'),('checklist'),('uploads'),('today'),('verification'),('notifications'),('reminders')) AS d(key)
      WHERE NOT EXISTS (SELECT 1 FROM app_config c WHERE c.key = d.key)
   `);
   for (const r of cfg) warn(`app_config['${r.key}'] missing — the API will use its coded fallback.`);

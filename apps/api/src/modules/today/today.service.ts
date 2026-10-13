@@ -39,6 +39,7 @@ export async function refreshNextActions(db: Db): Promise<{ refreshed: number }>
         FROM applicants a
         LEFT JOIN next_actions n ON n.applicant_id = a.id
        WHERE a.status = 'active' AND a.case_generated_at IS NOT NULL
+         AND (n.computed_at IS NULL OR n.computed_at < now() - make_interval(mins => ${cfg.min_age_minutes}::int))
        ORDER BY n.computed_at NULLS FIRST, a.id
        LIMIT ${cfg.batch_size}
     ),

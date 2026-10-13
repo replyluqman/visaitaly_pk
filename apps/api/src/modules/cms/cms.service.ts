@@ -24,6 +24,7 @@ import { AppError } from '../../lib/errors.js';
 import { audit } from '../../lib/audit.js';
 import { decodeTsCursor, encodeTsCursor } from '../../lib/cursor.js';
 import { VERIFICATION_CONFIG_FALLBACK, readConfig } from '../../lib/app-config.js';
+import { pgArray } from '../../lib/sql.js';
 import { requirementApplies } from '../checklist/applicability.js';
 
 const iso = (v: string | null) => (v ? new Date(v).toISOString() : null);
@@ -124,6 +125,14 @@ const FIELD_MAP: Record<string, [column: string, cast: string]> = {
   sortOrder: ['sort_order', 'integer'],
 };
 
+/** A bound, typed value: jsonb as JSON text, text[] as a real Postgres array, scalars cast in place. */
+function boundValue(value: unknown, cast: string): SQL {
+  if (value === null) return sql`NULL::${sql.raw(cast)}`;
+  if (cast === 'jsonb') return sql`${JSON.stringify(value)}::jsonb`;
+  if (cast === 'text[]') return pgArray(value as string[], 'text');
+  return sql`${value}::${sql.raw(cast)}`;
+}
+
 /** `col = value::type` for each present key; the column names come from FIELD_MAP, never from input. */
 function setClauses(fields: Record<string, unknown>): SQL[] {
   const out: SQL[] = [];
@@ -131,8 +140,7 @@ function setClauses(fields: Record<string, unknown>): SQL[] {
     const m = FIELD_MAP[key];
     if (!m || value === undefined) continue;
     const [col, cast] = m;
-    const bound = cast === 'jsonb' ? (value === null ? null : JSON.stringify(value)) : value;
-    out.push(sql`${sql.raw(col)} = ${bound}::${sql.raw(cast)}`);
+    out.push(sql`${sql.raw(col)} = ${boundValue(value, cast)}`);
   }
   return out;
 }
@@ -233,7 +241,7 @@ export async function createRequirement(
       const m = FIELD_MAP[key];
       if (!m || value === undefined) continue;
       names.push(sql.raw(m[0]));
-      values.push(sql`${m[1] === 'jsonb' ? (value === null ? null : JSON.stringify(value)) : value}::${sql.raw(m[1])}`);
+      values.push(boundValue(value, m[1]));
     }
     const ins = await tx.execute<{ id: string }>(sql`
       INSERT INTO requirements (code, ${sql.join(names, sql`, `)})
@@ -594,7 +602,9 @@ export async function sweepSources(
   const cfg = await readConfig(db, 'verification', VERIFICATION_CONFIG_FALLBACK);
   const due = await db.execute<{ id: string; url: string; last_hash: string | null }>(sql`
     SELECT id, url, last_hash FROM sources
-     WHERE is_active ORDER BY last_checked_at NULLS FIRST, id LIMIT ${cfg.hash_sweep_batch}
+     WHERE is_active
+       AND (last_checked_at IS NULL OR last_checked_at < now() - make_interval(hours => ${cfg.recheck_after_hours}::int))
+     ORDER BY last_checked_at NULLS FIRST, id LIMIT ${cfg.hash_sweep_batch}
   `);
   let changed = 0;
   let failed = 0;

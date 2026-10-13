@@ -118,6 +118,11 @@ Current keys: `auth {max_active_devices: 2}`, `onboarding {max_applicants: 10}`,
 Versioned Quick Check copy: `questions` (≤ 6, with server-side `mapsTo`), `summaries` per category, `disclaimer`, optional `wa.me`
 link, `is_current` (at most one). Content is CMS/seed only.
 
+### Notifications (0010) — see `apps/api/MODULE-05-NOTIFICATIONS.md`
+`notification_templates` PK `(type, locale)` (CMS/seed content), `notifications` (tab, type, rendered title/body, mandatory `deep_link`, `payload`, unique `(user_id, dedupe_key)`,
+`push_sent_at`/`push_attempts`, `read_at`; ≈ 1M rows/year), `notification_preferences` PK `(user_id, tab, channel)` (in-app cannot be disabled), `notification_dispatch`
+(requirement versions already announced). Config: `notifications`, `reminders`, plus `verification.recheck_after_hours`, `today.min_age_minutes`.
+
 ### CMS workflow (0009) — see `apps/api/MODULE-04B-CMS.md`
 `requirement_versions` (append-only snapshot per published version, `change_summary` locale map), `sources.last_error/consecutive_failures`, FKs
 `requirements.last_verified_by` / `source_flags.resolved_by` → `admins`, `app_config['verification']`. `requirements.version` now counts **published revisions only**.
@@ -152,6 +157,7 @@ with the 12 PRD §16 scopes + `granted_by`, `audit_log` (append-only, trigger-en
 | applicants | `applicants_relationship_code_idx` | FK cover (0003) |
 | applicant_stage_events | `(applicant_id, created_at DESC)` | history |
 | relationships | `relationships_active_idx (sort_order) WHERE is_active` | picker |
+| notifications | `notifications_user_dedupe_uq (user_id, dedupe_key)`, `notifications_inbox_idx (user_id, tab, created_at DESC, id DESC)`, `notifications_unread_idx (user_id, tab) WHERE unread`, `notifications_push_queue_idx (created_at, id) WHERE push_sent_at IS NULL`, `notifications_retention_idx (read_at) WHERE read_at NOT NULL`, `notifications_applicant_idx` | idempotent generation + FK cover, inbox, bell badge, push queue, retention, FK cover |
 | requirement_versions | `…_req_version_uq (requirement_id, version)`, `…_published_idx (published_at DESC, id DESC)`, `…_published_by_idx` | history, recent-updates feed, FK cover |
 | requirements | `requirements_status_idx (verification_status, stage_order, sort_order, id)`, `requirements_last_verified_by_idx` | admin list by state, FK cover |
 | source_flags | `source_flags_resolved_by_idx` | FK cover |
@@ -189,6 +195,7 @@ CI asserts every FK has a covering index (leading column).
 | applicant_requirements | ≈ 1.9M | life of applicant (CASCADE) |
 | requirements, sources | tens–low hundreds | CMS catalogue; archived, never deleted |
 | source_flags | a few per source per year | resolved rows purged after 24 months |
+| notifications | ≈ 1M / year | read rows deleted after 90 days (batched Cron); unread kept |
 | requirement_versions | tens–hundreds | forever (legal-defence record) |
 | audit_log | ≈ 0.5M / year at a busy-admin volume | 12 months hot (trigger-enforced), then R2 archive |
 | admins | tens | for life (disabled, never deleted) |

@@ -62,6 +62,8 @@ export interface TodayConfigValue {
   expiry_window_days: number;
   /** Applicants refreshed per Cron run, stalest first. */
   batch_size: number;
+  /** An applicant's next_actions row is not recomputed more often than this. */
+  min_age_minutes: number;
 }
 
 export const UPLOADS_CONFIG_FALLBACK: UploadsConfigValue = {
@@ -76,6 +78,7 @@ export const TODAY_CONFIG_FALLBACK: TodayConfigValue = {
   max_actions: 5,
   expiry_window_days: 30,
   batch_size: 15000,
+  min_age_minutes: 30,
 };
 
 /** app_config['verification'] */
@@ -86,6 +89,8 @@ export interface VerificationConfigValue {
   max_body_bytes: number;
   /** Consecutive failed checks before the admin home flags a source as unreachable. */
   failure_alert_after: number;
+  /** A source is re-checked once it has gone this long without a check (the sweep runs every tick). */
+  recheck_after_hours: number;
 }
 
 export const VERIFICATION_CONFIG_FALLBACK: VerificationConfigValue = {
@@ -93,7 +98,32 @@ export const VERIFICATION_CONFIG_FALLBACK: VerificationConfigValue = {
   fetch_timeout_ms: 10_000,
   max_body_bytes: 2_000_000,
   failure_alert_after: 3,
+  recheck_after_hours: 20,
 };
+
+/** app_config['notifications'] */
+export interface NotificationsConfigValue {
+  /** FCM sends per Cron run. Workers free tier allows 50 subrequests per invocation. */
+  push_max_per_run: number;
+  push_max_attempts: number;
+  retention_days_read: number;
+  retention_batch: number;
+}
+
+/** app_config['reminders'] */
+export interface RemindersConfigValue {
+  /** Thresholds in days before expiry; one reminder per threshold crossed. */
+  days_before: number[];
+  batch_size: number;
+}
+
+export const NOTIFICATIONS_CONFIG_FALLBACK: NotificationsConfigValue = {
+  push_max_per_run: 40,
+  push_max_attempts: 3,
+  retention_days_read: 90,
+  retention_batch: 5000,
+};
+export const REMINDERS_CONFIG_FALLBACK: RemindersConfigValue = { days_before: [30, 7, 1], batch_size: 5000 };
 
 export const AUTH_CONFIG_FALLBACK: AuthConfigValue = { max_active_devices: 2 };
 export const ONBOARDING_CONFIG_FALLBACK: OnboardingConfigValue = { max_applicants: 10 };
@@ -112,6 +142,8 @@ export interface AppConfigMap {
   uploads: UploadsConfigValue;
   today: TodayConfigValue;
   verification: VerificationConfigValue;
+  notifications: NotificationsConfigValue;
+  reminders: RemindersConfigValue;
 }
 
 export type AppConfigKey = keyof AppConfigMap;

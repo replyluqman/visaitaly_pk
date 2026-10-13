@@ -29,7 +29,10 @@ Rule: any change to `docs/API-CONTRACT.md` gets a line here, and anything that b
 
 - **Module 4b — CMS & verification workflow.** `/v1/admin/sources`, `/v1/admin/requirements` (+ `/actions`, `/versions`), `/v1/admin/source-flags`, public `GET /v1/public/verification-summary`; migration `0009` (`requirement_versions`, source health columns, FKs onto `admins`); publish **fans out** to existing cases; daily hash-sweep Cron (`0 21 * * *`); users now see only **published** requirements. `requirements.version` counts published revisions only.
 
+- **Module 5 — notifications.** `GET /v1/notifications`, `GET /v1/notifications/unread-count`, `POST /v1/notifications/:id/read`, `POST /v1/notifications/read-all`, `GET|PUT /v1/notification-preferences`; migration `0010` (`notification_templates`, `notifications`, `notification_preferences`, `notification_dispatch`); Cron-generated Updates and Reminders; FCM HTTP v1 push (`FCM_SERVICE_ACCOUNT`, optional); `notify()` for Activity events; the two crons are replaced by ONE every-5-minutes trigger running `runScheduledJobs`. `preflight` now blocks missing/placeholder/verdict-style notification templates.
+
 ### Fixed
+- Drizzle `sql` expanded JS arrays into a record, breaking `text[]` writes (CMS `appliesLocations` / `requiresNullaOstaStatus`) — `pgArray()` helper; regression-tested.
 - **Keyset pagination skipped/repeated rows that share a millisecond** (cursor was rebuilt from a ms-precision JS Date). Timestamps now travel as exact Postgres text (`lib/cursor.ts`); affected the Module 3b documents list, fixed before any client shipped.
 - `createDb` now awaits `client.connect()`; previously every query hung.
 - `POST /v1/auth/session` on a deleted account returns `USER_DELETED` (403) without rewriting PII.

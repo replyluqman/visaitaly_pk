@@ -1,4 +1,13 @@
-# State — Modules 1–4 (incl. 3b, 3c, 4a, 4b) built and gated · Module 5 (notifications) next
+# State — Modules 1–5 (incl. 3b, 3c, 4a, 4b) built and gated · Module 6 (payments) BLOCKED on owner decision O1
+
+## Phase 4 — Module 5 Notifications (done)
+
+Migration `0010`; `apps/api/MODULE-05-NOTIFICATIONS.md`. **239 tests**; Gate 4 at 1M notifications (54 queries pass). One consolidated cron (every 5 min) runs every background job.
+Found+fixed: Drizzle array interpolation (affected CMS array fields). **Not verified here:** the FCM adapter against Google (first staging send); push throughput on the free tier (~40/tick).
+**Owner actions:** FCM service account → `FCM_SERVICE_ACCOUNT` secret; author + lawyer-review the 5 notification templates (`notification-types.json`).
+
+### Next: Module 6 (payments + refunds) — blocked
+ERD **O1** (payable currency PKR vs EUR) decides price storage, the bank-transfer flow and receipts; building before it would be guessing. Modules 7 (services + premium lifecycle) depend on 6; 8 (support), 9 (referral) and the rest of 10 (case lookup, data export/deletion, legal manager) are independent of O1 and can proceed.
 
 ## Phase 3b — Module 4b CMS & verification workflow (done)
 

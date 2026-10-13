@@ -159,6 +159,31 @@ const REFRESH = `
 `;
 
 const QUERIES = {
+  'notifications: inbox page (keyset)': [`
+    SELECT id, tab, type, title, body, deep_link, applicant_id, created_at, created_at::text AS created_at_raw, read_at FROM notifications
+     WHERE user_id=$1 AND tab='update' AND (created_at, id) < (now(), 'ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid)
+     ORDER BY created_at DESC, id DESC LIMIT 21`, [u.id]],
+  'notifications: unread badge (grouped count)': [`SELECT tab, count(*)::int FROM notifications WHERE user_id=$1 AND read_at IS NULL GROUP BY tab`, [u.id]],
+  'notifications: mark one read': [`UPDATE notifications SET read_at = coalesce(read_at, now()) WHERE id=(SELECT id FROM notifications WHERE user_id=$1 LIMIT 1) AND user_id=$1 RETURNING id`, [u.id]],
+  'notifications: read-all': [`UPDATE notifications SET read_at = now() WHERE user_id=$1 AND read_at IS NULL`, [u.id]],
+  'notifications: push queue': [`
+    SELECT n.id FROM notifications n WHERE n.push_sent_at IS NULL AND n.push_attempts < 3 ORDER BY n.created_at, n.id LIMIT 120`, []],
+  'notifications: retention victim select': [`
+    SELECT id FROM notifications WHERE read_at IS NOT NULL AND read_at < now() - make_interval(days => 90) LIMIT 5000`, []],
+  'notifications: dedupe probe': [`SELECT 1 FROM notifications WHERE user_id=$1 AND dedupe_key='nulla:x:y:7'`, [u.id]],
+  'notifications: prefs read': [`SELECT tab, enabled FROM notification_preferences WHERE user_id=$1 AND channel='push'`, [u.id]],
+  'reminders: Nulla Osta scan (Cron)': [`
+    SELECT a.id FROM applicants a
+     WHERE a.status='active' AND a.nulla_osta_status='received' AND a.nulla_osta_expiry_date IS NOT NULL
+       AND a.nulla_osta_expiry_date <= CURRENT_DATE + 30
+       AND ((a.premium_status='active' AND (a.access_until IS NULL OR a.access_until > now())) OR (a.premium_status='expired_pending_confirmation' AND (a.grace_until IS NULL OR a.grace_until > now())))
+       AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = a.user_id AND n.dedupe_key = 'nulla:' || a.id::text || ':' || to_char(a.nulla_osta_expiry_date,'YYYY-MM-DD') || ':30')
+     LIMIT 5000`, []],
+  'reminders: document expiry scan (Cron)': [`
+    SELECT d.id FROM documents d JOIN applicants a ON a.id = d.applicant_id AND a.user_id = d.user_id AND a.status='active'
+     WHERE d.status='active' AND d.expiry_date IS NOT NULL AND d.expiry_date <= CURRENT_DATE + 30
+       AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = d.user_id AND n.dedupe_key = 'doc:' || d.id::text || ':' || to_char(d.expiry_date,'YYYY-MM-DD') || ':30')
+     LIMIT 5000`, []],
   'cms: requirement list (catalogue order)': [`
     SELECT r.id, r.code, r.stage, r.verification_status, r.version, coalesce(r.title->>'en', r.code), r.source_id, r.last_verified_at,
            EXISTS (SELECT 1 FROM source_flags f WHERE f.source_id = r.source_id AND f.status = 'open')

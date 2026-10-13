@@ -20,7 +20,7 @@ export async function closePool(): Promise<void> {
  */
 export async function resetDb(): Promise<void> {
   await testPool().query(
-    'TRUNCATE users, legal_versions, requirements, requirement_versions, sources, source_flags, admins, audit_log RESTART IDENTITY CASCADE',
+    'TRUNCATE users, legal_versions, requirements, requirement_versions, sources, source_flags, admins, audit_log, notification_templates RESTART IDENTITY CASCADE',
   );
 }
 
@@ -131,4 +131,18 @@ export async function seedAdmin(
     await q(`INSERT INTO admin_permissions (admin_id, scope) VALUES ($1,$2)`, [row!.id, scope]);
   }
   return row!.id;
+}
+
+/** Neutral templates for every notification type the code can emit (test copy, not product copy). */
+export async function seedTemplates(except: string[] = []): Promise<void> {
+  const types: Record<string, string> = JSON.parse(
+    (await import('node:fs')).readFileSync(new URL('../../src/lib/notification-types.json', import.meta.url), 'utf8'),
+  );
+  for (const type of Object.keys(types).filter((t) => !t.startsWith('_') && !except.includes(t))) {
+    await q(
+      `INSERT INTO notification_templates (type, locale, title, body) VALUES ($1,'en',$2,$3)
+       ON CONFLICT (type, locale) DO UPDATE SET title = EXCLUDED.title, body = EXCLUDED.body`,
+      [type, `T:${type}`, `B:${type}|{title}|{changeSummary}|{days}|{date}`],
+    );
+  }
 }

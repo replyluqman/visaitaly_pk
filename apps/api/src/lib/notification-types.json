@@ -1,0 +1,8 @@
+{
+  "_comment": "Every notification type the code can emit, and its inbox tab. `pnpm preflight` requires an English notification_templates row for each. Add a type here when a module starts emitting it.",
+  "requirement_added": "update",
+  "requirement_changed": "update",
+  "nulla_osta_expiring": "reminder",
+  "document_expiring": "reminder",
+  "document_expiring_unlinked": "reminder"
+}

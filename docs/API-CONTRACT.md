@@ -177,6 +177,14 @@ Stateless: nothing is stored. All wording is CMS-owned; the result is orientatio
 admin routes are not an id-enumeration surface); a token without a second factor gets `403 ADMIN_MFA_REQUIRED` when MFA is enforced.
 Admins are pre-registered by a super admin and link on first sign-in with a verified matching email; there is no signup. List endpoints are keyset-paginated.
 
+### Notifications (Module 5) — session-authenticated
+
+`GET /v1/notifications?tab=reminder|update|activity&cursor&limit` → `{items[], nextCursor}` · `GET /v1/notifications/unread-count` → `{total, byTab}` ·
+`POST /v1/notifications/:id/read` (204) · `POST /v1/notifications/read-all` `{tab?}` (204) · `GET|PUT /v1/notification-preferences` `{push:{reminder,update,activity}}`.
+`Notification {id, tab, type, title, body, deepLink, applicantId, createdAt, readAt}` — `title`/`body` are rendered server-side from CMS templates; `deepLink` is an app-relative path
+(`/checklist/<id>`, `/applicants/<id>`, `/documents`). Push carries the same title/body plus `data {notificationId, deepLink, type}`; a missed push loses nothing — the inbox is the record.
+Updates and reminders exist for **premium/grace** applicants only.
+
 ### CMS & verification (Module 4b) — admin Bearer, scope `verification_manage` (read also `read_only`)
 
 `/v1/admin/sources` (GET, POST, PATCH `:id`) · `/v1/admin/source-flags` (GET, POST `:id/resolve`) · `/v1/admin/requirements` (GET, POST, GET/PATCH `:id`,

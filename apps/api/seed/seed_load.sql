@@ -83,4 +83,18 @@ SELECT ar.user_id, ar.applicant_id, ar.id, 'load/' || gen_random_uuid(), 'image/
   FROM (SELECT ar.*, row_number() OVER () AS n FROM applicant_requirements ar) ar
  WHERE ar.n % 9 = 0;
 TRUNCATE next_actions;
+
+-- Module 5: ~1,000,000 notifications (33 per user), 70% read; templates; 5% of applicants hold a Nulla Osta
+-- expiring within 60 days (so the reminder scan has real work).
+TRUNCATE notifications, notification_templates CASCADE;
+INSERT INTO notification_templates (type, locale, title, body) VALUES
+  ('nulla_osta_expiring','en','t','b {days} {date}'), ('document_expiring','en','t','b {title}'),
+  ('document_expiring_unlinked','en','t','b'), ('requirement_added','en','t','b'), ('requirement_changed','en','t','b {title} {changeSummary}');
+INSERT INTO notifications (user_id, tab, type, title, body, deep_link, dedupe_key, created_at, read_at, push_sent_at)
+SELECT u.id, (ARRAY['reminder','update','activity'])[1 + g % 3], 'requirement_changed', 't', 'b', '/x', 'load:' || g,
+       now() - make_interval(secs => g * 3600), CASE WHEN g % 10 < 7 THEN now() - make_interval(secs => g * 1800) END, now()
+  FROM users u CROSS JOIN generate_series(1, 33) g;
+UPDATE applicants SET nulla_osta_status = 'received', nulla_osta_issue_date = CURRENT_DATE - 100,
+       nulla_osta_expiry_date = CURRENT_DATE + (abs(hashtext(id::text)) % 60)
+ WHERE abs(hashtext(id::text)) % 20 = 0;
 ANALYZE;

@@ -16,7 +16,7 @@ requirements, stages and pricing — additive expand-migrations plus relaxing a 
 | 3 | Checklist engine (5 statuses, badges, non-applicable with reason) | built (0005) | G1–G5 ✓ (CPU unmeasured) | 8–12, 2 | — |
 | 3b | Documents (R2 uploads) + Today / next actions | built (0007) | G1–G5 ✓ (R2 adapter + CPU unmeasured) | 9, 14 | — |
 | 4 | CMS / content + verification workflow + hash-change flags | built (0008 admin foundation, 0009) | G1–G5 ✓ (first real sweep on staging) | 15 | 39, 40 (API only) |
-| 5 | Notifications — Cron generation + FCM + notification centre | | | 13 | — |
+| 5 | Notifications — Cron generation + FCM + notification centre | built (0010) | G1–G5 ✓ (FCM adapter + CPU unmeasured) | 13 | — |
 | 6 | Payments — manual proof, one-click approve, SLA, receipts, **refunds** | | | 16, 20–22, 23, 24, 26 | 31, 33, 34, 43 |
 | 7 | Services (translation + courier, appointment) + premium lifecycle (expiry, renewal) | | | 17–19 | 37, 38, 42 |
 | 8 | Support thread + admin inbox + canned responses | | | 25 | 35 |

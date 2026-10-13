@@ -7,3 +7,4 @@ export * from './eligibility.types.js';
 export * from './document.types.js';
 export * from './admin.types.js';
 export * from './cms.types.js';
+export * from './notification.types.js';
