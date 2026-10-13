@@ -7,6 +7,7 @@ import type {
   RegisterSessionInput,
 } from '@visaitaly/shared';
 import type { Db } from '../../db/client.js';
+import { AppError } from '../../lib/errors.js';
 import type { VerifiedToken } from '../../lib/firebase.js';
 
 const DEFAULT_MAX_ACTIVE_DEVICES = 2; // fallback only if app_config row is missing
@@ -35,11 +36,14 @@ async function upsertUser(db: Db, token: VerifiedToken): Promise<UserRowLite> {
       SET email         = COALESCE(EXCLUDED.email, users.email),
           display_name  = COALESCE(users.display_name, EXCLUDED.display_name),
           last_login_at = now()
+      WHERE users.status = 'active'
     RETURNING id, email, display_name, onboarding_state, created_at,
               (xmax = 0) AS is_new
   `);
   const row = result.rows[0];
-  if (!row) throw new Error('User upsert returned no row');
+  // ON CONFLICT ... WHERE filtered the row out: the account is deleted. Refuse
+  // before any write so the PII wipe is never undone (SECURITY.md data lifecycle).
+  if (!row) throw AppError.userDeleted();
   return row;
 }
 

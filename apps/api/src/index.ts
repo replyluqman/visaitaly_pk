@@ -34,8 +34,10 @@ app.use(
 
 /** Correlates a client-visible error with the server log. Never a user id. */
 app.use('*', async (c, next) => {
-  c.set('requestId', crypto.randomUUID());
+  const requestId = crypto.randomUUID();
+  c.set('requestId', requestId);
   await next();
+  c.header('X-Request-Id', requestId);
 });
 
 /**
@@ -44,7 +46,7 @@ app.use('*', async (c, next) => {
  * the 10ms CPU ceiling is the binding constraint (docs/SCALE.md).
  */
 app.use('/v1/*', async (c, next) => {
-  const { db, close } = createDb(c.env);
+  const { db, close } = await createDb(c.env);
   c.set('db', db);
   try {
     await next();

@@ -226,3 +226,28 @@ risk 8b), not splitting the query back into round trips.
   (`free` / `premium` / `grace_read_only` / `expired`) and disable edit controls
   on `canWrite: false` rather than waiting for a 403.
 - `relationshipCategory` is server-derived — send `relationshipCode` only.
+
+## Test results
+
+**Date:** Phase 1 gates · **DB:** Postgres 16, migrations 0001–0004
+
+| Gate | Result |
+|---|---|
+| 1 Static | `pnpm typecheck` clean (src + tests) |
+| 2 Unit | `test/legal.test.ts` (11), `test/applicants.test.ts` (30): every Module 2 code (`LEGAL_ACCEPTANCE_REQUIRED`, `ONBOARDING_STEP_INVALID`, `APPLICANT_LIMIT_REACHED`, `APPLICANT_READ_ONLY`, `CONFLICT`, `VALIDATION_FAILED`, `NOT_FOUND`); all 7 access-level branches incl. lapsed-but-unswept; invariants 2, 3, 4, 5, 6, 8, 9, 10 each asserted |
+| 3 Integration | Full onboarding path `disclaimer_pending → applicants_pending → stage_pending → complete`; `complete` never regresses (new legal version, higher declared count, 2nd applicant); partial/unknown legal accept writes nothing; legal acceptance per user; `(doc_type, version)` locale match; backward stage moves + event log; **stage-write atomicity** (forced event-insert failure rolls the stage back); **cross-user 404 on GET / PATCH / PATCH stage / DELETE**, indistinguishable from a missing id, victim row unchanged; 401 on all routes |
+| 4 Query & load | list 0.08 ms, get 0.02 ms, FOR UPDATE 0.01 ms, count 0.01 ms, recompute 0.01 ms, legal list/accepted 0.01–0.02 ms at 75k applicants. No Seq Scan >10k rows. List endpoint is **unpaginated by documented exemption** (bounded by `app_config.onboarding.max_applicants`, default 10) |
+| 5 Security | see below |
+
+### Security checklist
+- [x] Every read/write filters `user_id` in SQL; ownership 404 test passes on every verb
+- [x] Access level enforced in the service (`loadForWrite` → `assertWritable`), tested at DB level — client is not trusted
+- [x] `relationship_category`, `onboarding_state`, entitlement derived server-side; forged `relationshipCategory` in the body is ignored (tested)
+- [x] zod on every body/param; `displayName ≤ 80`; dates validated, future DOB rejected
+- [x] No PII in logs; `legal_acceptances` has no IP column (asserted)
+- [x] `deleteApplicant` refuses purchased applicants (support path only)
+- [ ] Rate limiting: edge rule, as Module 1
+- Moved `reference` inline SQL into `reference.service.ts` (routes do HTTP only).
+
+### Open (not blocking Module 3)
+- `legal_acceptances_user_idx` is redundant with `legal_acceptances_user_version_uq (user_id, …)`; drop in a later migration (harmless).

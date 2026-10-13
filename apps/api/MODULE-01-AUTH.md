@@ -116,3 +116,32 @@ grep -rn "verifyIdToken" node_modules/firebase-auth-cloudflare-workers/dist/*.d.
   (`docs/FLUTTER-ARCHITECTURE.md`).
 - Call `POST /v1/auth/session` after **every** sign-in, not just the first.
 - Route on `me.user.onboardingState`, never on local flags.
+
+## Test results
+
+**Date:** Phase 1 gates · **DB:** Postgres 16, migrations 0001–0004
+
+| Gate | Result |
+|---|---|
+| 1 Static | `pnpm typecheck` clean (src + tests) |
+| 2 Unit | Covered through the real service path in `test/auth.test.ts`, `devices.test.ts`: every Module 1 `AppError` code (`UNAUTHENTICATED`, `DEVICE_HEADER_MISSING`, `DEVICE_UNKNOWN`, `DEVICE_EVICTED`, `DEVICE_SIGNED_OUT`, `USER_DELETED`, `VALIDATION_FAILED`, `NOT_FOUND`), config-driven device limit + missing-row fallback, no clobber of display name / onboarding state |
+| 3 Integration | 25 tests vs real Postgres: 201/200 login, 401/400/422 shapes, 2-device eviction (LRU), reactivation, remote sign-out, cross-user device sign-out → 404 and victim unaffected, other user's `device_id` → `DEVICE_UNKNOWN`, `X-Request-Id` on every response |
+| 4 Query & load | `pnpm gate4` at 30k users / 60k devices / 75k applicants: session lookup 0.03 ms, login upsert 0.10 ms, evict 0.05 ms, `/v1/me` snapshot 0.12 ms, device touch 0.14 ms, device list 0.07 ms. No Seq Scan over a >10k-row table. **Not measured:** Worker CPU (10 ms ceiling) — needs `wrangler dev`/staging; tracked in `STATE.md` |
+| 5 Security | see below |
+
+### Findings fixed during the gates
+1. **`createDb` never called `client.connect()`** — `pg.Client` queues forever without it, so every `/v1` request would have hung in a deployed Worker. Only a real-DB test could find this. Fixed; `createDb` is now async.
+2. **Login rewrote PII on a deleted account** (undid the GDPR wipe). Upsert now has `WHERE users.status = 'active'` and refuses with `USER_DELETED` before any write.
+3. **Re-signup with the same email under a new Firebase uid returned 500** — `users_email_lower_uq` dropped (migration 0004), regression test added.
+4. `X-Request-Id` response header added (was error-body only).
+
+### Security checklist (docs/SECURITY.md)
+- [x] Reads/writes filter by `userId` in SQL (devices: `WHERE user_id = …`)
+- [x] Cross-user access → 404, tested
+- [x] Every body/param parsed by zod; string fields bounded (appVersion ≤ 32, model ≤ 128, fcmToken ≤ 512)
+- [x] No SQL concatenation (Drizzle `sql` tagged templates only)
+- [x] Errors carry no internals (asserted); unknown errors → opaque 500 + server log
+- [x] Emulator env var ignored outside development (`libraryEnv`) + preflight
+- [x] No IP stored anywhere; no PII in logs (only `requestId`, path, method, message)
+- [ ] **Rate limiting** — not in code. Enforced at the Cloudflare edge (WAF rate-limit rule on `/v1/auth/*`, per-IP); must be configured before launch (`LAUNCH-CHECKLIST.md`). Per-user write limits deferred.
+- N/A: uploads/R2 (Module 3b)

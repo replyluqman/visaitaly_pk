@@ -103,10 +103,23 @@ jobs:
             echo "::error::Foreign keys without a covering index:"; echo "$uncovered"; exit 1
           fi
 
-      - name: Gate 2/3 — tests
-        # No test runner yet (STATE.md). This step starts failing the build the
-        # moment a `test` script exists and fails.
-        run: pnpm -r --if-present test
+      - name: Gate 2/3 — unit + integration (real Postgres)
+        working-directory: apps/api
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/vip_ci
+        run: pnpm test
+
+      # Gate 4 on the pieces that can run in CI: EXPLAIN at 30k users / 75k applicants.
+      - name: Gate 4 — EXPLAIN at volume
+        working-directory: apps/api
+        env:
+          PGPASSWORD: postgres
+          LOAD_DATABASE_URL: postgres://postgres:postgres@localhost:5432/vip_load_ci
+        run: |
+          createdb -h localhost -U postgres vip_load_ci
+          DATABASE_URL="$LOAD_DATABASE_URL" node scripts/migrate.mjs up
+          psql "$LOAD_DATABASE_URL" -q -f seed/seed_load.sql
+          pnpm gate4
 
   deploy-staging:
     name: Deploy → staging

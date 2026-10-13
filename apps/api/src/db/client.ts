@@ -31,8 +31,13 @@ export type Db = PgDatabase<
  * released after the response is flushed. Not awaiting it inline keeps the
  * connection teardown off the measured request path.
  */
-export function createDb(env: Env): { db: Db; client: pg.Client; close: () => Promise<void> } {
+export async function createDb(
+  env: Env,
+): Promise<{ db: Db; client: pg.Client; close: () => Promise<void> }> {
   const client = new pg.Client({ connectionString: env.HYPERDRIVE.connectionString });
+  // pg.Client queues queries but never dials until connect() — without this every
+  // query hangs forever (verified against pg 8.x in the Gate 3 harness).
+  await client.connect();
   const db = drizzle(client, { schema });
   return {
     db,

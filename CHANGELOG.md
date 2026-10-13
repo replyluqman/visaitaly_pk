@@ -18,6 +18,11 @@ Rule: any change to `docs/API-CONTRACT.md` gets a line here, and anything that b
 - Claude Code: `.claude/commands/` (`/new-module`, `/migration`, `/gate-check`, `/security-review`), `.claude/settings.json` deny rules for secrets and production deploys; `apps/mobile/CLAUDE.md`.
 - Process docs: `TESTING.md` (five gates), `SECURITY.md`, `SCALE.md`, plus `INDEX`, `ARCHITECTURE`, `API-CONTRACT`, `DATA-MODEL`, `ENVIRONMENTS`, `DEPLOYMENT`, `RUNBOOK`, `OBSERVABILITY`, `DATA-PRIVACY`, `ROADMAP`, `GLOSSARY`, `MODULE-TEMPLATE`, `FLUTTER-ARCHITECTURE`, and ADRs 0001–0011.
 
+### Fixed
+- `createDb` now awaits `client.connect()`; previously every query hung.
+- `POST /v1/auth/session` on a deleted account returns `USER_DELETED` (403) without rewriting PII.
+- `X-Request-Id` response header on every response.
+
 ### Changed
 - `GET /v1/me` is its own router (was drafted as `/v1/auth/me`). No client existed, so not breaking.
 - Dev placeholder disclaimer moved out of migration `0002` into `apps/api/seed/seed_dev_legal.sql`. **Existing dev databases must be recreated** (the migration checksum changed). Nothing was deployed.
@@ -35,6 +40,4 @@ Rule: any change to `docs/API-CONTRACT.md` gets a line here, and anything that b
 
 ### Known gaps
 - `GET /v1/applicants` is not paginated — bounded by `app_config.onboarding.max_applicants`; documented exemption in `API-CONTRACT.md`.
-- Login does not refuse a deleted account and rewrites its email/name.
-- No `X-Request-Id` response header; no rate limiting.
-- No automated tests yet (Gates 2, 3 and 5 unstarted for Modules 1–2).
+- No rate limiting in code (edge WAF rule, pre-launch).

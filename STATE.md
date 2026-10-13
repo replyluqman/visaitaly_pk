@@ -1,4 +1,18 @@
-# State — Phase 0 pre-code pack done · Modules 1–2 code-complete (gates 2/3/5 pending)
+# State — Phase 0 done · Modules 1–2 gated (Phase 1) · Module 3 next
+
+## Phase 1 — Modules 1–2 gates (done)
+
+`cd apps/api && TEST_DATABASE_URL=postgres://…/x_test pnpm test` → **66 tests**, real Postgres, real middleware/SQL
+(only Firebase token verification is stubbed). `pnpm gate4` → EXPLAIN at 30k users / 75k applicants, all queries ≤ 0.15 ms,
+no big Seq Scan. Results and security checklist: `apps/api/MODULE-01-AUTH.md`, `MODULE-02-APPLICANTS.md`.
+Both run in CI (`.github/workflows/ci.yml`) — **CI itself still never executed on GitHub**.
+
+Bugs the gates found and fixed: `createDb` never connected (every request would hang in prod); login rewrote a deleted
+user's PII; same-email re-signup 500 (migration 0004); no `X-Request-Id`.
+
+Still open after Phase 1: Worker CPU p99 unmeasured (needs staging); rate limiting is an edge WAF rule, not configured;
+redundant `legal_acceptances_user_idx`; ADR 0010/0011 Proposed.
+
 
 ## Phase 0 — delivered
 
@@ -134,9 +148,9 @@ DELETE /v1/applicants/:id             PATCH /v1/applicants/:id/stage
 3. ~~`preflight` scope~~ — **done** (`--env`).
 
 ### P2 — before launch
-4. Gates 2, 3, 5 for Modules 1–2 — no tests exist; the cross-user 404 suite has never run.
-5. `registerSession` must refuse `status = 'deleted'` before the upsert (rewrites PII).
-6. `X-Request-Id` response header + per-request structured log (`OBSERVABILITY.md`).
+4. ~~Gates 2, 3, 5 for Modules 1–2~~ — **done** (Phase 1).
+5. ~~`registerSession` must refuse deleted users~~ — **done**.
+6. ~~`X-Request-Id` header~~ — **done**; per-request structured access log still open (`OBSERVABILITY.md`).
 7. Rate limiting on `/v1/auth/session` (Cloudflare rule first).
 8. Move the inline SQL in `reference.routes.ts` into a service (layering rule).
 9. Drop redundant `legal_acceptances_user_idx` in a later migration.

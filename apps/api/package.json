@@ -5,14 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "migrate": "node scripts/migrate.mjs up",
     "rollback": "node scripts/migrate.mjs down",
     "preflight": "node scripts/preflight.mjs",
     "migrate:roundtrip": "node scripts/migrate-roundtrip.mjs",
     "migrate:status": "node scripts/migrate.mjs status",
     "deploy:staging": "wrangler deploy --env staging",
-    "deploy:production": "wrangler deploy --env production"
+    "deploy:production": "wrangler deploy --env production",
+    "test": "vitest run",
+    "gate4": "node scripts/gate4.mjs"
   },
   "dependencies": {
     "@visaitaly/shared": "workspace:*",
@@ -27,6 +29,7 @@
     "@types/node": "^22.10.1",
     "@types/pg": "^8.11.10",
     "typescript": "^5.6.3",
+    "vitest": "^2",
     "wrangler": "^3.91.0"
   }
 }
