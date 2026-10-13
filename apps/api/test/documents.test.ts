@@ -511,7 +511,10 @@ describe('units', () => {
     expect(await v('PUT', 'doc-1', String(exp), sig)).toBe(false);
     expect(await v('GET', 'doc-2', String(exp), sig)).toBe(false);
     expect(await v('GET', 'doc-1', String(exp + 1), sig)).toBe(false);
-    expect(await v('GET', 'doc-1', String(exp), sig.slice(0, -2) + 'AA')).toBe(false);
+    // flip a FULL 6-bit character (the last base64 char of a 32-byte MAC carries 2 unused bits, so
+    // changing only it can decode to the same bytes — harmless, but it made this assertion flaky)
+    const flipped = (sig[0] === 'A' ? 'B' : 'A') + sig.slice(1);
+    expect(await v('GET', 'doc-1', String(exp), flipped)).toBe(false);
     expect(await v('GET', 'doc-1', String(exp), sig, (exp + 1) * 1000)).toBe(false);
     expect(await v('GET', 'doc-1', undefined, sig)).toBe(false);
     expect(await v('GET', 'doc-1', 'abc', sig)).toBe(false);

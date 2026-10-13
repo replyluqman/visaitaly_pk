@@ -118,6 +118,10 @@ Current keys: `auth {max_active_devices: 2}`, `onboarding {max_applicants: 10}`,
 Versioned Quick Check copy: `questions` (≤ 6, with server-side `mapsTo`), `summaries` per category, `disclaimer`, optional `wa.me`
 link, `is_current` (at most one). Content is CMS/seed only.
 
+### CMS workflow (0009) — see `apps/api/MODULE-04B-CMS.md`
+`requirement_versions` (append-only snapshot per published version, `change_summary` locale map), `sources.last_error/consecutive_failures`, FKs
+`requirements.last_verified_by` / `source_flags.resolved_by` → `admins`, `app_config['verification']`. `requirements.version` now counts **published revisions only**.
+
 ### Admin foundation (0008) — see `apps/api/MODULE-04A-ADMIN.md`
 `admins` (nullable unique `firebase_uid`, unique lower-case `email`, `is_super`, `status`, `created_by`), `admin_permissions` PK `(admin_id, scope)`
 with the 12 PRD §16 scopes + `granted_by`, `audit_log` (append-only, trigger-enforced; 12-month retention, then archive to R2 — Module 10 Cron).
@@ -148,6 +152,9 @@ with the 12 PRD §16 scopes + `granted_by`, `audit_log` (append-only, trigger-en
 | applicants | `applicants_relationship_code_idx` | FK cover (0003) |
 | applicant_stage_events | `(applicant_id, created_at DESC)` | history |
 | relationships | `relationships_active_idx (sort_order) WHERE is_active` | picker |
+| requirement_versions | `…_req_version_uq (requirement_id, version)`, `…_published_idx (published_at DESC, id DESC)`, `…_published_by_idx` | history, recent-updates feed, FK cover |
+| requirements | `requirements_status_idx (verification_status, stage_order, sort_order, id)`, `requirements_last_verified_by_idx` | admin list by state, FK cover |
+| source_flags | `source_flags_resolved_by_idx` | FK cover |
 | admins | `admins_firebase_uid_uq` (partial), `admins_email_uq`, `admins_created_by_idx`, `admins_list_idx (created_at, id)` | login, first-login link, FK cover, list |
 | admin_permissions | PK `(admin_id, scope)`, `admin_permissions_granted_by_idx` | scope load, FK cover |
 | audit_log | `(target_type, target_id, created_at DESC)`, `(actor_id, created_at DESC)`, `(created_at DESC, id DESC)`, `(action, created_at DESC, id DESC)` | per-target / per-actor history, viewer, filter by action |
@@ -182,6 +189,7 @@ CI asserts every FK has a covering index (leading column).
 | applicant_requirements | ≈ 1.9M | life of applicant (CASCADE) |
 | requirements, sources | tens–low hundreds | CMS catalogue; archived, never deleted |
 | source_flags | a few per source per year | resolved rows purged after 24 months |
+| requirement_versions | tens–hundreds | forever (legal-defence record) |
 | audit_log | ≈ 0.5M / year at a busy-admin volume | 12 months hot (trigger-enforced), then R2 archive |
 | admins | tens | for life (disabled, never deleted) |
 | documents | ≈ 200k | `pending` purged after 2× URL TTL; `deleted` after 30 days; `active` with the applicant |

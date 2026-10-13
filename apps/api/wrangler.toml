@@ -67,7 +67,7 @@ bucket_name = "replace-me-r2-bucket-dev"
 
 # Cron Worker: Today materialisation + document retention (never on a user request, PRD §15).
 [triggers]
-crons = ["*/10 * * * *"]
+crons = ["*/10 * * * *", "0 21 * * *"]
 
 # ── staging (`wrangler deploy --env staging`) ──────────────────────────────
 # Own Neon branch, own Firebase project, own KV. Never shares data with prod.
@@ -94,7 +94,7 @@ binding = "DOCS_BUCKET"
 bucket_name = "replace-me-r2-bucket-staging"
 
 [env.staging.triggers]
-crons = ["*/10 * * * *"]
+crons = ["*/10 * * * *", "0 21 * * *"]
 
 # ── production (`wrangler deploy --env production`) ─────────────────────────
 [env.production]
@@ -120,6 +120,6 @@ binding = "DOCS_BUCKET"
 bucket_name = "replace-me-r2-bucket-prod"
 
 [env.production.triggers]
-crons = ["*/10 * * * *"]
+crons = ["*/10 * * * *", "0 21 * * *"]
 
 # No secrets in this file. Set them with `wrangler secret put <NAME> --env <env>`.

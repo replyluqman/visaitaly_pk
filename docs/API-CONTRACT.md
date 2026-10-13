@@ -177,6 +177,13 @@ Stateless: nothing is stored. All wording is CMS-owned; the result is orientatio
 admin routes are not an id-enumeration surface); a token without a second factor gets `403 ADMIN_MFA_REQUIRED` when MFA is enforced.
 Admins are pre-registered by a super admin and link on first sign-in with a verified matching email; there is no signup. List endpoints are keyset-paginated.
 
+### CMS & verification (Module 4b) — admin Bearer, scope `verification_manage` (read also `read_only`)
+
+`/v1/admin/sources` (GET, POST, PATCH `:id`) · `/v1/admin/source-flags` (GET, POST `:id/resolve`) · `/v1/admin/requirements` (GET, POST, GET/PATCH `:id`,
+GET `:id/versions`, POST `:id/actions`). Public: `GET /v1/public/verification-summary` → `{requirementsTracked, sourceLinkedPercent, lastSweepAt, openFlags,
+recentUpdates[{requirementTitle, changeSummary, effectiveDate}]}`. A published requirement is edited only with `reverify:true` + `changeSummary`; users only ever see
+**published** requirements. Full rules: `apps/api/MODULE-04B-CMS.md`.
+
 ### Documents & Today (Module 3b) — session-authenticated unless noted
 
 | Method | Path | Success | Errors |

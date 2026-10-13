@@ -65,7 +65,7 @@ const RANKED = `
          coalesce(s.name->>'en', s.name->>'en') AS source_name, s.url AS source_url,
          EXISTS (SELECT 1 FROM source_flags f WHERE f.source_id = r.source_id AND f.status = 'open') AS source_under_review,
          row_number() OVER (PARTITION BY ar.is_applicable ORDER BY r.stage_order, r.sort_order, ar.id) AS rn
-    FROM applicant_requirements ar JOIN requirements r ON r.id = ar.requirement_id
+    FROM applicant_requirements ar JOIN requirements r ON r.id = ar.requirement_id AND r.verification_status = 'published'
     LEFT JOIN sources s ON s.id = r.source_id
    WHERE ar.applicant_id = $1::uuid AND ar.user_id = $2`;
 const { rows: [item] } = await client.query(`SELECT id FROM applicant_requirements WHERE applicant_id = $1 LIMIT 1`, [ap.id]);
@@ -94,7 +94,7 @@ const REFRESH = `
           OFFSET 0
         ) d
         LEFT JOIN applicant_requirements ar ON ar.id = d.applicant_requirement_id
-        LEFT JOIN requirements r ON r.id = ar.requirement_id
+        LEFT JOIN requirements r ON r.id = ar.requirement_id AND r.verification_status = 'published'
       UNION ALL
       -- 1b. Nulla Osta about to expire
       SELECT b.id, 1, 'expiring', 'nulla_osta_expires', NULL::jsonb, NULL::uuid,
@@ -113,6 +113,7 @@ const REFRESH = `
           OFFSET 0 -- planner fence: one index probe per batch applicant, never a scan of the table
         ) ar
         JOIN requirements r ON r.id = ar.requirement_id AND r.blocks_submission
+                           AND r.verification_status = 'published'
       UNION ALL
       -- 3. to do in the current stage
       SELECT b.id, 3, 'todo',
@@ -128,6 +129,7 @@ const REFRESH = `
           OFFSET 0
         ) ar
         JOIN requirements r ON r.id = ar.requirement_id AND r.stage = b.current_stage
+                           AND r.verification_status = 'published'
     ),
     best AS (
       -- An item that qualifies twice appears once, at its best rank.
@@ -157,6 +159,17 @@ const REFRESH = `
 `;
 
 const QUERIES = {
+  'cms: requirement list (catalogue order)': [`
+    SELECT r.id, r.code, r.stage, r.verification_status, r.version, coalesce(r.title->>'en', r.code), r.source_id, r.last_verified_at,
+           EXISTS (SELECT 1 FROM source_flags f WHERE f.source_id = r.source_id AND f.status = 'open')
+      FROM requirements r WHERE r.verification_status = 'published' ORDER BY r.stage_order, r.sort_order, r.id LIMIT 51`, []],
+  'cms: sweep selection': [`SELECT id, url, last_hash FROM sources WHERE is_active ORDER BY last_checked_at NULLS FIRST, id LIMIT 20`, []],
+  'cms: verification summary (public)': [`
+    SELECT (SELECT count(*) FROM requirements WHERE verification_status = 'published'),
+           (SELECT count(*) FROM requirements WHERE verification_status = 'published' AND source_id IS NOT NULL),
+           (SELECT max(last_checked_at) FROM sources WHERE is_active), (SELECT count(*) FROM source_flags WHERE status = 'open')`, []],
+  'cms: recent updates (public)': [`
+    SELECT v.snapshot->'title'->>'en', v.change_summary->>'en', v.effective_date FROM requirement_versions v ORDER BY v.published_at DESC, v.id DESC LIMIT 5`, []],
   'admin: auth lookup + scopes': [`
     SELECT a.id, a.email, a.is_super, a.status, coalesce(array_agg(p.scope) FILTER (WHERE p.scope IS NOT NULL), '{}')
       FROM admins a LEFT JOIN admin_permissions p ON p.admin_id = a.id WHERE a.firebase_uid = 'admin_7' GROUP BY a.id`, []],
@@ -214,13 +227,13 @@ const QUERIES = {
   'item ownership lookup': [`SELECT applicant_id FROM applicant_requirements WHERE id=$1::uuid AND user_id=$2`, [item.id, u.id]],
   'item lock for write': [`
     SELECT ar.applicant_id, ar.is_applicable, ar.status_updated_at, rq.version, a.premium_status
-      FROM applicant_requirements ar JOIN requirements rq ON rq.id = ar.requirement_id
+      FROM applicant_requirements ar JOIN requirements rq ON rq.id = ar.requirement_id AND rq.verification_status = 'published'
       JOIN applicants a ON a.id = ar.applicant_id AND a.user_id = ar.user_id
      WHERE ar.id=$1::uuid AND ar.user_id=$2 AND a.status='active' FOR UPDATE OF ar`, [item.id, u.id]],
   'item status update': [`UPDATE applicant_requirements SET status='ready', status_updated_at=now() WHERE id=$1::uuid AND user_id=$2`, [item.id, u.id]],
   'journey aggregate': [`
     SELECT r.stage, count(*)::int, count(*) FILTER (WHERE ar.status='ready')::int
-      FROM applicant_requirements ar JOIN requirements r ON r.id = ar.requirement_id
+      FROM applicant_requirements ar JOIN requirements r ON r.id = ar.requirement_id AND r.verification_status = 'published'
      WHERE ar.applicant_id=$1::uuid AND ar.user_id=$2 AND ar.is_applicable GROUP BY r.stage`, [ap.id, u.id]],
   'case generation (INSERT…SELECT, conflict path)': [`
     INSERT INTO applicant_requirements (user_id, applicant_id, requirement_id, is_applicable, seen_requirement_version)
@@ -234,7 +247,7 @@ const QUERIES = {
         SELECT count(*) FILTER (WHERE ar.is_applicable)::int AS applicable,
                count(*) FILTER (WHERE ar.is_applicable AND ar.status='ready')::int AS ready,
                count(*) FILTER (WHERE ar.is_applicable AND rq.blocks_submission AND ar.status <> 'ready')::int AS blocking
-          FROM applicant_requirements ar JOIN requirements rq ON rq.id = ar.requirement_id
+          FROM applicant_requirements ar JOIN requirements rq ON rq.id = ar.requirement_id AND rq.verification_status = 'published'
          WHERE ar.applicant_id = a.id AND ar.user_id = a.user_id) rd ON true
      WHERE a.user_id=$1 AND a.status='active' ORDER BY a.created_at`, [u.id]],
   'session lookup (requireSession)': [`
@@ -273,6 +286,32 @@ const QUERIES = {
 
 
 let failed = false;
+
+// Admin publish fan-out: one set-based INSERT … ON CONFLICT across EVERY applicant. Runs on an admin
+// request (rare), so it has its own budget; it is inherently a scan of `applicants`.
+{
+  await client.query('BEGIN');
+  try {
+    const budget = Number(process.env.GATE4_FANOUT_BUDGET_MS ?? 15000);
+    const { rows } = await client.query(`
+      EXPLAIN (ANALYZE, FORMAT JSON)
+      INSERT INTO applicant_requirements (user_id, applicant_id, requirement_id, is_applicable, seen_requirement_version)
+      SELECT a.user_id, a.id, r.id,
+             (CASE a.relationship_category WHEN 'spouse' THEN r.applies_spouse WHEN 'child' THEN r.applies_child WHEN 'parent' THEN r.applies_parent END)
+             AND (r.applies_locations IS NULL OR a.current_location IS NULL OR a.current_location = ANY (r.applies_locations)),
+             r.version
+        FROM applicants a CROSS JOIN requirements r
+       WHERE r.code = 'load_1' AND r.verification_status = 'published' AND a.status = 'active' AND a.case_generated_at IS NOT NULL
+      ON CONFLICT (applicant_id, requirement_id) DO UPDATE SET is_applicable = EXCLUDED.is_applicable
+        WHERE applicant_requirements.is_applicable IS DISTINCT FROM EXCLUDED.is_applicable`);
+    const ms = rows[0]['QUERY PLAN'][0]['Execution Time'];
+    const ok = ms <= budget;
+    if (!ok) failed = true;
+    console.log(`${ok ? 'PASS' : 'FAIL'}  ${ms.toFixed(0).padStart(7)} ms  [admin] publish fan-out across all 75,000 applicants (re-publish, no-op conflict path)`);
+  } finally {
+    await client.query('ROLLBACK');
+  }
+}
 
 // Cron statement: measured separately, then dropped from the request-path loop below.
 {

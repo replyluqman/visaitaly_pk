@@ -126,7 +126,7 @@ const READINESS_JOIN: SQL = sql`
                                   AND (rq.applies_spouse::int + rq.applies_child::int
                                        + rq.applies_parent::int) < 3)::int                  AS category_specific
       FROM applicant_requirements ar
-      JOIN requirements rq ON rq.id = ar.requirement_id
+      JOIN requirements rq ON rq.id = ar.requirement_id AND rq.verification_status = 'published'
      WHERE ar.applicant_id = a.id AND ar.user_id = a.user_id
   ) rd ON true
 `;

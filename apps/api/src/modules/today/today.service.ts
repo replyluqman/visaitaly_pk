@@ -55,7 +55,7 @@ export async function refreshNextActions(db: Db): Promise<{ refreshed: number }>
           OFFSET 0
         ) d
         LEFT JOIN applicant_requirements ar ON ar.id = d.applicant_requirement_id
-        LEFT JOIN requirements r ON r.id = ar.requirement_id
+        LEFT JOIN requirements r ON r.id = ar.requirement_id AND r.verification_status = 'published'
       UNION ALL
       -- 1b. Nulla Osta about to expire
       SELECT b.id, 1, 'expiring', 'nulla_osta_expires', NULL::jsonb, NULL::uuid,
@@ -74,6 +74,7 @@ export async function refreshNextActions(db: Db): Promise<{ refreshed: number }>
           OFFSET 0 -- planner fence: one index probe per batch applicant, never a scan of the table
         ) ar
         JOIN requirements r ON r.id = ar.requirement_id AND r.blocks_submission
+                           AND r.verification_status = 'published'
       UNION ALL
       -- 3. to do in the current stage
       SELECT b.id, 3, 'todo',
@@ -89,6 +90,7 @@ export async function refreshNextActions(db: Db): Promise<{ refreshed: number }>
           OFFSET 0
         ) ar
         JOIN requirements r ON r.id = ar.requirement_id AND r.stage = b.current_stage
+                           AND r.verification_status = 'published'
     ),
     best AS (
       -- An item that qualifies twice appears once, at its best rank.

@@ -6,3 +6,4 @@ export * from './checklist.types.js';
 export * from './eligibility.types.js';
 export * from './document.types.js';
 export * from './admin.types.js';
+export * from './cms.types.js';

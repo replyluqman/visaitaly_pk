@@ -146,7 +146,7 @@ const rankedItems = (userId: string, applicantId: string, locale: string): SQL =
          row_number() OVER (PARTITION BY ar.is_applicable
                             ORDER BY r.stage_order, r.sort_order, ar.id)         AS rn
     FROM applicant_requirements ar
-    JOIN requirements r ON r.id = ar.requirement_id
+    JOIN requirements r ON r.id = ar.requirement_id AND r.verification_status = 'published'
     LEFT JOIN sources s ON s.id = r.source_id
    WHERE ar.applicant_id = ${applicantId}::uuid AND ar.user_id = ${userId}
 `;
@@ -267,8 +267,9 @@ export async function listChecklist(
   if (cap !== null) {
     const c = await db.execute<{ n: number }>(sql`
       SELECT count(*)::int AS n
-        FROM applicant_requirements
-       WHERE applicant_id = ${applicantId}::uuid AND user_id = ${userId} AND is_applicable
+        FROM applicant_requirements ar
+        JOIN requirements r ON r.id = ar.requirement_id AND r.verification_status = 'published'
+       WHERE ar.applicant_id = ${applicantId}::uuid AND ar.user_id = ${userId} AND ar.is_applicable
     `);
     lockedCount = Math.max(0, (c.rows[0]?.n ?? 0) - cap);
   }
@@ -366,7 +367,7 @@ export async function getJourney(
            count(*)::int                                   AS item_count,
            count(*) FILTER (WHERE ar.status = 'ready')::int AS ready_count
       FROM applicant_requirements ar
-      JOIN requirements r ON r.id = ar.requirement_id
+      JOIN requirements r ON r.id = ar.requirement_id AND r.verification_status = 'published'
      WHERE ar.applicant_id = ${applicantId}::uuid AND ar.user_id = ${userId} AND ar.is_applicable
      GROUP BY r.stage
   `);
@@ -408,7 +409,7 @@ async function lockForWrite(
     SELECT ar.applicant_id, ar.is_applicable, ar.status_updated_at, rq.version,
            a.premium_status, a.access_until, a.grace_until
       FROM applicant_requirements ar
-      JOIN requirements rq ON rq.id = ar.requirement_id
+      JOIN requirements rq ON rq.id = ar.requirement_id AND rq.verification_status = 'published'
       JOIN applicants a    ON a.id = ar.applicant_id AND a.user_id = ar.user_id
      WHERE ar.id = ${itemId}::uuid AND ar.user_id = ${userId} AND a.status = 'active'
        FOR UPDATE OF ar
@@ -434,7 +435,7 @@ export async function assertItemVisible(
              row_number() OVER (PARTITION BY ar.is_applicable
                                 ORDER BY r.stage_order, r.sort_order, ar.id) AS rn
         FROM applicant_requirements ar
-        JOIN requirements r ON r.id = ar.requirement_id
+        JOIN requirements r ON r.id = ar.requirement_id AND r.verification_status = 'published'
        WHERE ar.applicant_id = ${gate.applicant_id}::uuid AND ar.user_id = ${userId}
     )
     SELECT rn::int AS rn, is_applicable FROM ranked WHERE id = ${itemId}::uuid

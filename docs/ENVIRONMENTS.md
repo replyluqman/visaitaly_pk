@@ -31,6 +31,7 @@ from a production branch that contains real PII — create it empty and seed it.
 | Name | Where | Envs | Notes |
 |---|---|---|---|
 | Hyperdrive id, KV id, Firebase project id | `wrangler.toml` | all | not secret; `preflight --env X` blocks `REPLACE_ME` |
+| Cron triggers (`wrangler.toml`) | per env | all | `*/10 * * * *` (Today refresh, document retention) and `0 21 * * *` = 02:00 PKT (source hash sweep). `scheduled()` multiplexes on `event.cron` — the constant in `src/index.ts` must match. Verify the account's cron-trigger limit before adding more. |
 | `DOCUMENTS_SIGNING_KEY` (Module 3b) | `wrangler secret put --env X` | all | HMAC key for document PUT/GET URLs (≥ 32 random bytes: `openssl rand -base64 48`). The R2 bucket has no public access and no S3 credentials — the Worker binding is the only door. Rotating it invalidates outstanding URLs (≤ 15 min) and nothing else. |
 | `PAYOUT_ENC_KEY` (Module 9) | `wrangler secret put --env X` | all | AES-GCM key, 32 bytes base64; rotate via key id prefix |
 | `FCM_SERVICE_ACCOUNT` (Module 5) | `wrangler secret put --env X` | staging, prod | used by Cron only, never request path |

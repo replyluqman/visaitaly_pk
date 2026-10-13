@@ -1,4 +1,10 @@
-# State — Modules 1–3, 3b, 3c, 4a built and gated · Module 4b (CMS + verification workflow) next
+# State — Modules 1–4 (incl. 3b, 3c, 4a, 4b) built and gated · Module 5 (notifications) next
+
+## Phase 3b — Module 4b CMS & verification workflow (done)
+
+Migration `0009`; `apps/api/MODULE-04B-CMS.md`. **204 tests.** Publish fans out to existing cases (1.4 s across 75k applicants); users see only published requirements;
+daily hash sweep (`0 21 * * *`); How We Verify endpoint. **Hand-off to Module 5:** the Updates notification on publish reads `requirement_versions` (`published_at`) and targets
+applicants with an applicable `applicant_requirements` row. **Owner:** real, verified requirement content (via the CMS API; CSV import tool not built), lawyer review of user-facing copy.
 
 ## Phase 3a — Module 4a Admin foundation (done)
 

@@ -78,6 +78,23 @@ export const TODAY_CONFIG_FALLBACK: TodayConfigValue = {
   batch_size: 15000,
 };
 
+/** app_config['verification'] */
+export interface VerificationConfigValue {
+  /** Sources checked per daily sweep (Workers free tier allows 50 subrequests per invocation). */
+  hash_sweep_batch: number;
+  fetch_timeout_ms: number;
+  max_body_bytes: number;
+  /** Consecutive failed checks before the admin home flags a source as unreachable. */
+  failure_alert_after: number;
+}
+
+export const VERIFICATION_CONFIG_FALLBACK: VerificationConfigValue = {
+  hash_sweep_batch: 20,
+  fetch_timeout_ms: 10_000,
+  max_body_bytes: 2_000_000,
+  failure_alert_after: 3,
+};
+
 export const AUTH_CONFIG_FALLBACK: AuthConfigValue = { max_active_devices: 2 };
 export const ONBOARDING_CONFIG_FALLBACK: OnboardingConfigValue = { max_applicants: 10 };
 export const CHECKLIST_CONFIG_FALLBACK: ChecklistConfigValue = { free_preview_items: 3 };
@@ -94,6 +111,7 @@ export interface AppConfigMap {
   checklist: ChecklistConfigValue;
   uploads: UploadsConfigValue;
   today: TodayConfigValue;
+  verification: VerificationConfigValue;
 }
 
 export type AppConfigKey = keyof AppConfigMap;

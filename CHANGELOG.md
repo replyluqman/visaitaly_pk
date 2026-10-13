@@ -27,6 +27,8 @@ Rule: any change to `docs/API-CONTRACT.md` gets a line here, and anything that b
 
 - **Module 4a — admin foundation.** `GET /v1/admin/me`, `GET|POST|PATCH /v1/admin/admins`, `GET /v1/admin/audit-log`; migration `0008` (`admins`, `admin_permissions`, `audit_log`); `requireAdmin(scope, access)`; admin tokens verified against a **separate Firebase project** (`ADMIN_FIREBASE_PROJECT_ID`, `ADMIN_REQUIRE_MFA`); `scripts/create-super-admin.mjs`; ADR 0012. New codes `ADMIN_FORBIDDEN`, `ADMIN_MFA_REQUIRED`.
 
+- **Module 4b — CMS & verification workflow.** `/v1/admin/sources`, `/v1/admin/requirements` (+ `/actions`, `/versions`), `/v1/admin/source-flags`, public `GET /v1/public/verification-summary`; migration `0009` (`requirement_versions`, source health columns, FKs onto `admins`); publish **fans out** to existing cases; daily hash-sweep Cron (`0 21 * * *`); users now see only **published** requirements. `requirements.version` counts published revisions only.
+
 ### Fixed
 - **Keyset pagination skipped/repeated rows that share a millisecond** (cursor was rebuilt from a ms-precision JS Date). Timestamps now travel as exact Postgres text (`lib/cursor.ts`); affected the Module 3b documents list, fixed before any client shipped.
 - `createDb` now awaits `client.connect()`; previously every query hung.

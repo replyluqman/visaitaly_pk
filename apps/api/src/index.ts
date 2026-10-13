@@ -17,6 +17,8 @@ import { publicRoutes } from './modules/eligibility/eligibility.routes.js';
 import { documentRoutes } from './modules/documents/documents.routes.js';
 import { purgeStaleDocuments } from './modules/documents/documents.service.js';
 import { refreshNextActions } from './modules/today/today.service.js';
+import { cmsRoutes, verificationPublicRoutes } from './modules/cms/cms.routes.js';
+import { sweepSources } from './modules/cms/cms.service.js';
 import { adminRoutes } from './modules/admin/admin.routes.js';
 import { todayRoutes } from './modules/today/today.routes.js';
 import { applicantCaseRoutes, checklistRoutes } from './modules/checklist/checklist.routes.js';
@@ -93,6 +95,8 @@ export function createApp(deps: AppDeps = {}): Hono<AppEnv> {
   app.route('/v1/documents', documentRoutes);
   app.route('/v1/today', todayRoutes);
   app.route('/v1/admin', adminRoutes);
+  app.route('/v1/admin', cmsRoutes);
+  app.route('/v1/public', verificationPublicRoutes);
 
   // ---------------------------------------------------------------------------
   // errors
@@ -139,20 +143,27 @@ export function createApp(deps: AppDeps = {}): Hono<AppEnv> {
 
 const app = createApp();
 
+/** 02:00 PKT (UTC+5) = 21:00 UTC. Every other tick is the frequent job set. Must match wrangler.toml. */
+const DAILY_SWEEP_CRON = '0 21 * * *';
+
 /**
  * Cron Worker entry (wrangler `[triggers] crons`). Everything slow lives here, never on a user
  * request (PRD §4, §15): the Today materialisation and document retention. Each job is
  * independent — one failing must not starve the other — and failures are logged, not thrown,
  * so the next tick retries.
  */
-async function scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+async function scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
   const job = async () => {
     const { db, close } = await createDb(env);
     try {
-      for (const [name, run] of [
-        ['next_actions', () => refreshNextActions(db)],
-        ['document_retention', () => purgeStaleDocuments(db, createR2Store(env))],
-      ] as const) {
+      const jobs: Array<[string, () => Promise<unknown>]> =
+        event.cron === DAILY_SWEEP_CRON
+          ? [['source_hash_sweep', () => sweepSources(db)]]
+          : [
+              ['next_actions', () => refreshNextActions(db)],
+              ['document_retention', () => purgeStaleDocuments(db, createR2Store(env))],
+            ];
+      for (const [name, run] of jobs) {
         try {
           console.log(JSON.stringify({ level: 'info', job: name, result: await run() }));
         } catch (err) {
