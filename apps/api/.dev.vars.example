@@ -1,0 +1,22 @@
+# Copy to apps/api/.dev.vars (git-ignored). Read by `wrangler dev` only.
+# Overrides the [vars] block in wrangler.toml for local runs.
+#
+# The Hyperdrive connection string is NOT set here. Wrangler reads it from the
+# process environment — export it in your shell before `pnpm api:dev`:
+#
+#   export WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE=postgres://postgres:postgres@localhost:5433/visaitaly
+#
+# (The suffix is the binding name, HYPERDRIVE. Confirmed against wrangler 3.114.)
+
+ENVIRONMENT=development
+
+# Use your real Firebase project id for real tokens, or any string when using
+# the Auth emulator below.
+FIREBASE_PROJECT_ID=visaitaly-dev
+
+# Point verification at the local Firebase Auth emulator (`firebase emulators:start --only auth`).
+#
+# DANGER: with this set, unsigned tokens are accepted — anyone can mint a token
+# for any user. It must never exist in a deployed environment. Leave it commented
+# out unless you are actively running the emulator.
+# FIREBASE_AUTH_EMULATOR_HOST=localhost:9099

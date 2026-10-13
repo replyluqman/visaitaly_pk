@@ -34,10 +34,12 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the immutability check needs the merge base
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: .node-version
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
@@ -60,11 +62,46 @@ jobs:
             echo "✓ $label"
           done
 
+      # Applied migrations are history. Editing one makes every environment divergent.
+      - name: Applied migrations are immutable
+        if: github.event_name == 'pull_request'
+        run: |
+          changed=$(git diff --name-status "origin/${{ github.base_ref }}...HEAD" -- apps/api/migrations | grep -E '^(M|D|R)' || true)
+          if [ -n "$changed" ]; then
+            echo "::error::Existing migrations were modified or removed. Add a new migration instead."
+            echo "$changed"; exit 1
+          fi
+
+      # Real content in a migration reaches production automatically (ADR 0007).
+      - name: No content in migrations
+        run: |
+          if grep -nE "INSERT INTO (legal_versions|requirements)" apps/api/migrations/*.sql | grep -v '\.down\.sql'; then
+            echo "::error::Content belongs in apps/api/seed/, not in the migration chain."; exit 1
+          fi
+
       - name: Migrations — apply, full rollback, re-apply, identical schema
         working-directory: apps/api
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/vip_ci
         run: node scripts/migrate-roundtrip.mjs
+
+      # Gate 4 — a foreign key without a covering index seq-scans the child on parent changes.
+      - name: Every foreign key has a covering index
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/vip_ci
+        run: |
+          pnpm db:migrate
+          uncovered=$(psql "$DATABASE_URL" -tAc "
+            SELECT c.conrelid::regclass || '.' || a.attname
+              FROM pg_constraint c
+              JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
+             WHERE c.contype = 'f'
+               AND NOT EXISTS (
+                 SELECT 1 FROM pg_index i
+                  WHERE i.indrelid = c.conrelid AND i.indkey[0] = c.conkey[1])")
+          if [ -n "$uncovered" ]; then
+            echo "::error::Foreign keys without a covering index:"; echo "$uncovered"; exit 1
+          fi
 
       - name: Gate 2/3 — tests
         # No test runner yet (STATE.md). This step starts failing the build the
@@ -82,7 +119,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
+        with: { node-version-file: .node-version, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - name: Migrate staging (direct Neon URL, not Hyperdrive)
         env: { DATABASE_URL: '${{ secrets.DATABASE_URL }}' }
@@ -91,11 +128,10 @@ jobs:
         env: { DATABASE_URL: '${{ secrets.DATABASE_URL }}' }
         run: pnpm preflight --env staging
       - name: Deploy
-        working-directory: apps/api
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx wrangler deploy --env staging
+        run: pnpm api:deploy:staging
       - name: Smoke
         run: curl -fsS --retry 5 --retry-delay 3 "${{ vars.API_BASE_URL }}/health"
 
@@ -110,7 +146,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 22, cache: pnpm }
+        with: { node-version-file: .node-version, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       # Migrations are expand-only by policy (docs/SCALE.md), so applying them
       # before the new Worker is live is always safe for the old Worker.
@@ -121,10 +157,9 @@ jobs:
         env: { DATABASE_URL: '${{ secrets.DATABASE_URL }}' }
         run: pnpm preflight --env production
       - name: Deploy
-        working-directory: apps/api
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx wrangler deploy --env production
+        run: pnpm api:deploy:production
       - name: Smoke
         run: curl -fsS --retry 5 --retry-delay 3 "${{ vars.API_BASE_URL }}/health"

@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./apps/api/.dev.vars)",
+      "Read(./**/.env)",
+      "Read(./**/.env.*.local)",
+      "Read(./**/google-services.json)",
+      "Read(./**/GoogleService-Info.plist)",
+      "Read(./**/*.keystore)",
+      "Read(./**/*.jks)",
+      "Read(./**/key.properties)",
+      "Bash(wrangler deploy)",
+      "Bash(pnpm exec wrangler deploy)",
+      "Bash(npx wrangler deploy)",
+      "Bash(wrangler deploy --env production *)",
+      "Bash(wrangler deploy --env production)",
+      "Bash(pnpm api:deploy:production *)",
+      "Bash(pnpm api:deploy:production)",
+      "Bash(wrangler secret put *)",
+      "Bash(wrangler secret put)",
+      "Bash(git push --force *)",
+      "Bash(git push --force)"
+    ],
+    "ask": [
+      "Bash(pnpm db:migrate *)",
+      "Bash(pnpm db:migrate)",
+      "Bash(pnpm db:rollback *)",
+      "Bash(pnpm db:rollback)",
+      "Bash(pnpm api:deploy:staging *)",
+      "Bash(pnpm api:deploy:staging)"
+    ]
+  }
+}

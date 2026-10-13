@@ -14,10 +14,25 @@ enabled = true
 head_sampling_rate = 1
 
 # ─────────────────────────────────────────────────────────────────────────────
-# IMPORTANT: bindings (hyperdrive, kv_namespaces, r2_buckets, vars, triggers)
-# are NOT inherited by [env.*]. Every environment declares its own full set.
-# CI runs `wrangler deploy --dry-run` per environment and fails on the
-# "not inherited" warning, so a missing binding can't reach a deploy.
+# THREE ENVIRONMENTS — read before editing.
+#   (top level)      local development, `wrangler dev`. Never deployed.
+#   [env.staging]    real Workers runtime + a Neon branch + its own Firebase project.
+#   [env.production]
+#
+# Bindings (hyperdrive, kv_namespaces, r2_buckets, …) are NOT inherited by
+# [env.*]; every environment declares its own full set. The file once declared
+# them only at the top level, so `--env production` deployed a Worker with NO
+# database and NO JWK cache: it booted, then 500'd every /v1 request. CI bundles
+# every environment and fails on the "not inherited" warning.
+#
+# Never run a bare `wrangler deploy` (it ships the development block). Use
+# `pnpm api:deploy:staging` / `pnpm api:deploy:production`; there is deliberately
+# no bare script. Each environment uses a SEPARATE Firebase project: tokens carry
+# the project id as audience, so a staging token is rejected by production.
+#
+# Never declare FIREBASE_AUTH_EMULATOR_HOST here: with it set, tokens are accepted
+# UNSIGNED. Local emulator use goes in apps/api/.dev.vars only (the code ignores it
+# outside development and `pnpm preflight` fails a config that declares it).
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── development (top level, `wrangler dev`) ─────────────────────────────────

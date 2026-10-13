@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { LegalDocType } from './legal.types.js';
 
 /** Onboarding progress — Splash (Screen 1) routes on this. */
 export const OnboardingState = {
@@ -56,10 +57,15 @@ export interface DeviceSummary {
 /**
  * Entitlement is resolved from Neon on every launch (PRD §5).
  * Never from Firebase custom claims.
+ *
+ * Buckets are computed defensively against now() rather than trusting
+ * premium_status alone — the Cron expiry sweep may not have run yet.
  */
 export interface Entitlement {
-  /** Applicant ids with active premium. Empty until the orders module lands. */
+  /** Applicant ids with live premium access. */
   premiumApplicantIds: string[];
+  /** Applicant ids in the PRD §7 grace period: full read, no writes. */
+  graceApplicantIds: string[];
   hasAnyPremium: boolean;
 }
 
@@ -77,6 +83,25 @@ export interface MeResponse {
     /** From app_config, not hardcoded. */
     maxActive: number;
     activeCount: number;
+  };
+  /**
+   * PRD §18 version stamping. Non-empty pendingDocTypes => route to the
+   * Disclaimer Gate, including for an existing user after a version bump.
+   * Doc types, not version ids, because /me is locale-agnostic — the client
+   * fetches the bodies from /v1/legal/current in its own locale.
+   */
+  legal: {
+    requiresAcceptance: boolean;
+    pendingDocTypes: LegalDocType[];
+  };
+  /**
+   * declaredCount is the Screen 5 answer (intent). total is the truth.
+   * awaitingStage drives the Screen 7 resume point.
+   */
+  applicants: {
+    declaredCount: number | null;
+    total: number;
+    awaitingStage: number;
   };
 }
 

@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, smallint, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
 export const users = pgTable(
@@ -10,6 +10,12 @@ export const users = pgTable(
     displayName: text('display_name'),
     /** disclaimer_pending | applicants_pending | stage_pending | complete */
     onboardingState: text('onboarding_state').notNull().default('disclaimer_pending'),
+    /**
+     * Screen 5 answer — declared intent, NOT a row count. The real count is
+     * always count(applicants). Kept because it drives the onboarding loop and
+     * lets an abandoned signup resume at the right applicant.
+     */
+    declaredApplicantCount: smallint('declared_applicant_count'),
     /** active | deleted (GDPR soft delete — rows retained, PII cleared) */
     status: text('status').notNull().default('active'),
     lastLoginAt: timestamp('last_login_at', { withTimezone: true }),

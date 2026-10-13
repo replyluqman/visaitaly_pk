@@ -103,6 +103,8 @@ doc, including "none found".
 ## Before first production deploy
 
 - [ ] `wrangler.toml` has zero `REPLACE_ME`
+- [ ] `FIREBASE_AUTH_EMULATOR_HOST` is ignored by code outside development, and is not set as a var or secret in staging/production (`wrangler secret list --env production`)
+- [ ] Client refreshes the token once before treating `UNAUTHENTICATED` as terminal (prevents mass logout on a JWK/KV outage)
 - [ ] All secrets set via `wrangler secret`, none in the repo
 - [ ] DB role used by the API has least privilege; CMS uses a separate role
 - [ ] The `0.1-draft` disclaimer text is replaced with real legal copy

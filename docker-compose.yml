@@ -1,0 +1,28 @@
+# Local Postgres standing in for Neon. Development and CI-parity only.
+#
+#   docker compose up -d db
+#   export DATABASE_URL=postgres://postgres:postgres@localhost:5433/visaitaly
+#
+# Port 5433 (not 5432) so it never collides with a Postgres already on the host.
+# Version matches the Neon project's Postgres major — keep them aligned, or a
+# migration that passes here can fail in production.
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: visaitaly
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d visaitaly"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:

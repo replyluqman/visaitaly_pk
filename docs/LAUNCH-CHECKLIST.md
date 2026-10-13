@@ -24,9 +24,9 @@ Legend: ⏱ long lead time (weeks) · 🔒 blocks a module · 🚀 blocks public
       **all user-facing copy** — Eligibility Quick Check first, then canned responses
       (`docs/content/CANNED-RESPONSES.md`)
 - [ ] ⏱ Company registration status confirmed (SECP or sole proprietorship) — affects receipts, bank, Play Console
-- [ ] 🚀 Privacy policy lists processors (GDPR.md §1); DPAs accepted with Cloudflare, Neon, Google
+- [ ] 🚀 Privacy policy lists processors (DATA-PRIVACY.md §1); DPAs accepted with Cloudflare, Neon, Google
 - [ ] 🚀 Retention periods confirmed: financial (7 y?), support (24 m?), audit (12 m + archive?) — lawyer + accountant
-- [ ] 🚀 Breach runbook owner named (GDPR.md §5)
+- [ ] 🚀 Breach runbook owner named (DATA-PRIVACY.md §5)
 - [ ] Tax: does the service need NTN / sales-tax registration; what must a receipt show (ERD O2)
 
 ## C. Money (blocks Module 6)
@@ -45,7 +45,7 @@ Legend: ⏱ long lead time (weeks) · 🔒 blocks a module · 🚀 blocks public
 - [ ] Support operator(s) named; working hours staffed
 - [ ] Admin users list with scopes (PRD §16)
 
-## E. Content (blocks Module 4 being useful)
+## E. Content (blocks Module 3 being useful)
 
 - [ ] ⏱ 🔒 Verified requirements for spouse / child / parent from Pakistan
       (`docs/content/REQUIREMENTS-GUIDE.md`), four-eyes verified

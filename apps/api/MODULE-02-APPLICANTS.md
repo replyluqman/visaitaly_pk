@@ -117,7 +117,7 @@ pnpm db:migrate
 
 **1. Migration applies and rolls back cleanly**
 ```bash
-pnpm --filter @visaitaly/api migrate:status   # ✓ 0001_auth_devices ✓ 0002_legal_applicants
+pnpm db:status   # ✓ 0001_auth_devices ✓ 0002_legal_applicants
 pnpm db:rollback && pnpm db:migrate           # must succeed twice in a row
 ```
 Expect `relationships` (6 seeded rows), `legal_versions` (1 current disclaimer),

@@ -31,8 +31,8 @@ from a production branch that contains real PII — create it empty and seed it.
 | Name | Where | Envs | Notes |
 |---|---|---|---|
 | Hyperdrive id, KV id, Firebase project id | `wrangler.toml` | all | not secret; `preflight --env X` blocks `REPLACE_ME` |
-| `DOCUMENTS_SIGNING_KEY` (Module 4) | `wrangler secret put --env X` | all | R2 signed-URL HMAC |
-| `PAYOUT_ENC_KEY` (Module 10) | `wrangler secret put --env X` | all | AES-GCM key, 32 bytes base64; rotate via key id prefix |
+| `DOCUMENTS_SIGNING_KEY` (Module 3b) | `wrangler secret put --env X` | all | R2 signed-URL HMAC |
+| `PAYOUT_ENC_KEY` (Module 9) | `wrangler secret put --env X` | all | AES-GCM key, 32 bytes base64; rotate via key id prefix |
 | `FCM_SERVICE_ACCOUNT` (Module 5) | `wrangler secret put --env X` | staging, prod | used by Cron only, never request path |
 | `DATABASE_URL` | GitHub Environment secret | staging, production | **direct** Neon URL for migrations, not Hyperdrive |
 | `CLOUDFLARE_API_TOKEN` | GitHub Environment secret | staging, production | scoped: Workers Scripts:Edit, Hyperdrive:Read, KV:Read — nothing else |
@@ -86,18 +86,46 @@ backup into a fresh Neon branch, point staging at it, run `preflight`, open the 
 against staging. Record the time taken in `docs/runbooks/` (create on first drill).
 An untested backup is not a backup.
 
+## ⚠ The Firebase emulator variable
+
+With `FIREBASE_AUTH_EMULATOR_HOST` set, `firebase-auth-cloudflare-workers` accepts **unsigned** tokens — anyone
+can impersonate any user. Three layers stop it reaching a deployed Worker:
+1. `lib/firebase.ts` `libraryEnv()` strips it unless `ENVIRONMENT === 'development'`, even if set as a var/secret.
+2. `pnpm preflight --env X` fails when `wrangler.toml` declares it for a deployed env.
+3. SECURITY.md pre-deploy checklist: `wrangler secret list --env production` must not show it.
+It belongs in `apps/api/.dev.vars` only.
+
+## Why separate Firebase projects
+
+ID tokens carry the project id as `aud`. A staging token is rejected by production — a test account can never call production.
+
 ## Local development
 
 ```bash
 pnpm install
-# Postgres: Neon dev branch, or local
-export DATABASE_URL="postgres://postgres@localhost:5432/vip_dev"
+docker compose up -d db                        # Postgres 16 on :5433 (stands in for Neon)
+export DATABASE_URL=postgres://postgres:postgres@localhost:5433/visaitaly
 pnpm db:migrate
-psql "$DATABASE_URL" -f apps/api/seed/seed_dev_legal.sql
-# Worker against local Postgres without Hyperdrive
+psql "$DATABASE_URL" -f apps/api/seed/seed_dev_legal.sql      # dev only; never production
+cp apps/api/.dev.vars.example apps/api/.dev.vars
 export WRANGLER_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE="$DATABASE_URL"
 pnpm api:dev
 ```
 
-Before any PR: `pnpm typecheck && pnpm lint:openapi` and, against a throwaway
-`*_ci`/`*_test` DB, `pnpm db:roundtrip`.
+Auth locally: (1) a real **dev Firebase project** (closest to production), or (2) the **Auth emulator**
+(`firebase emulators:start --only auth`, uncomment the emulator line in `.dev.vars` — local only).
+
+Before any PR: `pnpm typecheck && pnpm lint:openapi`, and `pnpm db:roundtrip` against a throwaway `*_ci`/`*_test` DB.
+
+## Creating staging / production resources (one-time)
+
+```bash
+# Neon: project in the region nearest the Workers serving Pakistan (PRD §4: co-locate); "staging" branch from main.
+wrangler hyperdrive create visaitaly-staging-db --connection-string="<neon staging URL>"
+wrangler hyperdrive create visaitaly-prod-db    --connection-string="<neon main URL>"
+wrangler kv namespace create PUBLIC_JWK_CACHE_KV --env staging
+wrangler kv namespace create PUBLIC_JWK_CACHE_KV --env production
+# Paste the ids into the matching REPLACE_ME_* slots in apps/api/wrangler.toml.
+```
+
+Verify region choice and the Hyperdrive connection-string type against current Cloudflare/Neon docs at setup time.

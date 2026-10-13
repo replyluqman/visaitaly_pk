@@ -31,7 +31,7 @@ Rules:
   IBAN, tokens, request bodies (SECURITY.md — PII stays out of logs).
 - Levels: `error` (bug / 5xx), `warn` (handled but suspicious: rate-limit hit, conflict
   spike, quota near), `info` (one access line per request — sampled if volume needs it).
-- Add an access-log middleware in Module 4 that records `status`, `durMs`, and the
+- Add an access-log middleware in Module 3 that records `status`, `durMs`, and the
   per-request `queries` count (TESTING.md Gate 4 asserts on it in dev).
 
 Storage: **Workers Logs** (`[observability] enabled = true` in `wrangler.toml`).
@@ -83,3 +83,20 @@ Custom keys: `app_version`, `perf_tier`, `locale`, `onboarding_state`. No PII.
 3. Bad deploy → `wrangler rollback --env production`. Bad data → forward-fix migration.
 4. Write a short post-incident note in `docs/runbooks/incidents/YYYY-MM-DD.md`:
    what happened, user impact, fix, the check we're adding so it can't recur.
+
+## SLO-style targets (starting values; tune after two weeks of real traffic)
+
+| Signal | Target | Source |
+|---|---|---|
+| 5xx rate | < 0.5 % of requests per hour | Workers dashboard |
+| `/v1/me` CPU p99 | < 7 ms (headroom under the 10 ms ceiling) | dashboard / `wrangler tail` |
+| `/v1/me` latency p95 | < 300 ms from Pakistan | access log |
+| 401 `UNAUTHENTICATED` share | flat — a spike means a verifier/JWK problem | access log |
+| Neon compute hours | < 70 % of the monthly allowance | Neon console |
+| KV writes/day | < 500 (cap 1,000 on free) | dashboard |
+
+## Required before launch (gaps today)
+
+- `X-Request-Id` response header on **every** response (today only in error bodies) — set it in the requestId middleware.
+- One structured access-log line per request, using the route **template** (`/v1/applicants/:id`), never the raw path.
+- Never log: tokens, `Authorization`, email, names, DOB, document contents, FCM tokens. No stray `console.log`.

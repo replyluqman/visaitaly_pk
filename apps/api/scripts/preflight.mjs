@@ -63,6 +63,11 @@ async function checkWrangler() {
   if (placeholders.length) {
     fail(`wrangler.toml [${TARGET_ENV}] still has ${placeholders.length} unset value(s): ${placeholders.join(', ')}`);
   }
+  // With this set, Firebase tokens are accepted UNSIGNED (auth bypass). The code
+  // also ignores it outside development, but a config that declares it is wrong.
+  if (TARGET_ENV !== 'development' && /FIREBASE_AUTH_EMULATOR_HOST/.test(scoped)) {
+    fail(`wrangler.toml [${TARGET_ENV}] declares FIREBASE_AUTH_EMULATOR_HOST (unsigned tokens accepted).`);
+  }
   // A secret in the committed config is the one mistake with no clean recovery:
   // it is in git history the moment it is pushed.
   if (/(?:secret|private_key|password|api_key)\s*=/i.test(toml)) {

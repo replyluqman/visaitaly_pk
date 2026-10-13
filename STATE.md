@@ -1,35 +1,35 @@
-# State — Phase 0 (pre-code pack) complete · Modules 1–2 code complete, tests pending
+# State — Phase 0 pre-code pack done · Modules 1–2 code-complete (gates 2/3/5 pending)
 
-## Phase 0 — delivered on `claude/baseline-import`
+## Phase 0 — delivered
 
 | Item | File |
 |---|---|
-| Full MVP ERD, Modules 4–11 | `docs/ERD.md` |
-| API contract (live + planned), lints clean | `docs/api/openapi.yaml` |
+| Planned schema, Modules 3–10 (indexes, retention, open items O1–O4) | `docs/ERD.md` |
+| Full API contract, built + planned, lints clean | `docs/api/openapi.yaml` (prose of the built part: `docs/API-CONTRACT.md`) |
 | Glass-lite design system, tokens, 6 screen mockups | `docs/design/` |
-| CI (typecheck, OpenAPI lint, wrangler ×3, migration round-trip), staging/prod deploys, uptime, encrypted weekly backup | `.github/workflows/` |
-| Environments, secrets, deploy flow, DR | `docs/ENVIRONMENTS.md` |
-| Logging, Cron heartbeats, alerts, Crashlytics | `docs/OBSERVABILITY.md` |
-| Analytics event plan → PRD §21 metrics | `docs/ANALYTICS.md` |
-| Consent, export, erasure design | `docs/GDPR.md` |
-| Requirement content template + guide; canned responses draft | `docs/content/` |
-| Owner actions (accounts, legal, bank, courier, content) | `docs/LAUNCH-CHECKLIST.md` |
-| Timeline | `docs/ROADMAP.md` |
+| CI (typecheck, OpenAPI lint, wrangler ×3, immutability, content grep, migration round-trip, FK cover) + staging/prod deploys + uptime + encrypted weekly backup | `.github/workflows/` |
+| Analytics plan, privacy/consent/erasure design, content templates, canned responses draft, owner checklist | `docs/ANALYTICS.md`, `DATA-PRIVACY.md`, `content/`, `LAUNCH-CHECKLIST.md` |
 
-**Bug fixed:** `[env.production]` in `wrangler.toml` had no Hyperdrive/KV bindings
-(not inherited), so a prod deploy would have run without a DB. All envs now declare
-full bindings; CI fails on the wrangler "not inherited" warning.
+Two parallel working copies of this project were merged on branch `claude/baseline-import`; module numbering follows
+`docs/ROADMAP.md` (checklist = Module 3, migration 0004).
 
-**Changed:** `preflight` now takes `--env staging|production` and checks only that
-env's placeholders. New `pnpm db:roundtrip` (verified locally on Postgres 16:
-3 migrations up → down → up, identical 152-object schema).
+**Blocking decisions for the owner:** ERD **O1** (payable currency — blocks Module 6), courier partner, lawyer engagement,
+verified requirement content. ADR 0010 and 0011 are still **Proposed**.
 
-**Blocking decisions for the owner:** ERD O1 (payable currency — blocks Module 6),
-courier partner, lawyer engagement, verified requirement content.
+## Verified at merge (executed, not claimed)
 
----
+| Check | Result |
+|---|---|
+| `pnpm -r typecheck` | clean |
+| `loadMeSnapshot` SQL on Postgres 16 with 5 applicants (active+future, active+past, grace+future, grace+past, no stage) | 1 premium, 1 grace, 2 excluded; `awaitingStage=1`; pending legal `disclaimer` — correct |
+| Migration round-trip (0001–0003 up → down ×3 → up) | leaves only `schema_migrations`; identical 152-object schema |
+| FK covering-index audit | 0 uncovered |
+| `preflight --env` | scoped per environment; fails a staging block that declares the emulator var |
+| `libraryEnv()` emulator guard | host kept only when `ENVIRONMENT === 'development'` |
+| OpenAPI lint | valid |
+| GitHub Actions workflows | **not yet run** — first run happens on push to `main` / a PR |
 
-# Modules 1–2 detail
+
 
 ## Verified this pass (executed, not claimed)
 
@@ -44,6 +44,10 @@ courier partner, lawyer engagement, verified requirement content.
 | FK index audit | **0 uncovered** (was 2) |
 | `preflight` with placeholder live | correctly blocks, exit 1 |
 | Dev legal seed re-run | idempotent, 1 row |
+| **2026-10-14** restored M2 `auth.service` on Postgres 16 | 3rd login evicts oldest device; `/v1/me` returns `legal`, `applicants`, `entitlement` |
+| Entitlement buckets with real rows | active+future → premium · grace+future → grace · grace past / access past → excluded |
+| CI steps run locally (migrate up → rollback ×3 → up, FK audit, content grep) | pass |
+| Re-signup same email, new Firebase uid | **fails** — `users_email_lower_uq` (open P1) |
 
 ## A — resolved: FK covering indexes
 
@@ -124,21 +128,29 @@ DELETE /v1/applicants/:id             PATCH /v1/applicants/:id/stage
 
 ## Still open
 
-- **3 `REPLACE_ME` values in `wrangler.toml`** — Hyperdrive id, KV namespace id,
-  Firebase project id. From your Cloudflare and Firebase dashboards; `preflight`
-  blocks deploy until they are set.
-- **`resolveEntitlement()` is still the Module 1 stub.** Returns
-  `{ premiumApplicantIds: [], hasAnyPremium: false }` unconditionally, so
-  `GET /v1/me` reports no premium for everyone. Your notes say this and
-  `loadMeSnapshot` were written; neither is in this tree. The premium columns are
-  on `applicants` and indexed (`applicants_user_premium_idx`), so the query is
-  ready to write. **This is the top item before Module 3** — the checklist engine
-  gates on entitlement.
-- Confirm `requires_dob` per relationship with the content owner. Seeded: spouse
-  `false`, child and parent `true`.
-- No tests exist. `docs/TESTING.md` defines five gates; Modules 1–2 have cleared
-  Gate 1 and most of Gate 4. Gates 2, 3 and 5 are unstarted — in particular the
-  cross-user 404 ownership test has never been run against the routes.
+### P1 — before any deployed environment
+1. ~~Emulator bypass guard~~ — **done** (`libraryEnv()` + `preflight`).
+2. **Email uniqueness.** Decide: drop `users_email_lower_uq` (recommended — identity is
+   `firebase_uid`) or re-link by email. Needs a migration (`DATA-MODEL.md` risk 1).
+3. ~~`preflight` scope~~ — **done** (`--env`).
+
+### P2 — before launch
+4. Gates 2, 3, 5 for Modules 1–2 — no tests exist; the cross-user 404 suite has never run.
+5. `registerSession` must refuse `status = 'deleted'` before the upsert (rewrites PII).
+6. `X-Request-Id` response header + per-request structured log (`OBSERVABILITY.md`).
+7. Rate limiting on `/v1/auth/session` (Cloudflare rule first).
+8. Move the inline SQL in `reference.routes.ts` into a service (layering rule).
+9. Drop redundant `legal_acceptances_user_idx` in a later migration.
+10. Fill `REPLACE_ME` values (3 envs × Firebase project, Hyperdrive id, KV id).
+11. Confirm CORS domain (`*.visaitaly.pk` is an assumption).
+12. Confirm `requires_dob` per relationship with the content owner (spouse false,
+    child/parent true seeded).
+13. Decide device-row retention (purge non-active > 90 days?) — `DATA-MODEL.md`.
+
+### Needs your confirmation
+- ADR 0010 (checklist data design) and ADR 0011 (staging env) are **Proposed**.
+- PRD §24 open items (courier, CMS defaults, WhatsApp number, canned responses, Urdu
+  owner, lawyer scope).
 
 ## Commands
 
@@ -148,22 +160,28 @@ pnpm -r typecheck
 
 export DATABASE_URL="postgres://user:pass@host/db"   # direct, NOT Hyperdrive
 pnpm db:migrate
-node apps/api/scripts/migrate.mjs status
+pnpm db:status
 pnpm db:rollback
 
 psql "$DATABASE_URL" -f apps/api/seed/seed_dev_legal.sql   # dev only
 
-pnpm preflight              # before any production deploy
-cd apps/api && npx wrangler dev
+pnpm preflight --env production   # before any production deploy (CI does it)
+pnpm db:roundtrip                  # against a throwaway *_ci DB
+pnpm api:dev
 ```
 
-## Next — Module 4: checklist engine
+## Next — Module 3: checklist engine (migration 0004)
+
+Schema draft: `docs/ERD.md` §Module 3. Contract draft: `docs/api/openapi.yaml` (`x-module: 3`).
+
+Only after the P1 items and Gates 2/3/5 for Modules 1–2 (`docs/ROADMAP.md`).
+Design recorded as ADR 0010 (Proposed).
 
 `requirements` + `applicant_requirements`. 5 statuses, 3 badges,
 non-applicable-with-reason output. Fill `generateCase()` in
 `modules/checklist/checklist.service.ts`, set `case_generated_at`.
 
-Confirmed decisions:
+Decisions (agreed in discussion, re-confirm before writing 0004):
 
 1. The migration carries `requirements` rather than waiting on CMS, and ships
    the final read shape so the CMS migration is purely additive.

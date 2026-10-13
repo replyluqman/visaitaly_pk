@@ -21,6 +21,18 @@ export interface VerifiedToken {
   emailVerified: boolean;
 }
 
+/**
+ * With FIREBASE_AUTH_EMULATOR_HOST set, the library accepts UNSIGNED tokens, so
+ * anyone could mint a token for any user. The variable is honoured only when
+ * ENVIRONMENT is exactly 'development'; everywhere else it is stripped before the
+ * env reaches the library, even if someone sets it as a var or secret by mistake.
+ * `pnpm preflight` also fails a deploy whose config declares it.
+ */
+export function libraryEnv(env: Env): Env {
+  if (env.ENVIRONMENT === 'development') return env;
+  return { ...env, FIREBASE_AUTH_EMULATOR_HOST: undefined };
+}
+
 export async function verifyFirebaseIdToken(
   authorizationHeader: string | undefined,
   env: Env,
@@ -36,7 +48,7 @@ export async function verifyFirebaseIdToken(
   );
 
   try {
-    const token = await auth.verifyIdToken(jwt, false, env);
+    const token = await auth.verifyIdToken(jwt, false, libraryEnv(env));
     return {
       uid: token.uid,
       email: typeof token.email === 'string' ? token.email.toLowerCase() : null,

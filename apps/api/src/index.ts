@@ -90,7 +90,7 @@ app.onError((err, c) => {
   const requestId = c.get('requestId') ?? 'unknown';
 
   if (isAppError(err)) {
-    return c.json(err.toBody(requestId), err.status as 400);
+    return c.json(err.toBody(requestId), err.status);
   }
 
   console.error(

@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
     "migrate": "node scripts/migrate.mjs up",
     "rollback": "node scripts/migrate.mjs down",
     "preflight": "node scripts/preflight.mjs",
-    "migrate:roundtrip": "node scripts/migrate-roundtrip.mjs"
+    "migrate:roundtrip": "node scripts/migrate-roundtrip.mjs",
+    "migrate:status": "node scripts/migrate.mjs status",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:production": "wrangler deploy --env production"
   },
   "dependencies": {
     "@visaitaly/shared": "workspace:*",

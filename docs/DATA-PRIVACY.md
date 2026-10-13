@@ -1,8 +1,8 @@
-# Privacy, consent, export & deletion
+# Data privacy — consent, export, deletion
 
 **Applies because:** users are frequently EU-resident (PRD §17, §18 risk 3), so GDPR
 applies regardless of company location. Pakistan's data-protection bill should be
-re-checked for status at launch. **Everything here goes to the lawyer review.**
+re-checked for status at launch. **Not legal advice; everything here goes to the lawyer review (PRD §24).** PRD §18–§19 are the requirements; this maps them onto the system.
 
 ## 1. Data inventory
 
@@ -88,3 +88,22 @@ before first production deploy (SECURITY.md "before first production deploy").
 72-hour notification duty (GDPR art. 33). Runbook: contain → assess scope from
 audit_log + Workers Logs → lawyer → notify authority + affected users.
 Owner and contact list in `docs/runbooks/breach.md` (create before launch).
+
+## 6. Standing rules (engineering)
+
+1. Collect only what the selected service needs (PRD §19). A new field needs a reason in its migration.
+2. Every user-owned row is reachable from `users.id` — that is what makes deletion and export complete. No orphan PII.
+3. R2 objects are private; access by short-lived signed URL only, and every key is referenced from a Neon row.
+4. Admin read access to user data (Case Lookup) is audit-logged (PRD §16).
+5. Staging and development never contain production data.
+6. Applicants are often family members, not the account holder. The privacy policy must say the account
+   holder provides their data and has the right to.
+7. Never collected: card data (manual payment model), IP on legal acceptance, hardware device ids, contacts, GPS.
+
+## 7. Must be fixed before the deletion flow ships (found in review)
+
+- **Login must refuse a deleted account before the upsert.** Today `registerSession` writes `email` /
+  `display_name` back onto a `status='deleted'` row, undoing the PII wipe (`API-CONTRACT.md` §Session).
+- **Email uniqueness.** `users_email_lower_uq` makes re-signup with the same email after a Firebase deletion
+  fail (new uid, same email). Decision pending: drop the index (identity is `firebase_uid`) — see `STATE.md` P1.
+- **Google Play** requires an in-app deletion entry point *and* a public web URL for the request.

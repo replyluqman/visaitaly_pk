@@ -1,7 +1,11 @@
-node_modules/
-dist/
-.dev.vars
-.wrangler/
+
+# local Claude Code overrides
 *.log
 .DS_Store
+.claude/settings.local.json
+.dev.vars
+.env
+.wrangler/
 /tmp
+dist/
+node_modules/

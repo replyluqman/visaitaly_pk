@@ -15,7 +15,7 @@ export const ErrorCode = {
   APPLICANT_LIMIT_REACHED: 'APPLICANT_LIMIT_REACHED',   // 409 CMS-driven cap reached
   APPLICANT_READ_ONLY: 'APPLICANT_READ_ONLY',           // 403 grace_read_only / expired (PRD §7)
   LEGAL_ACCEPTANCE_REQUIRED: 'LEGAL_ACCEPTANCE_REQUIRED', // 403 current version not accepted (§18)
-  ONBOARDING_STEP_REQUIRED: 'ONBOARDING_STEP_REQUIRED', // 409 steps taken out of order
+  ONBOARDING_STEP_INVALID: 'ONBOARDING_STEP_INVALID',     // 409 step attempted out of order
 
   // generic
   VALIDATION_FAILED: 'VALIDATION_FAILED',         // 422

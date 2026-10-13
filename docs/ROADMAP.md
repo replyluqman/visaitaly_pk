@@ -1,63 +1,57 @@
 # Roadmap — Pakistan → Italy MVP
 
-**Assumes one full-time developer.** PRD §25 says 6–8 weeks + 1–1.5 for v3.1; with
-three codebases (API, Flutter, CMS) and the test gates in TESTING.md, that is
-optimistic for one person. The estimate below is the honest one. Each module ships
-API + Flutter screens + CMS screens together, so it can be demoed end-to-end.
+Build order is PRD §25 and is not reordered without a scope decision. A module starts only after the previous one
+passes all five gates (`TESTING.md`). Live detail for the current module: `../STATE.md`. Schema per module: `ERD.md`.
 
-## Phase 0 — Foundations ✅ (this branch)
+**Scope is Pakistan → Italy family reunification only.** Expansion (more countries, visa types, origins) waits until
+the MVP has paying users; it needs a `program` dimension (origin × destination × visa type) on relationships,
+requirements, stages and pricing — additive expand-migrations plus relaxing a few CHECK lists, not a rewrite.
 
-ERD · OpenAPI · design system · CI/CD · environments · observability · analytics
-plan · GDPR design · content templates · launch checklist.
+## Modules
 
-## Phase 1 — Close Modules 1–2 (≈ 1 week)
+| # | Module | Backend | Gates | Flutter | CMS |
+|---|---|---|---|---|---|
+| 1 | Auth + device sessions | built (0001) | G1 ✓ · G4 partial · G2/G3/G5 ✗ | not started | — |
+| 2 | Legal gate + applicant profiles + onboarding | built (0002, 0003) | G1 ✓ · G4 partial · G2/G3/G5 ✗ | not started | — |
+| 3 | Checklist engine (5 statuses, badges, non-applicable with reason) + Eligibility Quick Check | next (0004) | — | 8–12, 2 | — |
+| 3b | Documents (R2 uploads) + Today / next actions | | | 9, 14 | — |
+| 4 | CMS / content + verification workflow + hash-change flags | | | 15 | 39, 40 |
+| 5 | Notifications — Cron generation + FCM + notification centre | | | 13 | — |
+| 6 | Payments — manual proof, one-click approve, SLA, receipts, **refunds** | | | 16, 20–22, 23, 24, 26 | 31, 33, 34, 43 |
+| 7 | Services (translation + courier, appointment) + premium lifecycle (expiry, renewal) | | | 17–19 | 37, 38, 42 |
+| 8 | Support thread + admin inbox + canned responses | | | 25 | 35 |
+| 9 | Referral + payouts | | | 27, 28 | 41 |
+| 10 | Admin RBAC + audit log + case lookup + legal manager + data export/deletion | | | 29 | 30, 32, 36, 44, 45 |
 
-- `resolveEntitlement()` real query (STATE.md top item)
-- Test harness: vitest + real Postgres; Gate 2/3 for Modules 1–2 incl. cross-user 404
-- Rate limiting (Cloudflare rate-limit binding or WAF rule — verify plan availability)
-- Flutter skeleton: flavors, Riverpod, go_router guards, Dio + terminal-code interceptor,
-  `GlassSurface` + tokens, perf tier, Screens 1–7
-- CMS skeleton: Next.js on Pages, admin Firebase auth, Screen 30
+"Built" ≠ done: Modules 1–2 are code-complete but unit, integration (including the cross-user 404 test) and security
+gates have not run.
 
-## Phase 2 — Core value (≈ 3–4 weeks)
+## Phases and honest estimates (one full-time developer)
 
-| Module | API | Flutter | CMS | Est. |
-|---|---|---|---|---|
-| 4 Checklist engine + documents + Today | `0004`, generateCase, R2 signed URLs, next_actions Cron, hash sweep Cron | 8, 9, 10, 11, 12, 14, 15, 2 | 39, 40 | 2–2.5 w |
-| 5 Notifications | `0005`, Cron reminders, FCM fan-out, retention Cron | 13, bell, 29 prefs | — | 1 w |
+PRD §25 says 6–8 weeks (+1–1.5 for v3.1); with three codebases and the test gates that is optimistic for one person.
 
-## Phase 3 — Money (≈ 3 weeks) — blocked on payable-currency decision
+| Phase | Work | Est. |
+|---|---|---|
+| 0 ✅ | Pre-code pack: ERD, OpenAPI, design system, CI/CD, environments, observability, analytics, privacy, content templates, launch checklist | done |
+| 1 | Close Modules 1–2: P1 fixes (STATE.md), vitest + real-Postgres harness, Gates 2/3/5, rate limiting; Flutter skeleton (flavors, Riverpod, router guards, `GlassSurface`, Screens 1–7); CMS skeleton | ≈ 1–1.5 w |
+| 2 | Modules 3, 3b, 4 (core value) | ≈ 3–4 w |
+| 3 | Module 5, then 6 and 7 (money — **blocked on payable-currency decision, ERD O1**) | ≈ 4 w |
+| 4 | Modules 8, 9 | ≈ 2 w |
+| 5 | Module 10 + motion/polish + Gate 4 at volume + Gate 5 + DR drill | ≈ 2 w |
+| 6 | Play internal → closed testing (20–50 real families) → staged rollout. Lawyer sign-off and verified content are usually the critical path, not code | 1–2 w, overlaps |
 
-| Module | API | Flutter | CMS | Est. |
-|---|---|---|---|---|
-| 6 Orders & payments | `0006`, quote/order, proof upload, approve tx, receipts Cron | 16, 20, 21, 22, 23, 24 | 31 (partial), 33, 43 | 1.5 w |
-| 7 Services + premium lifecycle | `0007`, translation/appointment, shipments, expiry Cron, renewals | 17, 18, 19 | 37, 38, 42 | 1.5 w |
+**Total ≈ 12–15 weeks solo; two developers (Flutter + API/CMS) ≈ 8–9 weeks.**
 
-## Phase 4 — Trust & retention (≈ 2–3 weeks)
+## Before production launch (cross-cutting)
 
-| Module | Est. |
-|---|---|
-| 8 Support thread + inbox + canned responses (25 · 35) | 1 w |
-| 9 Refunds (26 · 34) | 0.5 w |
-| 10 Referral + withdrawals (27, 28 · 41) | 1 w |
+Owner actions live in `LAUNCH-CHECKLIST.md`. Engineering gates:
+- All `REPLACE_ME` filled; `pnpm preflight --env production` green.
+- Real legal text published via CMS, lawyer-reviewed; account deletion flow (Play requires it) — `DATA-PRIVACY.md`.
+- `X-Request-Id` header, structured logs, alerting (`OBSERVABILITY.md`); rate limiting on auth endpoints.
+- PRD §24 open items resolved (courier, CMS defaults, WhatsApp number, canned responses, Urdu owner, lawyer scope).
+- Load test at 30k-user data volume (`SCALE.md`).
 
-## Phase 5 — Admin, privacy, hardening (≈ 2 weeks)
+## Post-MVP (PRD §20)
 
-- 11 RBAC + audit + lookup + legal manager + GDPR export/delete (30–32, 36, 44, 45; 29)
-- Motion/polish budget (Screens v2, ~2 days)
-- Gate 4 at volume, Gate 5 security pass, DR drill, preflight clean
-
-## Phase 6 — Launch (≈ 1–2 weeks, overlaps)
-
-Play internal → closed testing (20–50 real families) → staged rollout.
-Lawyer sign-off and verified content are the usual critical path, not code.
-
-**Total: ≈ 12–15 weeks solo.** Two developers (one Flutter, one API+CMS) → ≈ 8–9 weeks.
-
-## Post-MVP (PRD §20) — not before launch
-
-iOS · Urdu · payment gateway · live courier tracking · WhatsApp reminders ·
-more visa categories · more countries. Expansion needs a `program` dimension
-(origin × destination × visa type) on relationships, requirements, stages and
-pricing — additive expand-migrations plus relaxing a few CHECK lists, not a rewrite.
-**No expansion work starts before the Pakistan → Italy MVP has paying users.**
+iOS · Urdu · payment gateway · live courier tracking · WhatsApp reminders · document vault · OCR · family
+collaboration · more visa categories/countries.

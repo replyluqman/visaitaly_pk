@@ -2,7 +2,8 @@
 
 **Scope:** Pakistan → Italy, Family Reunification. Single program, single origin.
 **Status:** Design. Tables marked ✅ exist (migrations 0001–0003). Everything else
-is planned and lands in its module's migration, in build order (PRD §25).
+is planned and lands in its module's migration, in build order (PRD §25). Module numbers match
+`docs/ROADMAP.md`; migration numbers are assigned when each is written (checklist engine = `0004`).
 **Rules:** `CLAUDE.md` invariants and `docs/SCALE.md` apply to every table here.
 
 ---
@@ -17,7 +18,7 @@ is planned and lands in its module's migration, in build order (PRD §25).
 | Time | `timestamptz` everywhere; `date` only for calendar dates (DOB, expiry) — cast to text in SQL (invariant 9). |
 | Status | `text` + `CHECK` list. Not Postgres enums: adding a value to an enum cannot run in a transaction on older PG and is awkward to roll back. |
 | Content | User-visible strings that CMS owns are `jsonb` keyed by locale with `CHECK (x ? 'en')` (Urdu, PRD §11a). |
-| Soft delete | `status` + `deleted_at` with a consistency CHECK, as on `users`/`applicants`. GDPR hard-delete is a separate path (`docs/GDPR.md`). |
+| Soft delete | `status` + `deleted_at` with a consistency CHECK, as on `users`/`applicants`. GDPR hard-delete is a separate path (`docs/DATA-PRIVACY.md`). |
 | `updated_at` | `set_updated_at()` trigger on every mutable table. |
 | Append-only | Declares its retention rule in the creating migration (SCALE.md rule 3). |
 
@@ -85,7 +86,10 @@ columns listed under each module below.
 
 ---
 
-## Module 4 — Checklist engine (`0004`)
+## Module 3 — Checklist engine (`0004`)
+
+ADR 0010 (Proposed — re-confirm before the migration is written). `requirements` ships with its final read shape
+so the Module 4 CMS migration is additive. Definitions are seed/CMS content, never migration content (ADR 0007).
 
 ### `sources` — one row per authoritative URL
 | Column | Type | Notes |
@@ -130,19 +134,6 @@ Index: `(last_checked_at) WHERE is_active` — Cron sweep order.
 Indexes: `(stage, sort_order) WHERE verification_status = 'published'`, `(source_id)`, `(last_verified_by)`.
 CHECK: `verification_status <> 'published' OR (source_id IS NOT NULL AND last_verified_at IS NOT NULL)` — **a requirement cannot be published without a verification record** (PRD §13).
 
-### `requirement_versions` — append-only history
-Snapshot of the row (`snapshot jsonb`), `version`, `change_summary jsonb`,
-`effective_date date`, `published_at`, `published_by`. Unique `(requirement_id, version)`.
-Feeds the **Updates** tab and **How We Verify → recent updates**.
-**Retention:** forever — this is the legal defence record (PRD §18).
-
-### `source_flags` — hash-change queue (Screen 40)
-`source_id`, `old_hash`, `new_hash`, `detected_at`, `status` CHECK `open|resolved|dismissed`,
-`resolved_by`, `resolved_at`, `resolution_note`.
-Index: `(source_id) WHERE status = 'open'` — the user-side badge lookup.
-Unique partial: one open flag per source.
-**Retention:** resolved flags 24 months, then delete (Cron).
-
 ### `applicant_requirements` — the user's case (≈2M rows at 30k users)
 | Column | Type | Notes |
 |---|---|---|
@@ -162,6 +153,14 @@ Unique `(applicant_id, requirement_id)`. Indexes: `(user_id, applicant_id)`,
 **Badges** are derived at read: `Blocking` ← `requirements.blocks_submission AND status <> 'ready'`;
 `Source updated` ← open `source_flags` on `requirements.source_id`; `Needs Review` ← column.
 
+
+---
+
+## Module 3b — Documents (R2) & Today
+
+ADR 0010 scopes R2 upload out of the first checklist migration; it ships as its own migration straight after,
+before Module 4.
+
 ### `documents` — uploads (R2)
 `user_id`, `applicant_id`, `applicant_requirement_id` (nullable — "My Documents" allows unlinked),
 `r2_key` (uuid-based, unguessable), `mime`, `size_bytes`, `sha256`, `expiry_date`,
@@ -180,7 +179,30 @@ One row per applicant, overwritten. Index `(user_id)`.
 
 ---
 
-## Module 5 — Notifications (`0005`)
+
+---
+
+## Module 4 — CMS & verification workflow
+
+Adds the history and flag tables. `requirements.last_verified_by` gets its FK to `admins` in Module 10 (`NOT VALID`, then validate — expand–contract).
+
+### `requirement_versions` — append-only history
+Snapshot of the row (`snapshot jsonb`), `version`, `change_summary jsonb`,
+`effective_date date`, `published_at`, `published_by`. Unique `(requirement_id, version)`.
+Feeds the **Updates** tab and **How We Verify → recent updates**.
+**Retention:** forever — this is the legal defence record (PRD §18).
+
+### `source_flags` — hash-change queue (Screen 40)
+`source_id`, `old_hash`, `new_hash`, `detected_at`, `status` CHECK `open|resolved|dismissed`,
+`resolved_by`, `resolved_at`, `resolution_note`.
+Index: `(source_id) WHERE status = 'open'` — the user-side badge lookup.
+Unique partial: one open flag per source.
+**Retention:** resolved flags 24 months, then delete (Cron).
+
+
+---
+
+## Module 5 — Notifications
 
 ### `notifications` (≈1M/yr)
 | Column | Type | Notes |
@@ -207,7 +229,7 @@ In-app cannot be disabled (Neon is the record) — CHECK `channel <> 'in_app' OR
 
 ---
 
-## Module 6 — Payments & orders (`0006`)
+## Module 6 — Payments, orders & refunds
 
 ### `orders`
 | Column | Type | Notes |
@@ -267,9 +289,18 @@ PDF rendered by Cron Worker, never on the request path (PRD §4).
 ### Additive columns
 - `app_config`: keys `pricing` (premium/appointment first + additional minor units, courier fee, currency), `sla`, `working_hours`, `bank_details`.
 
+### Refunds (part of Module 6 — payments)
+
+#### `refund_requests`
+`order_id`, `user_id`, `status` CHECK `requested|reviewed|approved|declined|refunded`,
+`reason_code`, `note`, `eligibility_snapshot jsonb` (rule inputs at request time — dispute evidence),
+`amount_minor`, `currency`, `decision_reason_code` (NOT NULL when approved/declined — PRD §17 rule 6), `decision_note`,
+`decided_by`, `decided_at`, `refunded_at`, `refund_reference`.
+Unique partial `(order_id) WHERE status IN ('requested','reviewed','approved')`.
+
 ---
 
-## Module 7 — Premium lifecycle (`0007`)
+## Module 7 — Services & premium lifecycle
 
 Columns already on `applicants` (✅). Adds:
 
@@ -279,7 +310,7 @@ Unique partial `(applicant_id) WHERE status = 'requested'`.
 
 ---
 
-## Module 8 — Support (`0008`)
+## Module 8 — Support
 
 ### `support_threads` — one per user (PRD §10)
 `user_id` UNIQUE, `status` CHECK `open|awaiting_support|awaiting_user|closed`,
@@ -300,18 +331,7 @@ Index `(thread_id, created_at, id)`.
 
 ---
 
-## Module 9 — Refunds (`0009`)
-
-### `refund_requests`
-`order_id`, `user_id`, `status` CHECK `requested|reviewed|approved|declined|refunded`,
-`reason_code`, `note`, `eligibility_snapshot jsonb` (rule inputs at request time — dispute evidence),
-`amount_minor`, `currency`, `decision_reason_code` (NOT NULL when approved/declined — PRD §17 rule 6), `decision_note`,
-`decided_by`, `decided_at`, `refunded_at`, `refund_reference`.
-Unique partial `(order_id) WHERE status IN ('requested','reviewed','approved')`.
-
----
-
-## Module 10 — Referral (`0010`)
+## Module 9 — Referral & payouts
 
 ### `referral_codes`
 `user_id` PK, `code` UNIQUE (8 chars, no ambiguous glyphs).
@@ -336,7 +356,7 @@ Only `last4` ever leaves the server to the user app; full value only to `cash_de
 
 ---
 
-## Module 11 — Admin RBAC, audit, privacy (`0011`)
+## Module 10 — Admin RBAC, audit, privacy
 
 ### `admins`
 `firebase_uid` UNIQUE, `email`, `display_name`, `is_super boolean`, `status` CHECK `active|disabled`, `created_by`.

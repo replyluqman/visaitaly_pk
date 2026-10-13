@@ -5,7 +5,7 @@ the `verification_manage` scope, and it never ships in a migration (CLAUDE.md).
 
 **Nothing in this repo is a real requirement.** The template row is prefixed
 `EXAMPLE_ONLY_` on purpose; `preflight` will fail if any requirement code starting
-with `EXAMPLE_ONLY_` is published (added with Module 4).
+with `EXAMPLE_ONLY_` is published (added with Module 3).
 
 ## Workflow
 
@@ -16,7 +16,7 @@ with `EXAMPLE_ONLY_` is published (added with Module 4).
    `source_url` and a `last_verified_at`.
 3. A **second person** verifies each row against the source (four-eyes) and puts
    their email in `verified_by_email`.
-4. Import into **staging** via the seed script (Module 4 builds
+4. Import into **staging** via the seed script (Module 3 builds
    `seed/import-requirements.mjs`), review in the app as each of: spouse in Pakistan,
    child under 18, child over 18, parent — check what is shown *and* what is shown
    as not applicable.

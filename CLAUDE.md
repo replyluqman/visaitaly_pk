@@ -7,13 +7,14 @@ Process docs, all binding:
 - `docs/TESTING.md` — the five gates. **No module starts until the previous one passes all of them.**
 - `docs/SECURITY.md` — per-module security checklist
 - `docs/SCALE.md` — 30k-user targets, indexing, retention, expand–contract
+- `docs/adr/` — accepted decisions; supersede with a new ADR, never by drifting
+- `docs/ERD.md` (planned schema, Modules 3–10) · `docs/api/openapi.yaml` (`pnpm lint:openapi`) · `docs/design/` (glass-lite UI) · `docs/ROADMAP.md` · `docs/LAUNCH-CHECKLIST.md` — plan docs: build against them and update them in the same PR when a module changes them
 
-Design docs — build against these, update them in the same PR when a module changes them:
-- `docs/ERD.md` — full MVP schema (Modules 4–11 planned) + open items O1–O4
-- `docs/api/openapi.yaml` — API contract (`pnpm lint:openapi`); `@visaitaly/shared` wins on conflict
-- `docs/design/DESIGN-SYSTEM.md` + `tokens.json` — glass-lite rules, perf tiers
-- `docs/ANALYTICS.md`, `docs/GDPR.md`, `docs/ENVIRONMENTS.md`, `docs/OBSERVABILITY.md`
-- `docs/ROADMAP.md`, `docs/LAUNCH-CHECKLIST.md` (owner actions)
+Everything else (architecture, API contract, data model, environments, deploy,
+runbook, privacy, Flutter): `docs/INDEX.md`. Current status: `STATE.md`.
+
+Slash commands in `.claude/commands/`: `/new-module`, `/migration`, `/gate-check`,
+`/security-review`. Use them — they encode the steps below.
 
 Per-module design notes live in `apps/api/MODULE-0*.md`. Write one for every new
 module, and record test results in it.
@@ -59,7 +60,9 @@ apps/api/
     middleware/       auth (requireSession)
     modules/<name>/   <name>.service.ts (logic) + <name>.routes.ts (HTTP)
 packages/shared/src/  types + zod schemas + error codes, as @visaitaly/shared
-docs/                 PRD, Screens, TESTING, SECURITY, SCALE
+docs/                 PRD, Screens, process docs, contracts, runbooks, adr/
+apps/mobile/          Flutter app (not started) — has its own CLAUDE.md
+.claude/              slash commands + permission deny rules
 ```
 
 Routes do HTTP only — parse, call service, map errors. Services own all SQL,
@@ -124,13 +127,9 @@ live column in place. See `docs/SCALE.md` for the full pattern.
 pnpm preflight --env staging|production
 ```
 
-CI runs this automatically before every deploy (`.github/workflows/ci.yml`).
-Environments, secrets and the deploy flow: `docs/ENVIRONMENTS.md`.
-Logs, alerts, Cron heartbeats: `docs/OBSERVABILITY.md`.
-
-Every migration change must pass `pnpm db:roundtrip` (apply → full rollback →
-re-apply → identical schema) against a throwaway `*_ci`/`*_test` database. CI
-enforces it.
+CI runs this before every deploy (`.github/workflows/ci.yml`); environments and secrets: `docs/ENVIRONMENTS.md`.
+Every migration change must pass `pnpm db:roundtrip` (apply → full rollback → re-apply → identical schema) against a
+throwaway `*_ci`/`*_test` database; CI enforces it.
 
 Asserts what a written checklist gets skipped on: no `REPLACE_ME` left in
 `wrangler.toml`, no secret committed there, every migration applied, no
@@ -143,9 +142,11 @@ A module is done when `docs/TESTING.md`'s checklist is fully ticked — static,
 unit, integration including the cross-user 404 ownership test, `EXPLAIN ANALYZE`
 at volume, and the security checklist. Then update the module doc and `STATE.md`.
 
-Errors: throw `AppError(ErrorCode.X)`. Codes are the contract — clients branch on
-`code`, never on `message`. A new code means updating
-`packages/shared/src/errors.ts` and the Flutter interceptor's terminal-code set.
+Errors: throw via the `AppError.*` factories. Codes are the contract — clients branch
+on `code`, never on `message`. HTTP status comes from `STATUS_BY_CODE` in
+`lib/errors.ts`, never from the call site. A new code means updating
+`packages/shared/src/errors.ts`, `STATUS_BY_CODE` (the compiler enforces it),
+`docs/API-CONTRACT.md`, and deciding whether it is session-terminal.
 
 If unsure about a library version or platform limit, verify — do not guess.
 There is a live example in `lib/firebase.ts` (`verifyIdToken` arity).

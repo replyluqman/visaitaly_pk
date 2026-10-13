@@ -28,8 +28,9 @@ All authenticated requests send `Authorization: Bearer <firebase-id-token>` **an
 - **Device limit lives in `app_config`**, not in code. PRD §6 zero-hardcoding.
 - **JWT is verified exactly once per request.** It is the dominant CPU cost.
 - **`last_seen_at` is written on `/v1/me` only**, not on every request.
-- **`resolveEntitlement()` is a stub** returning empty. Shape is final; the query
-  body lands with the applicants + orders modules. Do not read entitlement elsewhere.
+- **Entitlement** is resolved inside `loadMeSnapshot()` (Module 2) — one SQL
+  statement with user, devices, legal and applicant state. Do not read entitlement
+  anywhere else. (Module 1 shipped a stub here; superseded.)
 
 ## Setup
 
@@ -49,7 +50,7 @@ pnpm db:migrate
 
 **1. Migration applies and rolls back cleanly**
 ```bash
-pnpm --filter @visaitaly/api migrate:status   # ✓ 0001_auth_devices
+pnpm db:status   # ✓ 0001_auth_devices
 pnpm db:rollback && pnpm db:migrate           # must succeed twice in a row
 ```
 Expect `app_config`, `users`, `devices` present; `app_config.auth` = `{"max_active_devices": 2}`.
@@ -98,20 +99,20 @@ and D2 must be the one evicted instead.
 signal to take the $5/mo Workers Paid escape hatch (PRD §22 risk 8b) rather than
 redesign anything.
 
-## ⚠ Verify before first deploy
+## ✓ Verified: `verifyIdToken` arity
 
-`firebase-auth-cloudflare-workers` publishes two `verifyIdToken` signatures across
-versions — `(jwt, env)` and `(jwt, checkRevoked, env)`. Confirm against the installed copy:
+Installed v2.0.6 signature is `verifyIdToken(idToken, checkRevoked?, env?, clockSkewSeconds?)`.
+`src/lib/firebase.ts` calls `verifyIdToken(jwt, false, env)`. Re-check on any upgrade:
 ```bash
-grep -n "verifyIdToken" node_modules/firebase-auth-cloudflare-workers/dist/index.d.ts
+grep -rn "verifyIdToken" node_modules/firebase-auth-cloudflare-workers/dist/*.d.ts
 ```
-If it takes three args, pass `false` for `checkRevoked` (we do not use Firebase
-revocation). One-line fix, and `src/lib/firebase.ts` is the only place it appears.
 
 ## Client contract (Flutter, Module 2 input)
 
 - Generate `device_id` once, persist in `flutter_secure_storage`, send on every request.
 - Dio interceptor: on any code in `SESSION_TERMINAL_CODES`, clear local state,
   `FirebaseAuth.signOut()`, route to Login, show the message from `error.message`.
+  Exception: on `UNAUTHENTICATED`, force-refresh the token and retry once first
+  (`docs/FLUTTER-ARCHITECTURE.md`).
 - Call `POST /v1/auth/session` after **every** sign-in, not just the first.
 - Route on `me.user.onboardingState`, never on local flags.

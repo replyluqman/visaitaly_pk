@@ -4,12 +4,14 @@
   "packageManager": "pnpm@9.12.0",
   "scripts": {
     "api:dev": "pnpm --filter @visaitaly/api dev",
-    "api:deploy": "pnpm --filter @visaitaly/api deploy",
     "db:migrate": "pnpm --filter @visaitaly/api migrate",
     "db:rollback": "pnpm --filter @visaitaly/api rollback",
     "typecheck": "pnpm -r typecheck",
     "preflight": "pnpm --filter @visaitaly/api preflight",
     "db:roundtrip": "pnpm --filter @visaitaly/api migrate:roundtrip",
-    "lint:openapi": "npx -y @redocly/cli@1.25.0 lint docs/api/openapi.yaml --config docs/api/redocly.yaml"
+    "lint:openapi": "npx -y @redocly/cli@1.25.0 lint docs/api/openapi.yaml --config docs/api/redocly.yaml",
+    "db:status": "pnpm --filter @visaitaly/api migrate:status",
+    "api:deploy:staging": "pnpm --filter @visaitaly/api deploy:staging",
+    "api:deploy:production": "pnpm --filter @visaitaly/api deploy:production"
   }
 }

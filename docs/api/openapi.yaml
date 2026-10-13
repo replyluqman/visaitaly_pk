@@ -9,6 +9,9 @@ info:
     **Source of truth for shapes is `@visaitaly/shared`.** This file mirrors it so
     Flutter (freezed models) and the CMS can be built against a fixed contract.
     When the two disagree, the shared package wins and this file is the bug.
+    `docs/API-CONTRACT.md` describes the built surface (Modules 1–2) in prose with client
+    actions per error code; this file is the machine-readable superset incl. planned routes.
+    Module numbers match docs/ROADMAP.md (checklist = 3, documents/today = 3b, CMS = 4).
 
     `x-status: live` = implemented (Modules 1–2). `x-status: planned` = contract
     agreed, not built. `x-module` = build-order module (PRD §25).
@@ -70,7 +73,7 @@ paths:
       summary: Quick Check question set (Screen 2)
       security: []
       x-status: planned
-      x-module: 4
+      x-module: 3
       description: CMS-driven questions. Cached at the edge (Cache-Control public, 1h).
       responses:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/EligibilityQuestionSet' } } } }
@@ -79,7 +82,7 @@ paths:
       summary: Orientation result — never a verdict (PRD §11, §18 risk 1)
       security: []
       x-status: planned
-      x-module: 4
+      x-module: 3
       description: Stateless. Answers are not persisted server-side. Rate-limited per IP.
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/EligibilityAnswers' } } } }
       responses:
@@ -127,7 +130,8 @@ paths:
       x-module: 1
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RegisterSessionInput' } } } }
       responses:
-        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/RegisterSessionResponse' } } } }
+        '200': { description: existing user, content: { application/json: { schema: { $ref: '#/components/schemas/RegisterSessionResponse' } } } }
+        '201': { description: new user, content: { application/json: { schema: { $ref: '#/components/schemas/RegisterSessionResponse' } } } }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '422': { $ref: '#/components/responses/ValidationFailed' }
 
@@ -172,6 +176,7 @@ paths:
   /v1/legal/current:
     get:
       tags: [legal]
+      parameters: [ { $ref: '#/components/parameters/Locale' } ]
       x-status: live
       x-module: 2
       responses:
@@ -192,7 +197,8 @@ paths:
       x-module: 2
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [versionIds], properties: { versionIds: { type: array, minItems: 1, maxItems: 10, items: { type: string, format: uuid } }, appVersion: { type: string, maxLength: 32 } } } } } }
       responses:
-        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/CurrentLegalResponse' } } } }
+        '200': { description: accepted, content: { application/json: { schema: { type: object, properties: { acceptedVersionIds: { type: array, items: { type: string, format: uuid } }, onboardingState: { type: string } } } } } }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
 
   /v1/onboarding/applicant-count:
     patch:
@@ -201,12 +207,13 @@ paths:
       x-module: 2
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [declaredApplicantCount], properties: { declaredApplicantCount: { type: integer, minimum: 1, maximum: 99 } } } } } }
       responses:
-        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/MeResponse' } } } }
-        '409': { $ref: '#/components/responses/Conflict' }
+        '200': { description: ok, content: { application/json: { schema: { type: object, properties: { declaredApplicantCount: { type: integer }, onboardingState: { type: string } } } } } }
+        '403': { description: LEGAL_ACCEPTANCE_REQUIRED, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
 
   /v1/reference/relationships:
     get:
       tags: [onboarding]
+      parameters: [ { $ref: '#/components/parameters/Locale' } ]
       x-status: live
       x-module: 2
       responses:
@@ -214,6 +221,7 @@ paths:
 
   # ───────────────────────────────────────── applicants
   /v1/applicants:
+    parameters: [ { $ref: '#/components/parameters/Locale' } ]
     get:
       tags: [applicants]
       summary: All applicants with readiness (bounded by app_config.onboarding.max_applicants)
@@ -227,8 +235,9 @@ paths:
       x-module: 2
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateApplicantInput' } } } }
       responses:
-        '201': { description: created, content: { application/json: { schema: { $ref: '#/components/schemas/Applicant' } } } }
-        '409': { $ref: '#/components/responses/Conflict' }
+        '201': { description: created, content: { application/json: { schema: { $ref: '#/components/schemas/ApplicantWithOnboarding' } } } }
+        '403': { description: LEGAL_ACCEPTANCE_REQUIRED, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+        '409': { description: APPLICANT_LIMIT_REACHED or ONBOARDING_STEP_INVALID, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
         '422': { $ref: '#/components/responses/ValidationFailed' }
   /v1/applicants/{id}:
     parameters: [ { $ref: '#/components/parameters/Id' } ]
@@ -251,11 +260,13 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
     delete:
       tags: [applicants]
+      summary: Soft delete. Blocked while the applicant has a purchase.
       x-status: live
       x-module: 2
       responses:
-        '204': { description: deleted }
+        '200': { description: deleted, content: { application/json: { schema: { type: object, properties: { onboardingState: { type: string } } } } } }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /v1/applicants/{id}/stage:
     parameters: [ { $ref: '#/components/parameters/Id' } ]
     patch:
@@ -265,14 +276,16 @@ paths:
       x-module: 2
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [currentStage], properties: { currentStage: { $ref: '#/components/schemas/JourneyStage' } } } } } }
       responses:
-        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Applicant' } } } }
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/ApplicantWithOnboarding' } } } }
+        '403': { $ref: '#/components/responses/ReadOnly' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /v1/applicants/{id}/journey:
     parameters: [ { $ref: '#/components/parameters/Id' } ]
     get:
       tags: [applicants]
       summary: Stage timeline (Screen 12)
       x-status: planned
-      x-module: 4
+      x-module: 3
       responses:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/JourneyResponse' } } } }
   /v1/applicants/{id}/visa-granted:
@@ -302,7 +315,7 @@ paths:
       tags: [checklist]
       summary: Case file (Screen 10). Free users get 3 items + lockedCount.
       x-status: planned
-      x-module: 4
+      x-module: 3
       parameters:
         - { name: since, in: query, schema: { type: string, format: date-time }, description: Delta sync — only rows changed after this timestamp }
         - { name: status, in: query, schema: { $ref: '#/components/schemas/ItemDisplayStatus' } }
@@ -320,7 +333,7 @@ paths:
       tags: [checklist]
       summary: Item detail (Screen 11)
       x-status: planned
-      x-module: 4
+      x-module: 3
       responses:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/ChecklistItemDetail' } } } }
         '402': { $ref: '#/components/responses/PremiumRequired' }
@@ -329,7 +342,7 @@ paths:
       tags: [checklist]
       summary: Set status. Offline-queued mutations send baseVersion for conflict detection (PRD §12).
       x-status: planned
-      x-module: 4
+      x-module: 3
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PatchChecklistItemInput' } } } }
       responses:
         '200': { description: applied, content: { application/json: { schema: { $ref: '#/components/schemas/ChecklistItem' } } } }
@@ -342,7 +355,7 @@ paths:
       tags: [checklist]
       summary: Clear the Needs Review badge after the user re-checks the item
       x-status: planned
-      x-module: 4
+      x-module: 3
       responses:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/ChecklistItem' } } } }
 
@@ -352,7 +365,7 @@ paths:
       tags: [documents]
       summary: My Documents (Screen 14)
       x-status: planned
-      x-module: 4
+      x-module: "3b"
       parameters:
         - { name: applicantId, in: query, schema: { type: string, format: uuid } }
         - { $ref: '#/components/parameters/Cursor' }
@@ -364,7 +377,7 @@ paths:
       tags: [documents]
       summary: Step 1 — get a short-lived signed PUT URL. Quota + type checked here.
       x-status: planned
-      x-module: 4
+      x-module: "3b"
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UploadUrlInput' } } } }
       responses:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/UploadUrlResponse' } } } }
@@ -375,7 +388,7 @@ paths:
       tags: [documents]
       summary: Step 2 — confirm upload; server verifies size + magic bytes from R2 head/range read
       x-status: planned
-      x-module: 4
+      x-module: "3b"
       responses:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Document' } } } }
         '422': { description: 'Magic bytes do not match declared type. Code UPLOAD_REJECTED.' }
@@ -385,7 +398,7 @@ paths:
       tags: [documents]
       summary: Metadata + short-lived signed GET URL
       x-status: planned
-      x-module: 4
+      x-module: "3b"
       responses:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Document' } } } }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -393,7 +406,7 @@ paths:
       tags: [documents]
       summary: Deletes the R2 object, not only the row (SECURITY.md)
       x-status: planned
-      x-module: 4
+      x-module: "3b"
       responses:
         '204': { description: deleted }
 
@@ -403,7 +416,7 @@ paths:
       tags: [today]
       summary: Top 3–5 actions across applicants, read from next_actions (Screen 9)
       x-status: planned
-      x-module: 4
+      x-module: "3b"
       responses:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/TodayResponse' } } } }
 
@@ -530,7 +543,7 @@ paths:
       tags: [refunds]
       summary: Request refund (Screen 26). Eligibility recomputed server-side.
       x-status: planned
-      x-module: 9
+      x-module: 6
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateRefundInput' } } } }
       responses:
         '201': { description: created, content: { application/json: { schema: { $ref: '#/components/schemas/RefundRequest' } } } }
@@ -579,7 +592,7 @@ paths:
       tags: [referral]
       summary: Code, balance, history (Screen 27)
       x-status: planned
-      x-module: 10
+      x-module: 9
       responses:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/ReferralSummary' } } } }
   /v1/referral/claim:
@@ -587,7 +600,7 @@ paths:
       tags: [referral]
       summary: Attach a referral code to the caller (once, before first paid order)
       x-status: planned
-      x-module: 10
+      x-module: 9
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [code], properties: { code: { type: string, minLength: 6, maxLength: 12 } } } } } }
       responses:
         '204': { description: claimed }
@@ -597,13 +610,13 @@ paths:
       tags: [referral]
       summary: Masked (last4 only)
       x-status: planned
-      x-module: 10
+      x-module: 9
       responses:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/PayoutAccountMasked' } } } }
     put:
       tags: [referral]
       x-status: planned
-      x-module: 10
+      x-module: 9
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PayoutAccountInput' } } } }
       responses:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/PayoutAccountMasked' } } } }
@@ -612,14 +625,14 @@ paths:
       tags: [referral]
       summary: Withdrawal history
       x-status: planned
-      x-module: 10
+      x-module: 9
       parameters: [ { $ref: '#/components/parameters/Cursor' }, { $ref: '#/components/parameters/Limit' } ]
       responses:
         '200': { description: ok, content: { application/json: { schema: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/Withdrawal' } }, nextCursor: { type: [string, 'null'] } } } } } }
     post:
       tags: [referral]
       x-status: planned
-      x-module: 10
+      x-module: 9
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [amountMinor, clientRequestId], properties: { amountMinor: { type: integer, minimum: 1 }, clientRequestId: { type: string, format: uuid } } } } } }
       responses:
         '201': { description: created, content: { application/json: { schema: { $ref: '#/components/schemas/Withdrawal' } } } }
@@ -639,14 +652,14 @@ paths:
       tags: [account]
       summary: GDPR export — async; delivered as a notification with a signed URL
       x-status: planned
-      x-module: 11
+      x-module: 10
       responses: { '202': { description: accepted } }
   /v1/account:
     delete:
       tags: [account]
-      summary: GDPR delete — see docs/GDPR.md. Requires recent re-auth (token auth_time < 5 min).
+      summary: GDPR delete — see docs/DATA-PRIVACY.md. Requires recent re-auth (token auth_time < 5 min).
       x-status: planned
-      x-module: 11
+      x-module: 10
       responses:
         '202': { description: accepted }
         '401': { description: 'REAUTH_REQUIRED' }
@@ -658,7 +671,7 @@ paths:
       security: [ { firebaseAdmin: [] } ]
       summary: Admin identity + scopes (Screen 30)
       x-status: planned
-      x-module: 11
+      x-module: 10
       responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/AdminMe' } } } } }
   /admin/v1/overview:
     get:
@@ -666,7 +679,7 @@ paths:
       security: [ { firebaseAdmin: [] } ]
       summary: Queue counts + SLA breaches, filtered by scope (Screen 31)
       x-status: planned
-      x-module: 11
+      x-module: 10
       responses: { '200': { description: ok } }
   /admin/v1/orders:
     get:
@@ -733,20 +746,20 @@ paths:
     get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [support_manage], x-status: planned, x-module: 8, responses: { '200': { description: ok } } }
     post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [support_manage], x-status: planned, x-module: 8, responses: { '201': { description: created } } }
   /admin/v1/refunds:
-    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [refund_manage], x-status: planned, x-module: 9, responses: { '200': { description: ok } } }
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [refund_manage], x-status: planned, x-module: 6, responses: { '200': { description: ok } } }
   /admin/v1/refunds/{id}/decide:
     parameters: [ { $ref: '#/components/parameters/Id' } ]
-    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [refund_manage], description: 'approve|decline|mark_refunded, reason mandatory', x-status: planned, x-module: 9, responses: { '200': { description: ok } } }
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [refund_manage], description: 'approve|decline|mark_refunded, reason mandatory', x-status: planned, x-module: 6, responses: { '200': { description: ok } } }
   /admin/v1/renewals:
     get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [expiry_manage], x-status: planned, x-module: 7, responses: { '200': { description: ok } } }
   /admin/v1/applicants/{id}/premium:
     parameters: [ { $ref: '#/components/parameters/Id' } ]
     post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [expiry_manage], summary: 'Override: confirm visa, set/extend/reverse grace, grant renewal', x-status: planned, x-module: 7, responses: { '200': { description: ok } } }
   /admin/v1/withdrawals:
-    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [referral_payout, cash_dept], x-status: planned, x-module: 10, responses: { '200': { description: ok } } }
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [referral_payout, cash_dept], x-status: planned, x-module: 9, responses: { '200': { description: ok } } }
   /admin/v1/withdrawals/{id}/transition:
     parameters: [ { $ref: '#/components/parameters/Id' } ]
-    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [referral_payout, cash_dept], x-status: planned, x-module: 10, responses: { '200': { description: ok } } }
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [referral_payout, cash_dept], x-status: planned, x-module: 9, responses: { '200': { description: ok } } }
   /admin/v1/lookup:
     get:
       tags: [admin]
@@ -755,27 +768,27 @@ paths:
       summary: Search by email / order ref / referral code. Every call audit-logged (PRD §16).
       parameters: [ { name: q, in: query, required: true, schema: { type: string, minLength: 3, maxLength: 120 } } ]
       x-status: planned
-      x-module: 11
+      x-module: 10
       responses: { '200': { description: ok } }
   /admin/v1/config:
-    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [pricing_config, read_only], x-status: planned, x-module: 11, responses: { '200': { description: ok } } }
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [pricing_config, read_only], x-status: planned, x-module: 10, responses: { '200': { description: ok } } }
   /admin/v1/config/{key}:
     parameters: [ { name: key, in: path, required: true, schema: { type: string } } ]
-    put: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [pricing_config], description: Validated per key by a zod schema; audit-logged with before/after, x-status: planned, x-module: 11, responses: { '200': { description: ok } } }
+    put: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [pricing_config], description: Validated per key by a zod schema; audit-logged with before/after, x-status: planned, x-module: 10, responses: { '200': { description: ok } } }
   /admin/v1/legal-versions:
-    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [legal_manage, read_only], x-status: planned, x-module: 11, responses: { '200': { description: ok } } }
-    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [legal_manage], x-status: planned, x-module: 11, responses: { '201': { description: created } } }
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [legal_manage, read_only], x-status: planned, x-module: 10, responses: { '200': { description: ok } } }
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [legal_manage], x-status: planned, x-module: 10, responses: { '201': { description: created } } }
   /admin/v1/legal-versions/{id}/publish:
     parameters: [ { $ref: '#/components/parameters/Id' } ]
-    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [legal_manage], description: Makes current; users re-accept on next launch, x-status: planned, x-module: 11, responses: { '200': { description: ok } } }
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [legal_manage], description: Makes current; users re-accept on next launch, x-status: planned, x-module: 10, responses: { '200': { description: ok } } }
   /admin/v1/admins:
-    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [super_admin], x-status: planned, x-module: 11, responses: { '200': { description: ok } } }
-    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [super_admin], x-status: planned, x-module: 11, responses: { '201': { description: created } } }
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [super_admin], x-status: planned, x-module: 10, responses: { '200': { description: ok } } }
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [super_admin], x-status: planned, x-module: 10, responses: { '201': { description: created } } }
   /admin/v1/admins/{id}/permissions:
     parameters: [ { $ref: '#/components/parameters/Id' } ]
-    put: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [super_admin], x-status: planned, x-module: 11, responses: { '200': { description: ok } } }
+    put: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [super_admin], x-status: planned, x-module: 10, responses: { '200': { description: ok } } }
   /admin/v1/audit-log:
-    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [read_only], x-status: planned, x-module: 11, parameters: [ { $ref: '#/components/parameters/Cursor' } ], responses: { '200': { description: ok } } }
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [read_only], x-status: planned, x-module: 10, parameters: [ { $ref: '#/components/parameters/Cursor' } ], responses: { '200': { description: ok } } }
 
 components:
   securitySchemes:
@@ -785,6 +798,7 @@ components:
 
   parameters:
     Id: { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    Locale: { name: locale, in: query, schema: { type: string, pattern: '^[a-z]{2}$' }, description: 'Label locale; anything else falls back to en. Urdu is gated by PRD §11a.' }
     Cursor: { name: cursor, in: query, schema: { type: string, maxLength: 200 }, description: Opaque; from previous nextCursor }
     Limit: { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
 
@@ -810,8 +824,10 @@ components:
               type: string
               description: |
                 Live: UNAUTHENTICATED DEVICE_HEADER_MISSING DEVICE_UNKNOWN DEVICE_EVICTED DEVICE_SIGNED_OUT USER_DELETED
-                APPLICANT_LIMIT_REACHED APPLICANT_READ_ONLY LEGAL_ACCEPTANCE_REQUIRED ONBOARDING_STEP_REQUIRED
+                APPLICANT_LIMIT_REACHED APPLICANT_READ_ONLY LEGAL_ACCEPTANCE_REQUIRED ONBOARDING_STEP_INVALID
                 VALIDATION_FAILED NOT_FOUND CONFLICT RATE_LIMITED INTERNAL.
+                Each new code also needs a row in STATUS_BY_CODE (apps/api/src/lib/errors.ts; compiler-enforced) and a
+                decision on whether it is session-terminal. UNAUTHENTICATED: refresh the token once and retry before signing out.
                 Planned (add to packages/shared/src/errors.ts with their module): PREMIUM_REQUIRED CHECKLIST_CONFLICT
                 UPLOAD_TOO_LARGE UPLOAD_QUOTA_EXCEEDED UPLOAD_REJECTED PRICE_CHANGED APPLICANT_ALREADY_PREMIUM
                 ORDER_NOT_AWAITING_PAYMENT ORDER_NOT_PENDING RECEIPT_NOT_READY REFUND_NOT_ELIGIBLE REFUND_ALREADY_OPEN
@@ -860,10 +876,23 @@ components:
           type: object
           properties:
             premiumApplicantIds: { type: array, items: { type: string, format: uuid } }
+            graceApplicantIds: { type: array, items: { type: string, format: uuid }, description: 'PRD §7 grace — full read, no writes' }
             hasAnyPremium: { type: boolean }
         devices:
           type: object
           properties: { maxActive: { type: integer }, activeCount: { type: integer } }
+        legal:
+          type: object
+          description: Non-empty pendingDocTypes → route to the Disclaimer Gate (also after a version bump)
+          properties:
+            requiresAcceptance: { type: boolean }
+            pendingDocTypes: { type: array, items: { type: string, enum: [disclaimer, terms, privacy] } }
+        applicants:
+          type: object
+          properties:
+            declaredCount: { type: [integer, 'null'], description: 'Screen 5 intent, not a count' }
+            total: { type: integer }
+            awaitingStage: { type: integer, description: Drives the Screen 7 resume point }
     RegisterSessionResponse:
       allOf:
         - $ref: '#/components/schemas/MeResponse'
@@ -926,6 +955,11 @@ components:
     PatchApplicantInput:
       allOf: [ { $ref: '#/components/schemas/CreateApplicantInput' } ]
       description: All fields optional; at least one required.
+    ApplicantWithOnboarding:
+      type: object
+      properties:
+        applicant: { $ref: '#/components/schemas/Applicant' }
+        onboardingState: { type: string, enum: [disclaimer_pending, applicants_pending, stage_pending, complete] }
     Applicant:
       type: object
       properties:

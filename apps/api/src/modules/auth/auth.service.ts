@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import type {
   Entitlement,
+  LegalDocType,
   MeResponse,
   OnboardingState,
   RegisterSessionInput,
@@ -10,6 +11,8 @@ import type { VerifiedToken } from '../../lib/firebase.js';
 
 const DEFAULT_MAX_ACTIVE_DEVICES = 2; // fallback only if app_config row is missing
 
+// `type`, not `interface`: Drizzle's db.execute<T extends Record<string, unknown>>
+// rejects interfaces (no implicit index signature).
 type UserRowLite = {
   id: string;
   email: string | null;
@@ -17,7 +20,7 @@ type UserRowLite = {
   onboarding_state: OnboardingState;
   created_at: string;
   is_new: boolean;
-}
+};
 
 /**
  * Idempotent upsert keyed on firebase_uid. Called on every login, so it must
@@ -92,48 +95,142 @@ async function evictOverflowDevices(db: Db, userId: string, keep: number): Promi
   return result.rows.map((r) => r.device_id);
 }
 
+type MeSnapshotRow = UserRowLite & {
+  declared_applicant_count: number | null;
+  max_active_devices: number | null;
+  active_device_count: number;
+  premium_applicant_ids: string[] | null;
+  grace_applicant_ids: string[] | null;
+  applicant_total: number;
+  applicant_awaiting_stage: number;
+  pending_legal_doc_types: LegalDocType[] | null;
+};
+
 /**
- * PRD §5: entitlement is resolved from Neon on every launch, never from
- * Firebase custom claims.
+ * The single source for every field of MeResponse, in ONE round trip.
  *
- * STUB — returns empty until the applicants + orders modules land. The shape is
- * final; only the query body changes. Do not read entitlement anywhere else.
+ * /v1/me runs on every app launch and is the CPU-sensitive endpoint (PRD §4,
+ * 10 ms ceiling), so entitlement, legal state and applicant counts are folded
+ * into one statement rather than four sequential queries against Hyperdrive.
+ *
+ * Pass touchDeviceId to record last_seen_at (one write per launch, PRD §4);
+ * pass null from the login path, where upsertDevice has already set it.
+ *
+ * PRD §5: entitlement comes from Neon, never from Firebase custom claims.
+ * Buckets are computed against now() rather than trusting premium_status alone,
+ * because the daily Cron expiry sweep may not have run since a window closed.
  */
-async function resolveEntitlement(_db: Db, _userId: string): Promise<Entitlement> {
-  return { premiumApplicantIds: [], hasAnyPremium: false };
-}
-
-async function countActiveDevices(db: Db, userId: string): Promise<number> {
-  const result = await db.execute<{ count: number }>(sql`
-    SELECT count(*)::int AS count FROM devices
-     WHERE user_id = ${userId} AND status = 'active'
+async function loadMeSnapshot(
+  db: Db,
+  userId: string,
+  touchDeviceId: string | null,
+): Promise<MeSnapshotRow> {
+  const result = await db.execute<MeSnapshotRow>(sql`
+    WITH touched AS (
+      -- No-op when touchDeviceId is null: device_id = NULL never matches.
+      UPDATE devices SET last_seen_at = now()
+       WHERE user_id = ${userId} AND device_id = ${touchDeviceId}::uuid
+      RETURNING 1
+    ),
+    cfg AS (
+      SELECT (value->>'max_active_devices')::int AS max_active_devices
+        FROM app_config WHERE key = 'auth'
+    ),
+    ent AS (
+      SELECT COALESCE(array_agg(id) FILTER (WHERE bucket = 'premium'), '{}') AS premium_ids,
+             COALESCE(array_agg(id) FILTER (WHERE bucket = 'grace'),   '{}') AS grace_ids
+        FROM (
+          SELECT id,
+                 CASE
+                   WHEN premium_status = 'active'
+                        AND (access_until IS NULL OR access_until > now()) THEN 'premium'
+                   WHEN premium_status = 'expired_pending_confirmation'
+                        AND (grace_until IS NULL OR grace_until > now())   THEN 'grace'
+                   ELSE 'expired'
+                 END AS bucket
+            FROM applicants
+           WHERE user_id = ${userId} AND status = 'active' AND premium_status <> 'none'
+        ) b
+    ),
+    appl AS (
+      SELECT count(*)::int                                     AS total,
+             count(*) FILTER (WHERE current_stage IS NULL)::int AS awaiting_stage
+        FROM applicants
+       WHERE user_id = ${userId} AND status = 'active'
+    ),
+    legal AS (
+      SELECT COALESCE(array_agg(DISTINCT v.doc_type), '{}') AS pending_doc_types
+        FROM legal_versions v
+       WHERE v.is_current AND v.is_mandatory
+         AND NOT EXISTS (
+           SELECT 1
+             FROM legal_acceptances a
+             JOIN legal_versions av ON av.id = a.legal_version_id
+            WHERE a.user_id = ${userId}
+              AND av.doc_type = v.doc_type
+              AND av.version  = v.version
+         )
+    )
+    SELECT u.id, u.email, u.display_name, u.onboarding_state, u.created_at,
+           u.declared_applicant_count,
+           false AS is_new,
+           (SELECT max_active_devices FROM cfg)   AS max_active_devices,
+           (SELECT count(*)::int FROM devices d
+             WHERE d.user_id = u.id AND d.status = 'active') AS active_device_count,
+           (SELECT premium_ids FROM ent)          AS premium_applicant_ids,
+           (SELECT grace_ids   FROM ent)          AS grace_applicant_ids,
+           (SELECT total          FROM appl)      AS applicant_total,
+           (SELECT awaiting_stage FROM appl)      AS applicant_awaiting_stage,
+           (SELECT pending_doc_types FROM legal)  AS pending_legal_doc_types
+      FROM users u
+     WHERE u.id = ${userId}
   `);
-  return result.rows[0]?.count ?? 0;
+
+  const row = result.rows[0];
+  if (!row) throw new Error(`loadMeSnapshot: user ${userId} vanished mid-request`);
+  return row;
 }
 
-function toMeResponse(
-  user: UserRowLite,
-  entitlement: Entitlement,
-  maxActive: number,
-  activeCount: number,
-): MeResponse {
+function toMeResponse(row: MeSnapshotRow): MeResponse {
+  const premiumApplicantIds = row.premium_applicant_ids ?? [];
+  const graceApplicantIds = row.grace_applicant_ids ?? [];
+  const pendingDocTypes = row.pending_legal_doc_types ?? [];
+
+  const entitlement: Entitlement = {
+    premiumApplicantIds,
+    graceApplicantIds,
+    hasAnyPremium: premiumApplicantIds.length > 0,
+  };
+
   return {
     user: {
-      id: user.id,
-      email: user.email,
-      displayName: user.display_name,
-      onboardingState: user.onboarding_state,
-      createdAt: new Date(user.created_at).toISOString(),
+      id: row.id,
+      email: row.email,
+      displayName: row.display_name,
+      onboardingState: row.onboarding_state,
+      createdAt: new Date(row.created_at).toISOString(),
     },
     entitlement,
-    devices: { maxActive, activeCount },
+    devices: {
+      maxActive: row.max_active_devices ?? DEFAULT_MAX_ACTIVE_DEVICES,
+      activeCount: row.active_device_count,
+    },
+    legal: {
+      requiresAcceptance: pendingDocTypes.length > 0,
+      pendingDocTypes,
+    },
+    applicants: {
+      declaredCount: row.declared_applicant_count,
+      total: row.applicant_total,
+      awaitingStage: row.applicant_awaiting_stage,
+    },
   };
 }
 
 /**
- * Login. One transaction: upsert account → register device → evict overflow.
- * Either the whole session is established or none of it is — no half-registered
- * device that would lock the user out on the next request.
+ * Login. One transaction: upsert account → register device → evict overflow →
+ * read back the snapshot. Either the whole session is established or none of it
+ * is — no half-registered device that would lock the user out on the next request.
  */
 export async function registerSession(db: Db, token: VerifiedToken, input: RegisterSessionInput) {
   return db.transaction(async (tx) => {
@@ -141,11 +238,12 @@ export async function registerSession(db: Db, token: VerifiedToken, input: Regis
     const keep = await maxActiveDevices(tx);
     await upsertDevice(tx, user.id, input);
     const evictedDeviceIds = await evictOverflowDevices(tx, user.id, keep);
-    const activeCount = await countActiveDevices(tx, user.id);
-    const entitlement = await resolveEntitlement(tx, user.id);
+
+    // No device touch: upsertDevice already set last_seen_at.
+    const snapshot = await loadMeSnapshot(tx, user.id, null);
 
     return {
-      ...toMeResponse(user, entitlement, keep, activeCount),
+      ...toMeResponse(snapshot),
       session: { evictedDeviceIds, isNewUser: user.is_new },
     };
   });
@@ -153,35 +251,5 @@ export async function registerSession(db: Db, token: VerifiedToken, input: Regis
 
 /** GET /v1/me — called on every app launch (Screen 1 Splash). */
 export async function getMe(db: Db, userId: string, deviceId: string): Promise<MeResponse> {
-  // Single write per launch keeps the Account screen's "last seen" honest
-  // without putting a write on every request.
-  const result = await db.execute<UserRowLite & { max_active_devices: number | null; active_count: number }>(sql`
-    WITH touched AS (
-      UPDATE devices SET last_seen_at = now()
-       WHERE user_id = ${userId} AND device_id = ${deviceId}::uuid
-      RETURNING 1
-    ),
-    cfg AS (
-      SELECT (value->>'max_active_devices')::int AS max_active_devices
-        FROM app_config WHERE key = 'auth'
-    )
-    SELECT u.id, u.email, u.display_name, u.onboarding_state, u.created_at,
-           false AS is_new,
-           (SELECT max_active_devices FROM cfg) AS max_active_devices,
-           (SELECT count(*)::int FROM devices d
-             WHERE d.user_id = u.id AND d.status = 'active') AS active_count
-      FROM users u
-     WHERE u.id = ${userId}
-  `);
-
-  const row = result.rows[0];
-  if (!row) throw new Error(`getMe: user ${userId} vanished mid-request`);
-
-  const entitlement = await resolveEntitlement(db, userId);
-  return toMeResponse(
-    row,
-    entitlement,
-    row.max_active_devices ?? DEFAULT_MAX_ACTIVE_DEVICES,
-    row.active_count,
-  );
+  return toMeResponse(await loadMeSnapshot(db, userId, deviceId));
 }
