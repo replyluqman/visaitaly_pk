@@ -1,0 +1,31 @@
+name = "visaitaly-api"
+main = "src/index.ts"
+compatibility_date = "2024-11-27"
+
+# pg over TCP needs the Node compat layer. Without this the Worker fails at
+# import time, not at query time — the error is confusing if you forget it.
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "development"
+FIREBASE_PROJECT_ID = "REPLACE_ME_firebase_project_id"
+PUBLIC_JWK_CACHE_KEY = "firebase-public-jwks"
+
+# Pooled Neon connection. PRD §4 — mandatory, not optional.
+# Create with: wrangler hyperdrive create visaitaly-db --connection-string="postgres://..."
+[[hyperdrive]]
+binding = "HYPERDRIVE"
+id = "REPLACE_ME_hyperdrive_id"
+
+# Caches Google's public JWKs so token verification is not a network round trip.
+# Create with: wrangler kv namespace create PUBLIC_JWK_CACHE_KV
+[[kv_namespaces]]
+binding = "PUBLIC_JWK_CACHE_KV"
+id = "REPLACE_ME_kv_namespace_id"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+FIREBASE_PROJECT_ID = "REPLACE_ME_firebase_project_id"
+PUBLIC_JWK_CACHE_KEY = "firebase-public-jwks"
+
+# No secrets in this file. Set them with `wrangler secret put <NAME>`.

@@ -1,0 +1,129 @@
+#!/usr/bin/env node
+/**
+ * Preflight check. Run before any production deploy:
+ *
+ *   DATABASE_URL=... node scripts/preflight.mjs
+ *
+ * A written launch checklist is a checklist someone skips at 2am. These are the
+ * conditions that are cheap to verify mechanically and expensive to discover in
+ * production, so they are asserted instead of documented.
+ *
+ * Exits non-zero on any failure so CI can gate on it.
+ */
+import { readFile, readdir } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import pg from 'pg';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const failures = [];
+const warnings = [];
+
+const fail = (m) => failures.push(m);
+const warn = (m) => warnings.push(m);
+
+// ---------------------------------------------------------------------------
+// 1. wrangler.toml is fully configured
+// ---------------------------------------------------------------------------
+async function checkWrangler() {
+  const toml = await readFile(join(ROOT, 'wrangler.toml'), 'utf8');
+  const placeholders = [...new Set([...toml.matchAll(/REPLACE_ME[A-Za-z0-9_]*/g)].map((m) => m[0]))];
+  if (placeholders.length) {
+    fail(`wrangler.toml still has ${placeholders.length} unset binding(s): ${placeholders.join(', ')}`);
+  }
+  // A secret in the committed config is the one mistake with no clean recovery:
+  // it is in git history the moment it is pushed.
+  if (/(?:secret|private_key|password|api_key)\s*=/i.test(toml)) {
+    fail('wrangler.toml appears to contain a secret. Use `wrangler secret put` instead.');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 2. Database state
+// ---------------------------------------------------------------------------
+async function checkDb(client) {
+  // 2a. Every migration on disk is applied.
+  const files = (await readdir(join(ROOT, 'migrations')))
+    .filter((f) => f.endsWith('.sql') && !f.endsWith('.down.sql'))
+    .map((f) => f.replace(/\.sql$/, ''))
+    .sort();
+
+  const { rows: applied } = await client.query('SELECT name FROM schema_migrations');
+  const appliedSet = new Set(applied.map((r) => r.name));
+  const pending = files.filter((f) => !appliedSet.has(f));
+  if (pending.length) fail(`Unapplied migrations: ${pending.join(', ')}`);
+
+  // 2b. No draft legal text is live. This is the guard that lets the dev
+  // disclaimer exist at all — see seed/seed_dev_legal.sql.
+  const { rows: draft } = await client.query(`
+    SELECT doc_type, version FROM legal_versions
+     WHERE is_current AND (version ILIKE '%draft%' OR version LIKE '0.%')
+  `);
+  for (const r of draft) {
+    fail(`Placeholder legal text is live: ${r.doc_type} v${r.version}. Publish a reviewed 1.0 via the CMS.`);
+  }
+
+  // 2c. Every document type the app gates on has a current version. Missing
+  // text does not error — it silently deadlocks onboarding at
+  // disclaimer_pending, which looks like an app bug, not a content gap.
+  const { rows: missing } = await client.query(`
+    SELECT d.doc_type FROM (VALUES ('disclaimer'),('terms'),('privacy')) AS d(doc_type)
+     WHERE NOT EXISTS (
+       SELECT 1 FROM legal_versions lv
+        WHERE lv.doc_type = d.doc_type AND lv.is_current
+     )
+  `);
+  for (const r of missing) warn(`No current version published for '${r.doc_type}'.`);
+
+  // 2d. Config keys the API reads should exist rather than falling back.
+  // A fallback in production means behaviour depends on whether a row loaded.
+  const { rows: cfg } = await client.query(`
+    SELECT d.key FROM (VALUES ('auth'),('onboarding'),('nulla_osta')) AS d(key)
+     WHERE NOT EXISTS (SELECT 1 FROM app_config c WHERE c.key = d.key)
+  `);
+  for (const r of cfg) warn(`app_config['${r.key}'] missing — the API will use its coded fallback.`);
+
+  // 2e. Foreign keys without a covering index (docs/SCALE.md, Gate 4).
+  const { rows: fks } = await client.query(`
+    SELECT c.conrelid::regclass::text AS tbl, a.attname AS col
+      FROM pg_constraint c
+      JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
+     WHERE c.contype = 'f'
+       AND NOT EXISTS (
+         SELECT 1 FROM pg_index i
+          WHERE i.indrelid = c.conrelid AND i.indkey[0] = c.conkey[1]
+       )
+  `);
+  for (const r of fks) warn(`Foreign key ${r.tbl}.${r.col} has no covering index.`);
+}
+
+// ---------------------------------------------------------------------------
+
+const url = process.env.DATABASE_URL;
+if (!url) {
+  console.error('DATABASE_URL is not set.');
+  process.exit(1);
+}
+
+await checkWrangler();
+
+const client = new pg.Client({ connectionString: url });
+await client.connect();
+try {
+  await checkDb(client);
+} finally {
+  await client.end();
+}
+
+for (const w of warnings) console.log(`  WARN   ${w}`);
+for (const f of failures) console.log(`  FAIL   ${f}`);
+
+if (failures.length) {
+  console.log(`\n${failures.length} blocking issue(s). Not safe to deploy.`);
+  process.exit(1);
+}
+console.log(
+  warnings.length
+    ? `\nNo blocking issues. ${warnings.length} warning(s) — review before deploying.`
+    : '\nAll preflight checks passed.',
+);

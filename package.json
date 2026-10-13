@@ -1,0 +1,13 @@
+{
+  "name": "visaitaly-pk",
+  "private": true,
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "api:dev": "pnpm --filter @visaitaly/api dev",
+    "api:deploy": "pnpm --filter @visaitaly/api deploy",
+    "db:migrate": "pnpm --filter @visaitaly/api migrate",
+    "db:rollback": "pnpm --filter @visaitaly/api rollback",
+    "typecheck": "pnpm -r typecheck",
+    "preflight": "pnpm --filter @visaitaly/api preflight"
+  }
+}
