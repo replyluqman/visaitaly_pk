@@ -16,11 +16,11 @@ export async function closePool(): Promise<void> {
 /**
  * Wipes user-owned data between tests. Reference/config tables
  * (relationships, app_config) are migration-owned and left alone;
- * legal_versions is test-owned (see seedLegal) and wiped.
+ * legal_versions, requirements and sources are test-owned and wiped.
  */
 export async function resetDb(): Promise<void> {
   await testPool().query(
-    'TRUNCATE users, legal_versions RESTART IDENTITY CASCADE',
+    'TRUNCATE users, legal_versions, requirements, sources, source_flags RESTART IDENTITY CASCADE',
   );
 }
 
@@ -55,4 +55,65 @@ export async function seedLegal(opts: { withTerms?: boolean; version?: string } 
     termsId = t!.id;
   }
   return { disclaimerId: d!.id, termsId };
+}
+
+export interface Catalogue {
+  sourceId: string;
+  ids: Record<string, string>;
+}
+
+interface Req {
+  code: string;
+  stage: string;
+  sort: number;
+  spouse?: boolean;
+  child?: boolean;
+  parent?: boolean;
+  locations?: string[];
+  minAge?: number;
+  maxAge?: number;
+  nulla?: string[];
+  blocks?: boolean;
+  translation?: boolean;
+  apostille?: boolean;
+  status?: string;
+}
+
+/** Ten published requirements spanning every applicability dimension, plus one unpublished draft. */
+export const TEST_REQUIREMENTS: Req[] = [
+  { code: 'passport', stage: 'eligibility', sort: 10, blocks: true },
+  { code: 'nikah', stage: 'documents', sort: 10, child: false, parent: false, blocks: true, translation: true, apostille: true },
+  { code: 'birth_cert', stage: 'documents', sort: 20, spouse: false, parent: false, translation: true },
+  { code: 'dependency', stage: 'documents', sort: 30, spouse: false, child: false },
+  { code: 'italy_only', stage: 'documents', sort: 40, locations: ['italy'] },
+  { code: 'adult_only', stage: 'documents', sort: 50, minAge: 18 },
+  { code: 'minor_only', stage: 'documents', sort: 60, maxAge: 17 },
+  { code: 'after_nulla', stage: 'translation', sort: 10, nulla: ['received'] },
+  { code: 'appointment_slot', stage: 'appointment', sort: 10, blocks: true },
+  { code: 'visa_form', stage: 'application', sort: 10 },
+  { code: 'draft_item', stage: 'documents', sort: 99, status: 'created' },
+];
+
+export async function seedCatalogue(reqs: Req[] = TEST_REQUIREMENTS): Promise<Catalogue> {
+  const [src] = await q<{ id: string }>(
+    `INSERT INTO sources (url, name, authority) VALUES ('https://example.test/src', '{"en":"Test Source"}', 'embassy') RETURNING id`,
+  );
+  const ids: Record<string, string> = {};
+  for (const r of reqs) {
+    const published = (r.status ?? 'published') === 'published';
+    const [row] = await q<{ id: string }>(
+      `INSERT INTO requirements (code, stage, sort_order, title, purpose, na_reason,
+         applies_spouse, applies_child, applies_parent, applies_locations, min_age_years, max_age_years,
+         requires_nulla_osta_status, blocks_submission, translation_required, apostille_required,
+         source_id, source_document, verification_status, last_verified_at)
+       VALUES ($1,$2,$3, jsonb_build_object('en',$1::text), '{"en":"why"}', '{"en":"Not for your category."}',
+         $4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'p.12',$15, CASE WHEN $15='created' THEN NULL ELSE now() END)
+       RETURNING id`,
+      [r.code, r.stage, r.sort, r.spouse ?? true, r.child ?? true, r.parent ?? true, r.locations ?? null,
+       r.minAge ?? null, r.maxAge ?? null, r.nulla ?? null, r.blocks ?? false, r.translation ?? false,
+       r.apostille ?? false, src!.id, published ? 'published' : r.status],
+    );
+    ids[r.code] = row!.id;
+  }
+  return { sourceId: src!.id, ids };
 }

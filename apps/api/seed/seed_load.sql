@@ -31,3 +31,22 @@ SELECT u.id, 'Applicant ' || n, r.code, r.category, 'pakistan',
 
 INSERT INTO legal_acceptances (user_id, legal_version_id)
 SELECT u.id, v.id FROM users u CROSS JOIN legal_versions v;
+
+-- Module 3: a 25-requirement catalogue, instantiated for every applicant (~1.9M rows).
+TRUNCATE requirements, sources RESTART IDENTITY CASCADE;
+INSERT INTO sources (url, name, authority) VALUES ('https://load.invalid/src', '{"en":"Load source"}', 'embassy');
+INSERT INTO requirements (code, stage, sort_order, title, applies_spouse, applies_child, applies_parent,
+                          blocks_submission, source_id, verification_status, last_verified_at)
+SELECT 'load_' || g,
+       (ARRAY['eligibility','nulla_osta','documents','translation','appointment','application','processing','decision'])[1 + (g % 8)],
+       g, jsonb_build_object('en', 'Requirement ' || g),
+       g % 3 <> 1, g % 3 <> 2, g % 3 <> 0, g % 4 = 0,
+       (SELECT id FROM sources LIMIT 1), 'published', now()
+  FROM generate_series(1, 25) g;
+
+INSERT INTO applicant_requirements (user_id, applicant_id, requirement_id, is_applicable, seen_requirement_version, status)
+SELECT a.user_id, a.id, r.id,
+       CASE a.relationship_category WHEN 'spouse' THEN r.applies_spouse WHEN 'child' THEN r.applies_child ELSE r.applies_parent END,
+       r.version, (ARRAY['not_started','in_progress','ready','issue_found'])[1 + (r.sort_order % 4)]
+  FROM applicants a CROSS JOIN requirements r;
+UPDATE applicants SET case_generated_at = now();

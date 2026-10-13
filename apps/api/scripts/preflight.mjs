@@ -100,6 +100,18 @@ async function checkDb(client) {
     fail(`Placeholder legal text is live: ${r.doc_type} v${r.version}. Publish a reviewed 1.0 via the CMS.`);
   }
 
+  // 2b'. No placeholder requirement content is live (seed/seed_dev_requirements.sql
+  // cites a *.invalid source). A published fake requirement is advice to a real family.
+  const { rows: fakeReq } = await client.query(`
+    SELECT r.code FROM requirements r JOIN sources s ON s.id = r.source_id
+     WHERE r.verification_status IN ('published','reviewed')
+       AND (s.url ILIKE '%.invalid%' OR r.code LIKE 'dev\\_%')
+  `);
+  for (const r of fakeReq) fail(`Placeholder requirement is published: ${r.code}. Replace with verified content.`);
+  const { rows: pubCount } = await client.query(
+    `SELECT count(*)::int AS n FROM requirements WHERE verification_status = 'published'`);
+  if (pubCount[0].n === 0) warn('No published requirements — every new case will be empty.');
+
   // 2c. Every document type the app gates on has a current version. Missing
   // text does not error — it silently deadlocks onboarding at
   // disclaimer_pending, which looks like an app bug, not a content gap.
@@ -115,7 +127,7 @@ async function checkDb(client) {
   // 2d. Config keys the API reads should exist rather than falling back.
   // A fallback in production means behaviour depends on whether a row loaded.
   const { rows: cfg } = await client.query(`
-    SELECT d.key FROM (VALUES ('auth'),('onboarding'),('nulla_osta')) AS d(key)
+    SELECT d.key FROM (VALUES ('auth'),('onboarding'),('nulla_osta'),('checklist')) AS d(key)
      WHERE NOT EXISTS (SELECT 1 FROM app_config c WHERE c.key = d.key)
   `);
   for (const r of cfg) warn(`app_config['${r.key}'] missing — the API will use its coded fallback.`);

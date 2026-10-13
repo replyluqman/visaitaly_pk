@@ -1,4 +1,11 @@
-# State — Phase 0 done · Modules 1–2 gated (Phase 1) · Module 3 next
+# State — Modules 1–3 built and gated · Module 3c (Eligibility Quick Check) / 3b (documents) next
+
+## Phase 2 — Module 3 checklist engine (done, gates 1–5)
+
+Migration `0005`; `apps/api/MODULE-03-CHECKLIST.md` has the design, results and security checklist. **98 tests** green;
+Gate 4 at 1.875M `applicant_requirements`, every query < 0.3 ms. Dev catalogue: `seed/seed_dev_requirements.sql` (placeholder;
+`preflight` blocks a deploy that publishes it). Open: Module 4 must fan new/changed requirements out to existing
+applicants; expired-vs-free preview rule (see module doc); Worker CPU unmeasured.
 
 ## Phase 1 — Modules 1–2 gates (done)
 
@@ -183,7 +190,7 @@ pnpm db:roundtrip                  # against a throwaway *_ci DB
 pnpm api:dev
 ```
 
-## Next — Module 3: checklist engine (migration 0005)
+## Superseded — Module 3 plan (kept for the decision record; built, see above)
 
 Schema draft: `docs/ERD.md` §Module 3. Contract draft: `docs/api/openapi.yaml` (`x-module: 3`).
 

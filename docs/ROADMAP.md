@@ -11,9 +11,9 @@ requirements, stages and pricing — additive expand-migrations plus relaxing a 
 
 | # | Module | Backend | Gates | Flutter | CMS |
 |---|---|---|---|---|---|
-| 1 | Auth + device sessions | built (0001) | G1 ✓ · G4 partial · G2/G3/G5 ✗ | not started | — |
-| 2 | Legal gate + applicant profiles + onboarding | built (0002, 0003) | G1 ✓ · G4 partial · G2/G3/G5 ✗ | not started | — |
-| 3 | Checklist engine (5 statuses, badges, non-applicable with reason) + Eligibility Quick Check | next (0005) | — | 8–12, 2 | — |
+| 1 | Auth + device sessions | built (0001, 0004) | G1–G5 ✓ (CPU unmeasured) | not started | — |
+| 2 | Legal gate + applicant profiles + onboarding | built (0002, 0003) | G1–G5 ✓ (CPU unmeasured) | not started | — |
+| 3 | Checklist engine (5 statuses, badges, non-applicable with reason) | built (0005) | G1–G5 ✓ (CPU unmeasured) | 8–12, 2 | — |
 | 3b | Documents (R2 uploads) + Today / next actions | | | 9, 14 | — |
 | 4 | CMS / content + verification workflow + hash-change flags | | | 15 | 39, 40 |
 | 5 | Notifications — Cron generation + FCM + notification centre | | | 13 | — |
@@ -23,8 +23,9 @@ requirements, stages and pricing — additive expand-migrations plus relaxing a 
 | 9 | Referral + payouts | | | 27, 28 | 41 |
 | 10 | Admin RBAC + audit log + case lookup + legal manager + data export/deletion | | | 29 | 30, 32, 36, 44, 45 |
 
-"Built" ≠ done: Modules 1–2 are code-complete but unit, integration (including the cross-user 404 test) and security
-gates have not run.
+Gates 1–5 have run for Modules 1–3 (`apps/api/MODULE-0N-*.md`). One cross-cutting gap remains for all of them:
+**Worker CPU p99 (10 ms ceiling) is unmeasured** — it needs a deployed staging Worker.
+Eligibility Quick Check (public, CMS-driven) is split out as Module 3c.
 
 ## Phases and honest estimates (one full-time developer)
 

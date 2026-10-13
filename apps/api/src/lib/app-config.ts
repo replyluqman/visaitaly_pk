@@ -10,7 +10,7 @@ import type { Db } from '../db/client.js';
  * boots and so a bad CMS write cannot take the API down. If a fallback is ever
  * observed in production, that is an alert, not a shrug.
  *
- * They MUST match the values seeded in migration 0002. A fallback that silently
+ * They MUST match the values seeded in migrations 0001/0002/0005. A fallback that silently
  * disagrees with the database is worse than no fallback: behaviour then depends
  * on whether a row happened to load.
  */
@@ -39,8 +39,15 @@ export interface NullaOstaConfigValue {
   expiry_warning_days: number;
 }
 
+/** app_config['checklist'] */
+export interface ChecklistConfigValue {
+  /** PRD §8: free users see this many applicable items; the rest are locked. */
+  free_preview_items: number;
+}
+
 export const AUTH_CONFIG_FALLBACK: AuthConfigValue = { max_active_devices: 2 };
 export const ONBOARDING_CONFIG_FALLBACK: OnboardingConfigValue = { max_applicants: 10 };
+export const CHECKLIST_CONFIG_FALLBACK: ChecklistConfigValue = { free_preview_items: 3 };
 export const NULLA_OSTA_CONFIG_FALLBACK: NullaOstaConfigValue = {
   validity_months: 6,
   expiry_warning_days: 30,
@@ -51,6 +58,7 @@ export interface AppConfigMap {
   auth: AuthConfigValue;
   onboarding: OnboardingConfigValue;
   nulla_osta: NullaOstaConfigValue;
+  checklist: ChecklistConfigValue;
 }
 
 export type AppConfigKey = keyof AppConfigMap;

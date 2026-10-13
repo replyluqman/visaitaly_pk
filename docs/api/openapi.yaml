@@ -284,7 +284,7 @@ paths:
     get:
       tags: [applicants]
       summary: Stage timeline (Screen 12)
-      x-status: planned
+      x-status: live
       x-module: 3
       responses:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/JourneyResponse' } } } }
@@ -314,7 +314,7 @@ paths:
     get:
       tags: [checklist]
       summary: Case file (Screen 10). Free users get 3 items + lockedCount.
-      x-status: planned
+      x-status: live
       x-module: 3
       parameters:
         - { name: since, in: query, schema: { type: string, format: date-time }, description: Delta sync — only rows changed after this timestamp }
@@ -332,7 +332,7 @@ paths:
     get:
       tags: [checklist]
       summary: Item detail (Screen 11)
-      x-status: planned
+      x-status: live
       x-module: 3
       responses:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/ChecklistItemDetail' } } } }
@@ -341,7 +341,7 @@ paths:
     patch:
       tags: [checklist]
       summary: Set status. Offline-queued mutations send baseVersion for conflict detection (PRD §12).
-      x-status: planned
+      x-status: live
       x-module: 3
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PatchChecklistItemInput' } } } }
       responses:
@@ -354,7 +354,7 @@ paths:
     post:
       tags: [checklist]
       summary: Clear the Needs Review badge after the user re-checks the item
-      x-status: planned
+      x-status: live
       x-module: 3
       responses:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/ChecklistItem' } } } }
@@ -825,10 +825,11 @@ components:
               description: |
                 Live: UNAUTHENTICATED DEVICE_HEADER_MISSING DEVICE_UNKNOWN DEVICE_EVICTED DEVICE_SIGNED_OUT USER_DELETED
                 APPLICANT_LIMIT_REACHED APPLICANT_READ_ONLY LEGAL_ACCEPTANCE_REQUIRED ONBOARDING_STEP_INVALID
+                PREMIUM_REQUIRED CHECKLIST_CONFLICT
                 VALIDATION_FAILED NOT_FOUND CONFLICT RATE_LIMITED INTERNAL.
                 Each new code also needs a row in STATUS_BY_CODE (apps/api/src/lib/errors.ts; compiler-enforced) and a
                 decision on whether it is session-terminal. UNAUTHENTICATED: refresh the token once and retry before signing out.
-                Planned (add to packages/shared/src/errors.ts with their module): PREMIUM_REQUIRED CHECKLIST_CONFLICT
+                Planned (add to packages/shared/src/errors.ts with their module): see x-module on each path
                 UPLOAD_TOO_LARGE UPLOAD_QUOTA_EXCEEDED UPLOAD_REJECTED PRICE_CHANGED APPLICANT_ALREADY_PREMIUM
                 ORDER_NOT_AWAITING_PAYMENT ORDER_NOT_PENDING RECEIPT_NOT_READY REFUND_NOT_ELIGIBLE REFUND_ALREADY_OPEN
                 SUPPORT_TOPIC_NOT_ALLOWED REFERRAL_ALREADY_CLAIMED REFERRAL_SELF REFERRAL_TOO_LATE INSUFFICIENT_CREDIT
@@ -988,9 +989,8 @@ components:
             accessUntil: { type: [string, 'null'], format: date-time }
             graceUntil: { type: [string, 'null'], format: date-time }
         readiness:
-          x-status: planned
           type: object
-          description: Added in Module 4; derived, never stored
+          description: Derived on read, never stored. All zeros until a case is generated.
           properties:
             percent: { type: integer, minimum: 0, maximum: 100 }
             applicableCount: { type: integer }

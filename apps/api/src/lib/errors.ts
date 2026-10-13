@@ -16,6 +16,8 @@ const STATUS_BY_CODE: Record<ErrorCode, ContentfulStatusCode> = {
   ONBOARDING_STEP_INVALID: 409,
   APPLICANT_LIMIT_REACHED: 409,
   APPLICANT_READ_ONLY: 403,
+  PREMIUM_REQUIRED: 402,
+  CHECKLIST_CONFLICT: 409,
   VALIDATION_FAILED: 422,
   NOT_FOUND: 404,
   CONFLICT: 409,
@@ -138,6 +140,18 @@ export class AppError extends Error {
     message = 'Please accept the current terms before continuing.',
   ): AppError {
     return new AppError(ErrorCode.LEGAL_ACCEPTANCE_REQUIRED, message);
+  }
+
+  /** PRD §8: the item is beyond the free preview. Client shows the paywall. */
+  static premiumRequired(message = 'Upgrade to Premium to see this item.'): AppError {
+    return new AppError(ErrorCode.PREMIUM_REQUIRED, message);
+  }
+
+  /** PRD §12: an offline mutation hit an item that changed server-side; it was NOT applied. */
+  static checklistConflict(
+    message = 'This item changed while you were offline. Please review it.',
+  ): AppError {
+    return new AppError(ErrorCode.CHECKLIST_CONFLICT, message);
   }
 
   /** An onboarding step was skipped — the client is out of order, not invalid. */

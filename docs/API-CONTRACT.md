@@ -45,6 +45,8 @@ only on `VALIDATION_FAILED`. Quote `requestId` in support tickets.
 | `ONBOARDING_STEP_INVALID` | 409 | no | Step taken out of order; re-route from `GET /v1/me`. |
 | `APPLICANT_LIMIT_REACHED` | 409 | no | Show message (limit is in it). |
 | `APPLICANT_READ_ONLY` | 403 | no | Grace/expired banner; disable write UI. |
+| `PREMIUM_REQUIRED` | 402 | no | Item is beyond the free preview — show the paywall (Screen 16). |
+| `CHECKLIST_CONFLICT` | 409 | no | Offline mutation was not applied; item now has `needs_review`. Show the "X items updated while you were offline" banner. |
 | `VALIDATION_FAILED` | 422 | no | Show `details` per field. |
 | `NOT_FOUND` | 404 | no | Item gone or not yours. |
 | `CONFLICT` | 409 | no | Show message. |
@@ -79,11 +81,8 @@ device (`requireSession`), **—** = public.
 `POST /v1/auth/session` is idempotent — retry it freely. Call it after **every**
 Firebase sign-in, not just the first.
 
-Gap (must fix in the account-deletion module, `DATA-PRIVACY.md`):
-`registerSession` does not check `users.status`. A deleted account still gets 200
-here and is stopped one call later by `requireSession` (`USER_DELETED`) — but the
-upsert has already written `email`/`display_name` back onto the deleted row,
-undoing the PII wipe. No deletion flow exists yet, so nothing is affected today.
+A deleted account gets `403 USER_DELETED` here, before any write, so the PII wipe is never
+undone. Every response carries an `X-Request-Id` header (same value as `error.requestId`).
 
 `MeResponse` — the app-launch snapshot, one DB round trip:
 
@@ -157,13 +156,37 @@ onboarding is `complete`).
 
 ## Planned (not built — do not call)
 
-Module 3 checklist: `GET /v1/applicants/:id/checklist`, `GET /v1/checklist/:id`,
-`PATCH /v1/checklist/:id`. Contract is fixed in that module's doc before code.
+### Checklist (Module 3) — all session-authenticated
+
+| Method | Path | Success | Errors |
+|---|---|---|---|
+| GET | `/v1/applicants/:id/checklist?since&status&blocking&translation&apostille&cursor&limit(1–50, default 20)&locale` | `ChecklistResponse` `{applicantId, items[], lockedCount, nextCursor, syncedAt}` | 404, 422 |
+| GET | `/v1/applicants/:id/journey` | `JourneyResponse` `{currentStage, stages[8]}` | 404 |
+| GET | `/v1/checklist/:id` | `ChecklistItemDetail` | 402 `PREMIUM_REQUIRED`, 404 |
+| PATCH | `/v1/checklist/:id` `{status, baseVersion?, clientMutationAt?}` | `ChecklistItem` | 402, 403 `APPLICANT_READ_ONLY`, 404, 409 `CHECKLIST_CONFLICT`, 409 `CONFLICT` (item not applicable), 422 |
+| POST | `/v1/checklist/:id/acknowledge-review` | `ChecklistItem` | 402, 403, 404 |
+
+Rules the client relies on:
+- **Free tier:** only the first `app_config.checklist.free_preview_items` (3) *applicable* items are returned; `lockedCount`
+  is the rest. Non-applicable items are not in the free response. Locked items → 402 on detail/patch.
+  Grace/expired applicants get the full list read-only.
+- `status` is the *display* status: the 4 stored values or the derived `not_applicable` (with `notApplicableReason`).
+  Only the 4 stored values are writable.
+- **Delta sync:** pass the previous `syncedAt` as `since`; returns rows whose item **or** requirement changed after it.
+  `syncedAt` is the server clock — never send a device timestamp.
+- **Offline conflicts:** send `baseVersion` (the `requirementVersion` last seen) and `clientMutationAt` with queued
+  mutations. If the requirement version changed, or the item's status was written on the server after
+  `clientMutationAt`, the change is **not applied**, the item gets the `needs_review` badge and the call returns
+  `CHECKLIST_CONFLICT`. Re-fetch the item; clear with `acknowledge-review`.
+- `badges`: `blocking` (blocks submission and not ready), `needs_review`, `source_under_review` (open hash flag on its source).
+- `documentCount` is always `0` until Module 3b.
+- The list is ordered by journey stage then `sort_order`; the cursor is opaque. Pagination is keyset on
+  `(stage_order, sort_order, id)` — the one documented deviation from the `(created_at, id)` rule.
+- `Applicant.readiness` `{percent, applicableCount, readyCount, blockingCount, notApplicableCount, categorySpecificCount}`
+  is returned on every applicant (list, get, create, patch).
 
 ## Known gaps
 
-- No `X-Request-Id` response header — the id is only in error bodies. Add it before
-  launch so successful-but-wrong responses can be traced too.
 - No rate limiter yet (`RATE_LIMITED` reserved). Cloudflare rate-limiting rules on
   `/v1/auth/session` are the first line; see `SECURITY.md`.
 - CORS allows `*.visaitaly.pk` — **assumed domain**, confirm before launch. The mobile

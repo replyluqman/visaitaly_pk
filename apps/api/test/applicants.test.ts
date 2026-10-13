@@ -194,14 +194,14 @@ describe('create / read / patch', () => {
     expect(st.status).toBe(422);
   });
 
-  it('patch relationship across categories re-derives category and resets case_generated_at', async () => {
+  it('patch relationship across categories re-derives category and regenerates the case', async () => {
     await seedLegal();
     const u = await onboarded();
     const a = (await as(u)('POST', '/v1/applicants', { ...wife, currentStage: 'eligibility' })).body.applicant;
-    await q(`UPDATE applicants SET case_generated_at = now()`);
+    await q(`UPDATE applicants SET case_generated_at = now() - interval '1 day'`);
     const p = await as(u)('PATCH', `/v1/applicants/${a.id}`, { relationshipCode: 'mother', dateOfBirth: '1960-01-01' });
     expect(p.body.relationshipCategory).toBe('parent');
-    expect(p.body.caseGeneratedAt).toBeNull();
+    expect(new Date(p.body.caseGeneratedAt).getTime()).toBeGreaterThan(Date.now() - 60_000);
     const same = await as(u)('PATCH', `/v1/applicants/${a.id}`, { relationshipCode: 'father', dateOfBirth: '1960-01-01' });
     expect(same.body.relationshipCategory).toBe('parent');
   });

@@ -30,7 +30,7 @@ app_config (key/value, no FKs)        schema_migrations (runner bookkeeping)
 |---|---|---|
 | id | uuid PK | |
 | firebase_uid | text NN, unique | identity link; nothing else from Firebase is trusted |
-| email | text | unique on `lower(email)` where not null and not deleted |
+| email | text | **not unique** (0004) — identity is `firebase_uid` |
 | display_name | text | user-set value is never overwritten by login |
 | onboarding_state | text NN default `disclaimer_pending` | `disclaimer_pending\|applicants_pending\|stage_pending\|complete`; server-recomputed only |
 | declared_applicant_count | smallint, 1–99 | Screen 5 intent, not a count |
@@ -100,6 +100,20 @@ Current keys: `auth {max_active_devices: 2}`, `onboarding {max_applicants: 10}`,
 `nulla_osta {validity_months: 6, expiry_warning_days: 30}`. Read with
 `readConfig(db, key, FALLBACK)` — stored value is spread over the fallback.
 
+### Checklist engine (0005) — see `apps/api/MODULE-03-CHECKLIST.md`
+
+- `sources` — authoritative URL (https only, unique), name jsonb, authority `embassy|government|service_provider`, hash fields.
+- `source_flags` — hash-change queue; at most one `open` per source; resolved rows purged after 24 months (Module 4 Cron).
+- `requirements` — the catalogue: locale-keyed jsonb copy, declarative applicability (`applies_spouse/child/parent`,
+  `applies_locations`, `min/max_age_years`, `requires_nulla_osta_status`), flags (`blocks_submission`,
+  `translation_required`, `apostille_required`), `stage_order` (generated), `version` (trigger-bumped on any content edit),
+  `verification_status` with a CHECK that published/reviewed rows carry a source + verification time.
+  `last_verified_by` has no FK until the admin table exists.
+- `applicant_requirements` — one row per (applicant, published requirement) incl. non-applicable; stored `status` has 4 values,
+  `not_applicable` is derived from `is_applicable`; `needs_review`; `user_id` denormalised for the ownership WHERE.
+  ≈ 1.9M rows at 30k users / 75k applicants / 25 requirements.
+- `app_config['checklist'] = {free_preview_items: 3}`.
+
 ## Indexes (non-PK)
 
 | Table | Index | Serves |
@@ -119,6 +133,13 @@ Current keys: `auth {max_active_devices: 2}`, `onboarding {max_applicants: 10}`,
 | applicants | `applicants_relationship_code_idx` | FK cover (0003) |
 | applicant_stage_events | `(applicant_id, created_at DESC)` | history |
 | relationships | `relationships_active_idx (sort_order) WHERE is_active` | picker |
+| sources | `sources_url_uq`, `sources_sweep_idx (last_checked_at) WHERE is_active` | uniqueness, daily hash sweep |
+| source_flags | `source_flags_open_uq (source_id) WHERE open` | badge lookup + FK cover + one-open-per-source |
+| source_flags | `source_flags_resolved_idx (resolved_at) WHERE status <> 'open'` | retention sweep |
+| requirements | `requirements_code_uq`, `requirements_published_idx (stage_order, sort_order) WHERE published`, `requirements_source_idx` | lookup, generation order, FK cover |
+| applicant_requirements | `…_applicant_req_uq (applicant_id, requirement_id)` | idempotent generation, list by applicant, FK cover |
+| applicant_requirements | `…_user_applicant_idx (user_id, applicant_id)` | ownership WHERE, FK cover |
+| applicant_requirements | `…_requirement_idx (requirement_id)` | FK cover, publish fan-out |
 
 CI asserts every FK has a covering index (leading column).
 
@@ -132,6 +153,9 @@ CI asserts every FK has a covering index (leading column).
 | applicant_stage_events | ~8–20 per applicant → ≤ ~2M | life of applicant; bounded by stage count |
 | legal_acceptances | ~1–3 per user per version bump | **keep** — evidential (PRD §18); deleted only with the account |
 | legal_versions, relationships, app_config | tens | content |
+| applicant_requirements | ≈ 1.9M | life of applicant (CASCADE) |
+| requirements, sources | tens–low hundreds | CMS catalogue; archived, never deleted |
+| source_flags | a few per source per year | resolved rows purged after 24 months |
 
 The CLAUDE.md rule "append-only tables declare retention in the creating migration"
 was not followed for `applicant_stage_events` and `legal_acceptances` (0002). The

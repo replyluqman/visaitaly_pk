@@ -18,6 +18,9 @@ Rule: any change to `docs/API-CONTRACT.md` gets a line here, and anything that b
 - Claude Code: `.claude/commands/` (`/new-module`, `/migration`, `/gate-check`, `/security-review`), `.claude/settings.json` deny rules for secrets and production deploys; `apps/mobile/CLAUDE.md`.
 - Process docs: `TESTING.md` (five gates), `SECURITY.md`, `SCALE.md`, plus `INDEX`, `ARCHITECTURE`, `API-CONTRACT`, `DATA-MODEL`, `ENVIRONMENTS`, `DEPLOYMENT`, `RUNBOOK`, `OBSERVABILITY`, `DATA-PRIVACY`, `ROADMAP`, `GLOSSARY`, `MODULE-TEMPLATE`, `FLUTTER-ARCHITECTURE`, and ADRs 0001–0011.
 
+- **Module 3 — checklist engine.** `GET /v1/applicants/:id/checklist`, `GET /v1/applicants/:id/journey`, `GET|PATCH /v1/checklist/:id`, `POST /v1/checklist/:id/acknowledge-review`; free-tier preview (3 items + `lockedCount`), offline conflict detection (`baseVersion` / `clientMutationAt`), delta sync (`since`), keyset pagination. Migration `0005` (`sources`, `source_flags`, `requirements`, `applicant_requirements`, `app_config['checklist']`). New codes `PREMIUM_REQUIRED` (402), `CHECKLIST_CONFLICT` (409). `Applicant.readiness` added (additive) — non-breaking. `generateCase()` is real and sets `case_generated_at`; changing category / location / DOB / Nulla Osta status now recomputes applicability in the same transaction.
+- `pnpm gate4` + `seed/seed_load.sql` (30k users, 75k applicants, 1.9M checklist rows); `seed/seed_dev_requirements.sql` (placeholder, blocked from launch by `preflight`).
+
 ### Fixed
 - `createDb` now awaits `client.connect()`; previously every query hung.
 - `POST /v1/auth/session` on a deleted account returns `USER_DELETED` (403) without rewriting PII.

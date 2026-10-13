@@ -1,6 +1,5 @@
 import { sql, type SQL } from 'drizzle-orm';
 import {
-  AccessLevel,
   NullaOstaStatus,
   OnboardingState,
   PremiumStatus,
@@ -22,6 +21,7 @@ import {
 } from '../../lib/app-config.js';
 import { recomputeOnboardingState } from '../onboarding/onboarding.service.js';
 import { generateCase } from '../checklist/checklist.service.js';
+import { assertWritable, resolveAccess } from './access.js';
 
 // ---------------------------------------------------------------------------
 // row shape + mapping
@@ -32,7 +32,7 @@ import { generateCase } from '../checklist/checklist.service.js';
  * Date at local midnight, which silently shifts the day in any non-UTC runtime.
  * Text in, text out, no timezone surface.
  */
-type ApplicantRowRaw = {
+type ApplicantWriteRow = {
   id: string;
   display_name: string;
   relationship_code: string;
@@ -51,44 +51,18 @@ type ApplicantRowRaw = {
   access_until: string | null;
   grace_until: string | null;
   created_at: string;
+};
+
+/** Read-model row: the write row plus the derived readiness counts. */
+type ApplicantRowRaw = ApplicantWriteRow & {
+  rd_applicable: number;
+  rd_ready: number;
+  rd_blocking: number;
+  rd_not_applicable: number;
+  rd_category_specific: number;
 }
 
 const iso = (v: string | null) => (v ? new Date(v).toISOString() : null);
-
-/**
- * PRD §7 access resolution. Computed against now() rather than trusting
- * premium_status alone, because the daily Cron expiry sweep may not have run
- * since the window closed.
- *
- * 'none' (never purchased) is writable — a free user is still building their
- * case. Grace and expired are not: grace is explicitly read-only, and after
- * expiry the path forward is a renewal request, not an edit.
- */
-function resolveAccess(row: ApplicantRowRaw): Applicant['access'] {
-  const now = Date.now();
-  const live = (ts: string | null) => ts === null || new Date(ts).getTime() > now;
-
-  let level: (typeof AccessLevel)[keyof typeof AccessLevel];
-  if (row.premium_status === PremiumStatus.NONE) {
-    level = AccessLevel.FREE;
-  } else if (row.premium_status === PremiumStatus.ACTIVE && live(row.access_until)) {
-    level = AccessLevel.PREMIUM;
-  } else if (
-    row.premium_status === PremiumStatus.EXPIRED_PENDING_CONFIRMATION &&
-    live(row.grace_until)
-  ) {
-    level = AccessLevel.GRACE_READ_ONLY;
-  } else {
-    level = AccessLevel.EXPIRED;
-  }
-
-  return {
-    level,
-    canWrite: level === AccessLevel.FREE || level === AccessLevel.PREMIUM,
-    accessUntil: iso(row.access_until),
-    graceUntil: iso(row.grace_until),
-  };
-}
 
 function mapApplicant(row: ApplicantRowRaw, labelOverride?: string): Applicant {
   return {
@@ -109,6 +83,14 @@ function mapApplicant(row: ApplicantRowRaw, labelOverride?: string): Applicant {
       daysRemaining: row.nulla_osta_days_remaining,
     },
     access: resolveAccess(row),
+    readiness: {
+      percent: row.rd_applicable > 0 ? Math.round((100 * row.rd_ready) / row.rd_applicable) : 0,
+      applicableCount: row.rd_applicable,
+      readyCount: row.rd_ready,
+      blockingCount: row.rd_blocking,
+      notApplicableCount: row.rd_not_applicable,
+      categorySpecificCount: row.rd_category_specific,
+    },
     createdAt: new Date(row.created_at).toISOString(),
   };
 }
@@ -123,7 +105,30 @@ const columns = (locale: string): SQL => sql`
   to_char(a.nulla_osta_issue_date,  'YYYY-MM-DD')          AS nulla_osta_issue_date,
   to_char(a.nulla_osta_expiry_date, 'YYYY-MM-DD')          AS nulla_osta_expiry_date,
   (a.nulla_osta_expiry_date - CURRENT_DATE)                AS nulla_osta_days_remaining,
-  a.premium_status, a.access_until, a.grace_until, a.created_at
+  a.premium_status, a.access_until, a.grace_until, a.created_at,
+  rd.applicable AS rd_applicable, rd.ready AS rd_ready, rd.blocking AS rd_blocking,
+  rd.not_applicable AS rd_not_applicable, rd.category_specific AS rd_category_specific
+`;
+
+/**
+ * Readiness is derived on read (invariant 8), in the same statement as the
+ * applicant — never a second query per row. Bounded by max_applicants × the
+ * catalogue size; covered by applicant_requirements_applicant_req_uq.
+ */
+const READINESS_JOIN: SQL = sql`
+  LEFT JOIN LATERAL (
+    SELECT count(*) FILTER (WHERE ar.is_applicable)::int                                   AS applicable,
+           count(*) FILTER (WHERE ar.is_applicable AND ar.status = 'ready')::int            AS ready,
+           count(*) FILTER (WHERE ar.is_applicable AND rq.blocks_submission
+                                  AND ar.status <> 'ready')::int                            AS blocking,
+           count(*) FILTER (WHERE NOT ar.is_applicable)::int                                AS not_applicable,
+           count(*) FILTER (WHERE ar.is_applicable
+                                  AND (rq.applies_spouse::int + rq.applies_child::int
+                                       + rq.applies_parent::int) < 3)::int                  AS category_specific
+      FROM applicant_requirements ar
+      JOIN requirements rq ON rq.id = ar.requirement_id
+     WHERE ar.applicant_id = a.id AND ar.user_id = a.user_id
+  ) rd ON true
 `;
 
 const RETURNING_COLUMNS: SQL = sql`
@@ -152,6 +157,7 @@ export async function listApplicants(
       SELECT ${columns(locale)}
         FROM applicants a
         JOIN relationships r ON r.code = a.relationship_code
+        ${READINESS_JOIN}
        WHERE a.user_id = ${userId} AND a.status = 'active'
        ORDER BY a.created_at
     `),
@@ -175,6 +181,7 @@ export async function getApplicant(
     SELECT ${columns(locale)}
       FROM applicants a
       JOIN relationships r ON r.code = a.relationship_code
+      ${READINESS_JOIN}
      WHERE a.id = ${applicantId}::uuid AND a.user_id = ${userId} AND a.status = 'active'
   `);
   const row = result.rows[0];
@@ -232,19 +239,8 @@ function expiryExpression(
   )`;
 }
 
-/** PRD §7 write gate. */
-function assertWritable(row: ApplicantRowRaw): void {
-  const access = resolveAccess(row);
-  if (access.canWrite) return;
-  throw AppError.applicantReadOnly(
-    access.level === AccessLevel.GRACE_READ_ONLY
-      ? 'This applicant is read-only during the grace period.'
-      : 'Access for this applicant has ended. Request renewal to make changes.',
-  );
-}
-
-async function loadForWrite(db: Db, userId: string, applicantId: string): Promise<ApplicantRowRaw> {
-  const result = await db.execute<ApplicantRowRaw>(sql`
+async function loadForWrite(db: Db, userId: string, applicantId: string): Promise<ApplicantWriteRow> {
+  const result = await db.execute<ApplicantWriteRow>(sql`
     SELECT ${RETURNING_COLUMNS}
       FROM applicants
      WHERE id = ${applicantId}::uuid AND user_id = ${userId} AND status = 'active'
@@ -308,7 +304,7 @@ export async function createApplicant(
 
     const nullaCfg = await readConfig(tx, 'nulla_osta', NULLA_OSTA_CONFIG_FALLBACK);
 
-    const inserted = await tx.execute<ApplicantRowRaw>(sql`
+    const inserted = await tx.execute<ApplicantWriteRow>(sql`
       INSERT INTO applicants (
         user_id, display_name, relationship_code, relationship_category,
         date_of_birth, current_location, current_stage, stage_updated_at,
@@ -341,7 +337,8 @@ export async function createApplicant(
     }
 
     return {
-      applicant: mapApplicant(row, rel.label),
+      // Re-read through the read model so `readiness` reflects the generated case.
+      applicant: await getApplicant(tx, userId, row.id, locale),
       onboardingState: await recomputeOnboardingState(tx, userId),
     };
   });
@@ -350,9 +347,10 @@ export async function createApplicant(
 /**
  * PATCH /v1/applicants/:id — Screens §6 re-entry / §10 corrections.
  *
- * Changing the relationship changes the requirement category, which invalidates
- * any generated case. case_generated_at is reset to NULL so the Module 3 engine
- * regenerates instead of leaving the user on a checklist for the wrong category.
+ * Category, location, date of birth and Nulla Osta status all feed requirement
+ * applicability, so when any of them changes on an applicant that already has a
+ * case, applicability is recomputed in the same transaction. User progress is
+ * kept (only `is_applicable` flips), so a mistaken edit and its correction lose nothing.
  */
 export async function updateApplicant(
   db: Db,
@@ -366,14 +364,11 @@ export async function updateApplicant(
 
     const sets: SQL[] = [];
     let rel: RelationshipLookup | null = null;
-    let categoryChanged = false;
 
     if (input.relationshipCode !== undefined) {
       rel = await loadRelationship(tx, input.relationshipCode, locale);
-      categoryChanged = rel.category !== existing.relationship_category;
       sets.push(sql`relationship_code = ${rel.code}`);
       sets.push(sql`relationship_category = ${rel.category}`);
-      if (categoryChanged) sets.push(sql`case_generated_at = NULL`);
 
       const dob = input.dateOfBirth ?? existing.date_of_birth;
       if (rel.requires_dob && !dob) {
@@ -412,9 +407,9 @@ export async function updateApplicant(
       });
     }
 
-    if (sets.length === 0) return mapApplicant(existing, rel?.label);
+    if (sets.length === 0) return getApplicant(tx, userId, applicantId, locale);
 
-    const updated = await tx.execute<ApplicantRowRaw>(sql`
+    const updated = await tx.execute<ApplicantWriteRow>(sql`
       UPDATE applicants SET ${sql.join(sets, sql`, `)}
        WHERE id = ${applicantId}::uuid AND user_id = ${userId} AND status = 'active'
       RETURNING ${RETURNING_COLUMNS}
@@ -423,15 +418,20 @@ export async function updateApplicant(
     const row = updated.rows[0];
     if (!row) throw AppError.notFound('Applicant not found.');
 
-    if (categoryChanged && row.current_stage && rel) {
+    const affectsApplicability =
+      input.relationshipCode !== undefined ||
+      input.currentLocation !== undefined ||
+      input.dateOfBirth !== undefined ||
+      input.nullaOstaStatus !== undefined;
+    if (affectsApplicability && row.case_generated_at !== null && row.current_stage) {
       await generateCase(tx, row.id, {
-        relationshipCategory: rel.category,
+        relationshipCategory: row.relationship_category,
         currentStage: row.current_stage,
         regenerate: true,
       });
     }
 
-    return mapApplicant(row, rel?.label);
+    return getApplicant(tx, userId, applicantId, locale);
   });
 }
 
@@ -471,7 +471,7 @@ export async function setApplicantStage(
       };
     }
 
-    const updated = await tx.execute<ApplicantRowRaw>(sql`
+    const updated = await tx.execute<ApplicantWriteRow>(sql`
       UPDATE applicants
          SET current_stage = ${stage}, stage_updated_at = now()
        WHERE id = ${applicantId}::uuid AND user_id = ${userId} AND status = 'active'

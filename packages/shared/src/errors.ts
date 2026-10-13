@@ -17,6 +17,10 @@ export const ErrorCode = {
   LEGAL_ACCEPTANCE_REQUIRED: 'LEGAL_ACCEPTANCE_REQUIRED', // 403 current version not accepted (§18)
   ONBOARDING_STEP_INVALID: 'ONBOARDING_STEP_INVALID',     // 409 step attempted out of order
 
+  // domain — added in Module 3
+  PREMIUM_REQUIRED: 'PREMIUM_REQUIRED',           // 402 item beyond the free preview
+  CHECKLIST_CONFLICT: 'CHECKLIST_CONFLICT',       // 409 offline mutation hit a changed item (PRD §12)
+
   // generic
   VALIDATION_FAILED: 'VALIDATION_FAILED',         // 422
   NOT_FOUND: 'NOT_FOUND',                         // 404

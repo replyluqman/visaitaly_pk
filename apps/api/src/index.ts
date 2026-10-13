@@ -12,6 +12,7 @@ import { legalRoutes } from './modules/legal/legal.routes.js';
 import { onboardingRoutes } from './modules/onboarding/onboarding.routes.js';
 import { referenceRoutes } from './modules/reference/reference.routes.js';
 import { applicantRoutes } from './modules/applicants/applicants.routes.js';
+import { applicantCaseRoutes, checklistRoutes } from './modules/checklist/checklist.routes.js';
 
 const app = new Hono<AppEnv>();
 
@@ -68,6 +69,8 @@ app.route('/v1/legal', legalRoutes);
 app.route('/v1/onboarding', onboardingRoutes);
 app.route('/v1/reference', referenceRoutes);
 app.route('/v1/applicants', applicantRoutes);
+app.route('/v1/applicants', applicantCaseRoutes);
+app.route('/v1/checklist', checklistRoutes);
 
 // ---------------------------------------------------------------------------
 // errors

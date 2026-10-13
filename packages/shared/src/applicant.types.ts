@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { Readiness } from './checklist.types.js';
 
 /**
  * Requirement category (PRD §2). Locked product structure — the rule engine
@@ -200,6 +201,8 @@ export interface Applicant {
     accessUntil: string | null;
     graceUntil: string | null;
   };
+  /** Derived, never stored (invariant 8). All zeros until a case is generated. */
+  readiness: Readiness;
   createdAt: string;
 }
 
