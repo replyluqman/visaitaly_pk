@@ -1,4 +1,35 @@
-# State — Phase 3, Modules 1–2 complete, A/B/C cleared
+# State — Phase 0 (pre-code pack) complete · Modules 1–2 code complete, tests pending
+
+## Phase 0 — delivered on `claude/baseline-import`
+
+| Item | File |
+|---|---|
+| Full MVP ERD, Modules 4–11 | `docs/ERD.md` |
+| API contract (live + planned), lints clean | `docs/api/openapi.yaml` |
+| Glass-lite design system, tokens, 6 screen mockups | `docs/design/` |
+| CI (typecheck, OpenAPI lint, wrangler ×3, migration round-trip), staging/prod deploys, uptime, encrypted weekly backup | `.github/workflows/` |
+| Environments, secrets, deploy flow, DR | `docs/ENVIRONMENTS.md` |
+| Logging, Cron heartbeats, alerts, Crashlytics | `docs/OBSERVABILITY.md` |
+| Analytics event plan → PRD §21 metrics | `docs/ANALYTICS.md` |
+| Consent, export, erasure design | `docs/GDPR.md` |
+| Requirement content template + guide; canned responses draft | `docs/content/` |
+| Owner actions (accounts, legal, bank, courier, content) | `docs/LAUNCH-CHECKLIST.md` |
+| Timeline | `docs/ROADMAP.md` |
+
+**Bug fixed:** `[env.production]` in `wrangler.toml` had no Hyperdrive/KV bindings
+(not inherited), so a prod deploy would have run without a DB. All envs now declare
+full bindings; CI fails on the wrangler "not inherited" warning.
+
+**Changed:** `preflight` now takes `--env staging|production` and checks only that
+env's placeholders. New `pnpm db:roundtrip` (verified locally on Postgres 16:
+3 migrations up → down → up, identical 152-object schema).
+
+**Blocking decisions for the owner:** ERD O1 (payable currency — blocks Module 6),
+courier partner, lawyer engagement, verified requirement content.
+
+---
+
+# Modules 1–2 detail
 
 ## Verified this pass (executed, not claimed)
 

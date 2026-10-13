@@ -8,6 +8,13 @@ Process docs, all binding:
 - `docs/SECURITY.md` — per-module security checklist
 - `docs/SCALE.md` — 30k-user targets, indexing, retention, expand–contract
 
+Design docs — build against these, update them in the same PR when a module changes them:
+- `docs/ERD.md` — full MVP schema (Modules 4–11 planned) + open items O1–O4
+- `docs/api/openapi.yaml` — API contract (`pnpm lint:openapi`); `@visaitaly/shared` wins on conflict
+- `docs/design/DESIGN-SYSTEM.md` + `tokens.json` — glass-lite rules, perf tiers
+- `docs/ANALYTICS.md`, `docs/GDPR.md`, `docs/ENVIRONMENTS.md`, `docs/OBSERVABILITY.md`
+- `docs/ROADMAP.md`, `docs/LAUNCH-CHECKLIST.md` (owner actions)
+
 Per-module design notes live in `apps/api/MODULE-0*.md`. Write one for every new
 module, and record test results in it.
 
