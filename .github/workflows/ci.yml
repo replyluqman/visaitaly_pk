@@ -98,7 +98,8 @@ jobs:
              WHERE c.contype = 'f'
                AND NOT EXISTS (
                  SELECT 1 FROM pg_index i
-                  WHERE i.indrelid = c.conrelid AND i.indkey[0] = c.conkey[1])")
+                  WHERE i.indrelid = c.conrelid AND i.indkey[0] = c.conkey[1]
+                    AND i.indpred IS NULL)") # unconditional only: a partial index cannot serve cascades / erasure
           if [ -n "$uncovered" ]; then
             echo "::error::Foreign keys without a covering index:"; echo "$uncovered"; exit 1
           fi

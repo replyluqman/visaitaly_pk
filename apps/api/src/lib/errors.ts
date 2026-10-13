@@ -21,6 +21,7 @@ const STATUS_BY_CODE: Record<ErrorCode, ContentfulStatusCode> = {
   UPLOAD_TOO_LARGE: 413,
   UPLOAD_QUOTA_EXCEEDED: 413,
   UPLOAD_REJECTED: 422,
+  REAUTH_REQUIRED: 401,
   ADMIN_FORBIDDEN: 403,
   ADMIN_MFA_REQUIRED: 403,
   VALIDATION_FAILED: 422,
@@ -176,6 +177,11 @@ export class AppError extends Error {
     return new AppError(
       ErrorCode.UPLOAD_REJECTED, 'That file could not be accepted. Please upload a JPEG, PNG or PDF.',
     );
+  }
+
+  /** Destructive action (account deletion): the Firebase sign-in is too old. Client re-authenticates, then retries. */
+  static reauthRequired(): AppError {
+    return new AppError(ErrorCode.REAUTH_REQUIRED, 'Please sign in again to confirm this action.');
   }
 
   /** Not an active admin, or the admin lacks the scope. Admin routes are not an id-enumeration surface. */

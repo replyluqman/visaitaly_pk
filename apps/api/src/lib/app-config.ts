@@ -125,6 +125,30 @@ export const NOTIFICATIONS_CONFIG_FALLBACK: NotificationsConfigValue = {
 };
 export const REMINDERS_CONFIG_FALLBACK: RemindersConfigValue = { days_before: [30, 7, 1], batch_size: 5000 };
 
+/** app_config['privacy'] */
+export interface PrivacyConfigValue {
+  /** Account deletion needs a Firebase sign-in at most this old. */
+  reauth_window_seconds: number;
+  export_retention_days: number;
+  export_cooldown_hours: number;
+  export_download_ttl_seconds: number;
+  /** R2 objects removed per Cron run during erasure (subrequest budget). */
+  delete_objects_per_run: number;
+  max_attempts: number;
+  /** Rows per collection included in an export before it is marked truncated. */
+  export_row_cap: number;
+}
+
+export const PRIVACY_CONFIG_FALLBACK: PrivacyConfigValue = {
+  reauth_window_seconds: 300,
+  export_retention_days: 7,
+  export_cooldown_hours: 24,
+  export_download_ttl_seconds: 600,
+  delete_objects_per_run: 40,
+  max_attempts: 10,
+  export_row_cap: 5000,
+};
+
 export const AUTH_CONFIG_FALLBACK: AuthConfigValue = { max_active_devices: 2 };
 export const ONBOARDING_CONFIG_FALLBACK: OnboardingConfigValue = { max_applicants: 10 };
 export const CHECKLIST_CONFIG_FALLBACK: ChecklistConfigValue = { free_preview_items: 3 };
@@ -144,6 +168,7 @@ export interface AppConfigMap {
   verification: VerificationConfigValue;
   notifications: NotificationsConfigValue;
   reminders: RemindersConfigValue;
+  privacy: PrivacyConfigValue;
 }
 
 export type AppConfigKey = keyof AppConfigMap;

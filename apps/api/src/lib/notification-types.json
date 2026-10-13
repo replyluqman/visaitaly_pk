@@ -4,5 +4,6 @@
   "requirement_changed": "update",
   "nulla_osta_expiring": "reminder",
   "document_expiring": "reminder",
-  "document_expiring_unlinked": "reminder"
+  "document_expiring_unlinked": "reminder",
+  "data_export_ready": "activity"
 }

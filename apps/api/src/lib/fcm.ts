@@ -35,12 +35,16 @@ async function importPkcs8(pem: string): Promise<CryptoKey> {
 }
 
 /** OAuth2 service-account assertion (RS256), scope firebase.messaging. */
-export async function signAssertion(sa: ServiceAccount, nowSeconds: number): Promise<string> {
+export const FCM_SCOPE = 'https://www.googleapis.com/auth/firebase.messaging';
+
+export async function signAssertion(
+  sa: ServiceAccount, nowSeconds: number, scope: string = FCM_SCOPE,
+): Promise<string> {
   const head = b64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
   const claims = b64url(
     JSON.stringify({
       iss: sa.client_email,
-      scope: 'https://www.googleapis.com/auth/firebase.messaging',
+      scope,
       aud: 'https://oauth2.googleapis.com/token',
       iat: nowSeconds,
       exp: nowSeconds + 3600,
@@ -52,10 +56,36 @@ export async function signAssertion(sa: ServiceAccount, nowSeconds: number): Pro
   return `${head}.${claims}.${b64url(sig)}`;
 }
 
+export type TokenProvider = (force?: boolean) => Promise<string>;
+
 /**
- * FCM HTTP v1 sender. The access token is cached for the isolate's life (it is valid for an hour) so
- * a Cron run costs one token fetch at most. Returns a result per token instead of throwing, so one
- * bad device cannot stop the batch.
+ * OAuth2 access tokens for a Google service account, cached for the isolate's life (valid for an hour,
+ * refreshed a minute early). Shared by FCM and the Identity Toolkit deleter.
+ */
+export function createTokenProvider(
+  sa: ServiceAccount, scope: string, doFetch: FetchLike = (u, i) => fetch(u, i), now: () => number = Date.now,
+): TokenProvider {
+  let cached: { token: string; expiresAt: number } | null = null;
+  return async (force = false) => {
+    if (!force && cached && cached.expiresAt > now() + 60_000) return cached.token;
+    const assertion = await signAssertion(sa, Math.floor(now() / 1000), scope);
+    const res = await doFetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion }).toString(),
+    });
+    if (!res.ok) throw new Error(`google oauth ${res.status}`);
+    const j = (await res.json()) as { access_token: string; expires_in: number };
+    cached = { token: j.access_token, expiresAt: now() + j.expires_in * 1000 };
+    return cached.token;
+  };
+}
+
+export type { ServiceAccount, FetchLike };
+
+/**
+ * FCM HTTP v1 sender. Returns a result per token instead of throwing, so one bad device cannot stop the
+ * batch.
  *
  * NOT exercised against the real FCM in CI — the request/response shapes follow Google's documented
  * HTTP v1 contract and are unit-tested with a fake fetch. The first staging send is the verification.
@@ -66,21 +96,7 @@ export function createFcmSender(
   now: () => number = Date.now,
 ): PushSender {
   const sa = JSON.parse(serviceAccountJson) as ServiceAccount;
-  let cached: { token: string; expiresAt: number } | null = null;
-
-  async function accessToken(force = false): Promise<string> {
-    if (!force && cached && cached.expiresAt > now() + 60_000) return cached.token;
-    const assertion = await signAssertion(sa, Math.floor(now() / 1000));
-    const res = await doFetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer', assertion }).toString(),
-    });
-    if (!res.ok) throw new Error(`fcm oauth ${res.status}`);
-    const j = (await res.json()) as { access_token: string; expires_in: number };
-    cached = { token: j.access_token, expiresAt: now() + j.expires_in * 1000 };
-    return cached.token;
-  }
+  const accessToken = createTokenProvider(sa, FCM_SCOPE, doFetch, now);
 
   async function post(token: string, msg: PushMessage, bearer: string): Promise<Response> {
     return doFetch(`https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`, {

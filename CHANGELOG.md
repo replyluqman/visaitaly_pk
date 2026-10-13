@@ -31,7 +31,10 @@ Rule: any change to `docs/API-CONTRACT.md` gets a line here, and anything that b
 
 - **Module 5 — notifications.** `GET /v1/notifications`, `GET /v1/notifications/unread-count`, `POST /v1/notifications/:id/read`, `POST /v1/notifications/read-all`, `GET|PUT /v1/notification-preferences`; migration `0010` (`notification_templates`, `notifications`, `notification_preferences`, `notification_dispatch`); Cron-generated Updates and Reminders; FCM HTTP v1 push (`FCM_SERVICE_ACCOUNT`, optional); `notify()` for Activity events; the two crons are replaced by ONE every-5-minutes trigger running `runScheduledJobs`. `preflight` now blocks missing/placeholder/verdict-style notification templates.
 
+- **Module 10a — privacy, legal, lookup.** `GET|PUT /v1/account/consents`, `POST /v1/account/data-export`, `GET /v1/account/data-exports/:id[/content]`, `DELETE /v1/account` (new code `REAUTH_REQUIRED`); admin `legal-versions` (draft → atomic publish, immutable once published, acceptances) and audited `GET /v1/admin/lookup`; migrations `0011` (`data_requests`, `consents`, legal immutability, `users_email_lower_idx`) and `0012`; Cron erasure (two-phase, resumable, Firebase login deletion) and export builder. `data_export_ready` notification type.
+
 ### Fixed
+- **Foreign keys covered only by partial indexes** (`applicants.user_id`, `documents.user_id/applicant_id/applicant_requirement_id`, `source_flags.source_id`) made erasure and cascades seq-scan; unconditional indexes added (0012) and the CI/preflight FK audit now rejects partial-only coverage.
 - Drizzle `sql` expanded JS arrays into a record, breaking `text[]` writes (CMS `appliesLocations` / `requiresNullaOstaStatus`) — `pgArray()` helper; regression-tested.
 - **Keyset pagination skipped/repeated rows that share a millisecond** (cursor was rebuilt from a ms-precision JS Date). Timestamps now travel as exact Postgres text (`lib/cursor.ts`); affected the Module 3b documents list, fixed before any client shipped.
 - `createDb` now awaits `client.connect()`; previously every query hung.

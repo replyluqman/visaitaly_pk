@@ -1,4 +1,10 @@
-# State — Modules 1–5 (incl. 3b, 3c, 4a, 4b) built and gated · Module 6 (payments) BLOCKED on owner decision O1
+# State — Modules 1–5, 10a (incl. 3b, 3c, 4a, 4b) built and gated · Module 6 (payments) BLOCKED on owner decision O1
+
+## Phase 5 — Module 10a Privacy rights, legal manager, case lookup (done)
+
+Migrations `0011`–`0012`; `apps/api/MODULE-10A-PRIVACY-LEGAL.md`. **267 tests**; Gate 4: 66 queries pass. Account deletion (two-phase, resumable, tombstone, Firebase login removal), data export (JSON), consents,
+legal version manager (immutable once published), audited case lookup. Gate 4 found a **systemic** issue: FKs covered only by partial indexes (fixed, audit tightened).
+**Not verified here (staging, before launch):** erasure end-to-end with real R2 + Firebase; the Identity Toolkit call; the Play deletion URL. **Owner:** grant the service account *Firebase Authentication Admin*.
 
 ## Phase 4 — Module 5 Notifications (done)
 

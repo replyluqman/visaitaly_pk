@@ -669,24 +669,31 @@ paths:
       x-module: 5
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PreferencesInput' } } } }
       responses: { '200': { description: ok } }
+  /v1/account/consents:
+    get: { tags: [account], summary: Analytics / crash / marketing consents (off until answered), x-status: live, x-module: "10a", responses: { '200': { description: ok } } }
+    put: { tags: [account], summary: 'Partial update + the policyVersion shown', x-status: live, x-module: "10a", responses: { '200': { description: ok }, '422': { $ref: '#/components/responses/ValidationFailed' } } }
   /v1/account/data-export:
     post:
       tags: [account]
-      summary: GDPR export — async; delivered as a notification with a signed URL
-      x-status: planned
-      x-module: 10
-      responses: { '202': { description: accepted } }
+      summary: 'GDPR access — async. 202; 409 if one is open; 429 inside the cool-down.'
+      x-status: live
+      x-module: "10a"
+      responses: { '202': { description: accepted }, '409': { $ref: '#/components/responses/Conflict' }, '429': { $ref: '#/components/responses/RateLimited' } }
+  /v1/account/data-exports/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get: { tags: [account], summary: Export status + a short-lived downloadUrl when ready, x-status: live, x-module: "10a", responses: { '200': { description: ok }, '404': { $ref: '#/components/responses/NotFound' } } }
+  /v1/account/data-exports/{id}/content:
+    parameters: [ { $ref: '#/components/parameters/Id' }, { name: exp, in: query, required: true, schema: { type: integer } }, { name: sig, in: query, required: true, schema: { type: string } } ]
+    get: { tags: [account], security: [], summary: 'The export file (capability URL, attachment, no-store)', x-status: live, x-module: "10a", responses: { '200': { description: ok }, '404': { description: opaque } } }
   /v1/account:
     delete:
       tags: [account]
-      summary: GDPR delete — see docs/DATA-PRIVACY.md. Requires recent re-auth (token auth_time < 5 min).
-      x-status: planned
-      x-module: 10
-      responses:
-        '202': { description: accepted }
-        '401': { description: 'REAUTH_REQUIRED' }
+      summary: 'GDPR erasure. Body {confirm:true}; needs a sign-in ≤ 5 min old (401 REAUTH_REQUIRED). 202 — unusable at once, erased by the Cron.'
+      x-status: live
+      x-module: "10a"
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [confirm], properties: { confirm: { type: boolean, enum: [true] } } } } } }
+      responses: { '202': { description: accepted }, '401': { description: REAUTH_REQUIRED }, '403': { description: USER_DELETED }, '422': { $ref: '#/components/responses/ValidationFailed' } }
 
-  # ───────────────────────────────────────── admin (CMS) — summary surface
   /v1/admin/me:
     get:
       tags: [admin]
@@ -798,23 +805,29 @@ paths:
     get:
       tags: [admin]
       security: [ { firebaseAdmin: [] } ]
-      x-scope: [read_only]
-      summary: Search by email / order ref / referral code. Every call audit-logged (PRD §16).
-      parameters: [ { name: q, in: query, required: true, schema: { type: string, minLength: 3, maxLength: 120 } } ]
-      x-status: planned
-      x-module: 10
-      responses: { '200': { description: ok } }
+      x-scope: [any admin]
+      summary: 'Case lookup by exactly one of email | userId. Read-only; EVERY call is audit-logged (key type + user id, never the email).'
+      parameters: [ { name: email, in: query, schema: { type: string } }, { name: userId, in: query, schema: { type: string, format: uuid } } ]
+      x-status: live
+      x-module: "10a"
+      responses: { '200': { description: ok }, '404': { description: no match (still audited) }, '422': { description: not exactly one key } }
   /v1/admin/config:
     get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [pricing_config, read_only], x-status: planned, x-module: 10, responses: { '200': { description: ok } } }
   /v1/admin/config/{key}:
     parameters: [ { name: key, in: path, required: true, schema: { type: string } } ]
     put: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [pricing_config], description: Validated per key by a zod schema; audit-logged with before/after, x-status: planned, x-module: 10, responses: { '200': { description: ok } } }
   /v1/admin/legal-versions:
-    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [legal_manage, read_only], x-status: planned, x-module: 10, responses: { '200': { description: ok } } }
-    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [legal_manage], x-status: planned, x-module: 10, responses: { '201': { description: created } } }
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [legal_manage, read_only], summary: 'Versions with acceptance counts (keyset)', x-status: live, x-module: "10a", parameters: [ { $ref: '#/components/parameters/Cursor' } ], responses: { '200': { description: ok } } }
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [legal_manage], summary: 'Create a DRAFT', x-status: live, x-module: "10a", responses: { '201': { description: created }, '409': { description: duplicate } } }
+  /v1/admin/legal-versions/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    patch: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [legal_manage], summary: 'Edit a DRAFT only (published text is immutable)', x-status: live, x-module: "10a", responses: { '200': { description: ok }, '409': { description: already published } } }
   /v1/admin/legal-versions/{id}/publish:
     parameters: [ { $ref: '#/components/parameters/Id' } ]
-    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [legal_manage], description: Makes current; users re-accept on next launch, x-status: planned, x-module: 10, responses: { '200': { description: ok } } }
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [legal_manage], summary: 'Atomically makes this the current version; every user is asked to re-accept', x-status: live, x-module: "10a", responses: { '200': { description: ok }, '409': { description: already published } } }
+  /v1/admin/legal-versions/{id}/acceptances:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [legal_manage, read_only], summary: 'Who accepted, when (user ids only; the read is audited)', x-status: live, x-module: "10a", parameters: [ { $ref: '#/components/parameters/Cursor' } ], responses: { '200': { description: ok } } }
   /v1/admin/admins:
     get: { tags: [admin], security: [ { firebaseAdmin: [] } ], summary: 'List admins (super only; keyset)', x-scope: [super_admin], x-status: live, x-module: "4a", parameters: [ { $ref: '#/components/parameters/Cursor' } ], responses: { '200': { description: ok }, '403': { description: ADMIN_FORBIDDEN } } }
     post: { tags: [admin], security: [ { firebaseAdmin: [] } ], summary: 'Pre-register an admin; they link by signing in with that verified email', x-scope: [super_admin], x-status: live, x-module: "4a", responses: { '201': { description: created }, '409': { description: duplicate email }, '422': { description: validation } } }
@@ -858,7 +871,7 @@ components:
               description: |
                 Live: UNAUTHENTICATED DEVICE_HEADER_MISSING DEVICE_UNKNOWN DEVICE_EVICTED DEVICE_SIGNED_OUT USER_DELETED
                 APPLICANT_LIMIT_REACHED APPLICANT_READ_ONLY LEGAL_ACCEPTANCE_REQUIRED ONBOARDING_STEP_INVALID
-                PREMIUM_REQUIRED CHECKLIST_CONFLICT UPLOAD_TOO_LARGE UPLOAD_QUOTA_EXCEEDED UPLOAD_REJECTED ADMIN_FORBIDDEN ADMIN_MFA_REQUIRED
+                PREMIUM_REQUIRED CHECKLIST_CONFLICT UPLOAD_TOO_LARGE UPLOAD_QUOTA_EXCEEDED UPLOAD_REJECTED ADMIN_FORBIDDEN ADMIN_MFA_REQUIRED REAUTH_REQUIRED
                 VALIDATION_FAILED NOT_FOUND CONFLICT RATE_LIMITED INTERNAL.
                 Each new code also needs a row in STATUS_BY_CODE (apps/api/src/lib/errors.ts; compiler-enforced) and a
                 decision on whether it is session-terminal. UNAUTHENTICATED: refresh the token once and retry before signing out.

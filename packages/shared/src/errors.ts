@@ -26,6 +26,9 @@ export const ErrorCode = {
   UPLOAD_QUOTA_EXCEEDED: 'UPLOAD_QUOTA_EXCEEDED', // 413 user storage quota would be exceeded
   UPLOAD_REJECTED: 'UPLOAD_REJECTED',             // 422 uploaded object failed size/type verification
 
+  // account — added in Module 10a
+  REAUTH_REQUIRED: 'REAUTH_REQUIRED',             // 401 destructive action needs a fresh sign-in (auth_time too old)
+
   // admin — added in Module 4a
   ADMIN_FORBIDDEN: 'ADMIN_FORBIDDEN',             // 403 not an active admin, or missing the required scope
   ADMIN_MFA_REQUIRED: 'ADMIN_MFA_REQUIRED',       // 403 admin token lacks a second factor

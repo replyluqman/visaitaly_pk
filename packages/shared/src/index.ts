@@ -8,3 +8,4 @@ export * from './document.types.js';
 export * from './admin.types.js';
 export * from './cms.types.js';
 export * from './notification.types.js';
+export * from './privacy.types.js';

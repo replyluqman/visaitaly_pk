@@ -2,7 +2,7 @@
 -- Targets: users 30,000 · applicants 75,000 · devices ~60,000. Run against a
 -- throwaway *_test / *_ci database after `pnpm migrate`:
 --   psql "$LOAD_DATABASE_URL" -f apps/api/seed/seed_load.sql && ANALYZE;
-TRUNCATE users, legal_versions RESTART IDENTITY CASCADE;
+TRUNCATE users, legal_versions, data_requests RESTART IDENTITY CASCADE;
 
 -- Module 4a: 20 admins, 500,000 audit rows (12 months of retention at a busy-admin volume).
 -- (admins/audit_log are truncated first, before requirements exist, because requirements.last_verified_by now references admins)
@@ -46,6 +46,12 @@ SELECT u.id, 'Applicant ' || n, r.code, r.category, 'pakistan',
 
 INSERT INTO legal_acceptances (user_id, legal_version_id)
 SELECT u.id, v.id FROM users u CROSS JOIN legal_versions v;
+
+-- Module 10a: consents for a third of users; a few historical data requests.
+INSERT INTO consents (user_id, purpose, granted, policy_version)
+SELECT u.id, 'analytics', true, '1.0' FROM users u WHERE abs(hashtext(u.id::text)) % 3 = 0;
+INSERT INTO data_requests (user_id, kind, status, completed_at)
+SELECT u.id, 'export', 'completed', now() FROM users u WHERE abs(hashtext(u.id::text)) % 100 = 0;
 
 -- Module 3: a 25-requirement catalogue, instantiated for every applicant (~1.9M rows).
 TRUNCATE requirements, sources RESTART IDENTITY CASCADE;

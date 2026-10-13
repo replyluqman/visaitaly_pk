@@ -454,10 +454,10 @@ describe('retention + jobs', () => {
     const boom: PushSender = { send: async () => { throw new Error('fcm exploded'); } };
     const report = await withDb((db) => runScheduledJobs(db, { store, pushSender: boom }));
     expect(Object.keys(report)).toEqual([
-      'requirement_updates', 'reminders', 'push', 'next_actions', 'source_hash_sweep', 'document_retention', 'notification_retention',
+      'requirement_updates', 'reminders', 'push', 'erasures', 'exports', 'next_actions', 'source_hash_sweep', 'document_retention', 'notification_retention',
     ]);
     expect(report.push).toEqual({ ok: false, error: 'fcm exploded' });
-    for (const k of ['requirement_updates', 'reminders', 'next_actions', 'source_hash_sweep', 'document_retention', 'notification_retention']) {
+    for (const k of ['requirement_updates', 'reminders', 'erasures', 'exports', 'next_actions', 'source_hash_sweep', 'document_retention', 'notification_retention']) {
       expect(report[k]!.ok).toBe(true);
     }
     const fine = await withDb((db) => runScheduledJobs(db, { store, pushSender: new FakePush() }));

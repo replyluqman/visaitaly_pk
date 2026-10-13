@@ -53,6 +53,8 @@ export const env: Env = {
 
 export interface CallOpts {
   /** Admin identity: sends `Bearer admin:…` instead of a user token. */
+  /** Age of the user's last interactive sign-in, in seconds (default 10). */
+  authAge?: number;
   admin?: { uid: string; email?: string; verified?: boolean; mfa?: boolean };
   bytes?: Uint8Array;
   uid?: string;
@@ -77,7 +79,7 @@ export async function call<T = any>(method: string, path: string, o: CallOpts = 
     const a = o.admin;
     headers.Authorization = `Bearer admin:${a.uid}:${a.email ?? ''}:${a.verified === false ? 0 : 1}:${a.mfa === false ? 0 : 1}`;
   }
-  if (o.uid) headers.Authorization = `Bearer test:${o.uid}${o.email ? `:${o.email}` : ''}`;
+  if (o.uid) headers.Authorization = `Bearer test:${o.uid}:${o.email ?? ''}:${''}:${o.authAge ?? ''}`;
   if (o.deviceId) headers['X-Device-Id'] = o.deviceId;
   let body: string | undefined;
   if (o.rawBody !== undefined) body = o.rawBody;

@@ -159,6 +159,23 @@ const REFRESH = `
 `;
 
 const QUERIES = {
+  'lookup: user by email': [`SELECT id, email, display_name, status, onboarding_state, created_at, last_login_at FROM users WHERE lower(email) = 'u12345@example.com' LIMIT 1`, []],
+  'lookup: applicants + readiness': [`
+    SELECT a.id, coalesce(rd.applicable,0) FROM applicants a LEFT JOIN LATERAL (
+      SELECT count(*) FILTER (WHERE ar.is_applicable)::int AS applicable FROM applicant_requirements ar
+        JOIN requirements rq ON rq.id = ar.requirement_id AND rq.verification_status = 'published'
+       WHERE ar.applicant_id = a.id AND ar.user_id = a.user_id) rd ON true
+     WHERE a.user_id = $1 AND a.status = 'active' ORDER BY a.created_at`, [u.id]],
+  'lookup: legal acceptances': [`SELECT v.doc_type, v.version, a.accepted_at FROM legal_acceptances a JOIN legal_versions v ON v.id = a.legal_version_id WHERE a.user_id = $1 ORDER BY a.accepted_at DESC LIMIT 20`, [u.id]],
+  'privacy: consents read': [`SELECT purpose, granted, policy_version FROM consents WHERE user_id = $1`, [u.id]],
+  'privacy: erasure queue': [`SELECT id, user_id FROM data_requests WHERE kind = 'delete' AND status IN ('received','processing') ORDER BY requested_at LIMIT 3`, []],
+  'privacy: export queue': [`SELECT id, user_id FROM data_requests WHERE kind = 'export' AND status IN ('received','processing') AND attempts < 10 ORDER BY requested_at LIMIT 3`, []],
+  'privacy: export cool-down probe': [`SELECT id, status FROM data_requests WHERE user_id = $1 AND kind = 'export' ORDER BY requested_at DESC LIMIT 1`, [u.id]],
+  'privacy: erasure — user documents': [`SELECT id, r2_key FROM documents WHERE user_id = $1 LIMIT 40`, [u.id]],
+  'privacy: erasure — DELETE applicants (cascades to checklist, documents, next_actions, notifications)': [`DELETE FROM applicants WHERE user_id = $1`, [u.id]],
+  'privacy: erasure — tombstone users row': [`UPDATE users SET email = NULL, display_name = NULL, firebase_uid = 'deleted:' || id::text WHERE id = $1`, [u.id]],
+  'legal admin: acceptances keyset': [`SELECT id, user_id, accepted_at FROM legal_acceptances WHERE legal_version_id = (SELECT id FROM legal_versions LIMIT 1) AND (accepted_at, id) > ('2000-01-01', '00000000-0000-0000-0000-000000000000'::uuid) ORDER BY accepted_at, id LIMIT 51`, []],
+  'legal admin: acceptance count': [`SELECT count(*)::int FROM legal_acceptances WHERE legal_version_id = (SELECT id FROM legal_versions LIMIT 1)`, []],
   'notifications: inbox page (keyset)': [`
     SELECT id, tab, type, title, body, deep_link, applicant_id, created_at, created_at::text AS created_at_raw, read_at FROM notifications
      WHERE user_id=$1 AND tab='update' AND (created_at, id) < (now(), 'ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid)

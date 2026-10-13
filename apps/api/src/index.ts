@@ -17,6 +17,9 @@ import { publicRoutes } from './modules/eligibility/eligibility.routes.js';
 import { documentRoutes } from './modules/documents/documents.routes.js';
 import { runScheduledJobs } from './jobs.js';
 import { pushSenderFor } from './lib/fcm.js';
+import { identityDeleterFor } from './lib/identity.js';
+import { legalAdminRoutes } from './modules/legal-admin/legal-admin.routes.js';
+import { accountRoutes } from './modules/privacy/privacy.routes.js';
 import { notificationPreferenceRoutes, notificationRoutes } from './modules/notifications/notifications.routes.js';
 import { cmsRoutes, verificationPublicRoutes } from './modules/cms/cms.routes.js';
 import { adminRoutes } from './modules/admin/admin.routes.js';
@@ -94,10 +97,12 @@ export function createApp(deps: AppDeps = {}): Hono<AppEnv> {
   app.route('/v1/checklist', checklistRoutes);
   app.route('/v1/documents', documentRoutes);
   app.route('/v1/today', todayRoutes);
+  app.route('/v1/account', accountRoutes);
   app.route('/v1/notifications', notificationRoutes);
   app.route('/v1/notification-preferences', notificationPreferenceRoutes);
   app.route('/v1/admin', adminRoutes);
   app.route('/v1/admin', cmsRoutes);
+  app.route('/v1/admin', legalAdminRoutes);
   app.route('/v1/public', verificationPublicRoutes);
 
   // ---------------------------------------------------------------------------
@@ -156,7 +161,7 @@ async function scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext
     try {
       const pushSender = pushSenderFor(env);
       if (!pushSender) console.warn(JSON.stringify({ level: 'warn', job: 'push', message: 'FCM_SERVICE_ACCOUNT not set; push skipped' }));
-      const report = await runScheduledJobs(db, { store: createR2Store(env), pushSender });
+      const report = await runScheduledJobs(db, { store: createR2Store(env), pushSender, identity: identityDeleterFor(env) });
       for (const [name, r] of Object.entries(report)) {
         console.log(JSON.stringify(r.ok ? { level: 'info', job: name, result: r.result } : { level: 'error', job: name, message: r.error }));
       }

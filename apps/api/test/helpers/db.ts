@@ -20,7 +20,7 @@ export async function closePool(): Promise<void> {
  */
 export async function resetDb(): Promise<void> {
   await testPool().query(
-    'TRUNCATE users, legal_versions, requirements, requirement_versions, sources, source_flags, admins, audit_log, notification_templates RESTART IDENTITY CASCADE',
+    'TRUNCATE users, legal_versions, requirements, requirement_versions, sources, source_flags, admins, audit_log, notification_templates, data_requests RESTART IDENTITY CASCADE',
   );
 }
 

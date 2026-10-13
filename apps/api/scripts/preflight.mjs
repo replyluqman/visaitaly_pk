@@ -185,6 +185,7 @@ async function checkDb(client) {
        AND NOT EXISTS (
          SELECT 1 FROM pg_index i
           WHERE i.indrelid = c.conrelid AND i.indkey[0] = c.conkey[1]
+            AND i.indpred IS NULL -- a partial index cannot serve cascades / erasure
        )
   `);
   for (const r of fks) warn(`Foreign key ${r.tbl}.${r.col} has no covering index.`);

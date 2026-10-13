@@ -100,7 +100,14 @@ Owner and contact list in `docs/runbooks/breach.md` (create before launch).
    holder provides their data and has the right to.
 7. Never collected: card data (manual payment model), IP on legal acceptance, hardware device ids, contacts, GPS.
 
-## 7. Must be fixed before the deletion flow ships (found in review)
+## 6a. Implementation status (Module 10a)
+
+Built: consents, export, erasure (two-phase), tombstone, Firebase login deletion, audit of case lookups, legal version manager. Deviations: the **export is JSON, not a ZIP** (a Worker cannot
+stream up to 500 MB of files inside its memory limit; documents are listed with API paths and downloaded by the signed-in user). **Not yet verified:** the end-to-end erasure with real R2 + Firebase
+on staging; the Play-required public deletion URL; analytics deletion (GA4 User Deletion API) — pseudonymous and auto-expiring until the lawyer decides. Payment/order records (Module 6) must join the
+"retained, pseudonymised" row of the table in §4 in that module's PR.
+
+## 7. Must be fixed before the deletion flow ships (found in review) — ALL DONE
 
 - **Login must refuse a deleted account before the upsert.** Today `registerSession` writes `email` /
   `display_name` back onto a `status='deleted'` row, undoing the PII wipe (`API-CONTRACT.md` §Session).

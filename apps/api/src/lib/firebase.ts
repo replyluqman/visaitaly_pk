@@ -19,6 +19,8 @@ export interface VerifiedToken {
   email: string | null;
   displayName: string | null;
   emailVerified: boolean;
+  /** Seconds since epoch of the user's last interactive sign-in (the token's `auth_time`). */
+  authTime: number;
 }
 
 /**
@@ -54,6 +56,7 @@ export async function verifyFirebaseIdToken(
       email: typeof token.email === 'string' ? token.email.toLowerCase() : null,
       displayName: typeof token.name === 'string' ? token.name : null,
       emailVerified: token.email_verified === true,
+      authTime: typeof token.auth_time === 'number' ? token.auth_time : 0,
     };
   } catch {
     // Expired, wrong project, bad signature — all the same to the client:

@@ -50,6 +50,7 @@ only on `VALIDATION_FAILED`. Quote `requestId` in support tickets.
 | `UPLOAD_TOO_LARGE` | 413 | no | File over the per-file cap — message states it. |
 | `UPLOAD_QUOTA_EXCEEDED` | 413 | no | Storage limit reached — offer to delete files. |
 | `UPLOAD_REJECTED` | 422 | no | Object failed verification and was discarded — ask the user to re-pick. |
+| `REAUTH_REQUIRED` | 401 | no | Re-authenticate with Firebase (password/Google), then retry the same call. Not session-terminal. |
 | `ADMIN_FORBIDDEN` | 403 | no (CMS) | Not an active admin / missing the scope — hide the screen. |
 | `ADMIN_MFA_REQUIRED` | 403 | no (CMS) | Prompt second-factor enrolment, then retry. |
 | `VALIDATION_FAILED` | 422 | no | Show `details` per field. |
@@ -176,6 +177,14 @@ Stateless: nothing is stored. All wording is CMS-owned; the result is orientatio
 `AdminProfile {id, email, displayName, isSuper, status, scopes[], linked, lastLoginAt, createdAt}`. Denial is `403 ADMIN_FORBIDDEN` (not 404 —
 admin routes are not an id-enumeration surface); a token without a second factor gets `403 ADMIN_MFA_REQUIRED` when MFA is enforced.
 Admins are pre-registered by a super admin and link on first sign-in with a verified matching email; there is no signup. List endpoints are keyset-paginated.
+
+### Privacy & account (Module 10a)
+
+`GET|PUT /v1/account/consents` → `{analytics, crashReports, marketingPush, policyVersion, answered}` (all false until answered; PUT needs `policyVersion`) ·
+`POST /v1/account/data-export` (202 / 409 open / 429 cool-down) · `GET /v1/account/data-exports/:id` → `{status, requestedAt, completedAt, expiresAt, downloadUrl}` ·
+`DELETE /v1/account` `{confirm:true}` → 202 `{requestId}`; `401 REAUTH_REQUIRED` unless the Firebase sign-in is ≤ 5 minutes old (re-authenticate, retry). After a 202 every call is
+`USER_DELETED` and the data is erased within minutes; signing up again with the same Firebase account creates a new, empty account. Admin: `/v1/admin/legal-versions…`, `/v1/admin/lookup`
+(see `apps/api/MODULE-10A-PRIVACY-LEGAL.md`).
 
 ### Notifications (Module 5) — session-authenticated
 

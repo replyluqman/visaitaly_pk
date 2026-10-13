@@ -118,6 +118,10 @@ Current keys: `auth {max_active_devices: 2}`, `onboarding {max_applicants: 10}`,
 Versioned Quick Check copy: `questions` (≤ 6, with server-side `mapsTo`), `summaries` per category, `disclaimer`, optional `wa.me`
 link, `is_current` (at most one). Content is CMS/seed only.
 
+### Privacy & legal (0011) · full FK indexes (0012) — see `apps/api/MODULE-10A-PRIVACY-LEGAL.md`
+`data_requests` (export/erasure; no FK on `user_id`; 6-year retention; one open export and one erasure per user), `consents` PK `(user_id, purpose)`; `legal_versions` gains an FK to `admins`
+and an immutability trigger; `users_email_lower_idx` (case lookup). **A foreign key needs an unconditional index** — partial indexes do not count (CI/preflight audit).
+
 ### Notifications (0010) — see `apps/api/MODULE-05-NOTIFICATIONS.md`
 `notification_templates` PK `(type, locale)` (CMS/seed content), `notifications` (tab, type, rendered title/body, mandatory `deep_link`, `payload`, unique `(user_id, dedupe_key)`,
 `push_sent_at`/`push_attempts`, `read_at`; ≈ 1M rows/year), `notification_preferences` PK `(user_id, tab, channel)` (in-app cannot be disabled), `notification_dispatch`
@@ -157,6 +161,10 @@ with the 12 PRD §16 scopes + `granted_by`, `audit_log` (append-only, trigger-en
 | applicants | `applicants_relationship_code_idx` | FK cover (0003) |
 | applicant_stage_events | `(applicant_id, created_at DESC)` | history |
 | relationships | `relationships_active_idx (sort_order) WHERE is_active` | picker |
+| data_requests | `…_queue_idx (status, requested_at) WHERE open`, `…_user_idx (user_id, requested_at DESC)`, `…_one_open_export_uq`, `…_one_delete_uq`, `…_export_expiry_idx` | Cron queues, cool-down probe, uniqueness, export expiry |
+| users | `users_email_lower_idx (lower(email))` | case lookup |
+| applicants / documents / source_flags | `applicants_user_idx`, `documents_user_idx`, `documents_applicant_all_idx`, `documents_requirement_all_idx`, `source_flags_source_idx` | unconditional FK cover: erasure + cascades |
+| legal_acceptances | `legal_acceptances_version_time_idx (legal_version_id, accepted_at, id)` | acceptances keyset |
 | notifications | `notifications_user_dedupe_uq (user_id, dedupe_key)`, `notifications_inbox_idx (user_id, tab, created_at DESC, id DESC)`, `notifications_unread_idx (user_id, tab) WHERE unread`, `notifications_push_queue_idx (created_at, id) WHERE push_sent_at IS NULL`, `notifications_retention_idx (read_at) WHERE read_at NOT NULL`, `notifications_applicant_idx` | idempotent generation + FK cover, inbox, bell badge, push queue, retention, FK cover |
 | requirement_versions | `…_req_version_uq (requirement_id, version)`, `…_published_idx (published_at DESC, id DESC)`, `…_published_by_idx` | history, recent-updates feed, FK cover |
 | requirements | `requirements_status_idx (verification_status, stage_order, sort_order, id)`, `requirements_last_verified_by_idx` | admin list by state, FK cover |
@@ -195,6 +203,7 @@ CI asserts every FK has a covering index (leading column).
 | applicant_requirements | ≈ 1.9M | life of applicant (CASCADE) |
 | requirements, sources | tens–low hundreds | CMS catalogue; archived, never deleted |
 | source_flags | a few per source per year | resolved rows purged after 24 months |
+| data_requests | tens per 1,000 users | 6 years (proof of compliance) |
 | notifications | ≈ 1M / year | read rows deleted after 90 days (batched Cron); unread kept |
 | requirement_versions | tens–hundreds | forever (legal-defence record) |
 | audit_log | ≈ 0.5M / year at a busy-admin volume | 12 months hot (trigger-enforced), then R2 archive |

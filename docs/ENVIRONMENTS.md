@@ -34,7 +34,7 @@ from a production branch that contains real PII — create it empty and seed it.
 | Cron trigger (`wrangler.toml`) | per env | all | ONE trigger, every 5 minutes, runs every background job (`src/jobs.ts`): update dispatch, reminders, push, Today refresh, hash sweep, retention. Each job self-limits, so the cadence is safe. Cloudflare caps cron triggers per account — keep it to one per deployed env. |
 | `DOCUMENTS_SIGNING_KEY` (Module 3b) | `wrangler secret put --env X` | all | HMAC key for document PUT/GET URLs (≥ 32 random bytes: `openssl rand -base64 48`). The R2 bucket has no public access and no S3 credentials — the Worker binding is the only door. Rotating it invalidates outstanding URLs (≤ 15 min) and nothing else. |
 | `PAYOUT_ENC_KEY` (Module 9) | `wrangler secret put --env X` | all | AES-GCM key, 32 bytes base64; rotate via key id prefix |
-| `FCM_SERVICE_ACCOUNT` (Module 5) | `wrangler secret put --env X` | staging, prod | used by Cron only, never request path |
+| `FCM_SERVICE_ACCOUNT` (Module 5, 10a) | `wrangler secret put --env X` | staging, prod | Firebase service-account JSON of the **user** project. Cron only, never the request path: sends push (messaging) AND deletes the Firebase login at erasure (Identity Toolkit — the account needs the *Firebase Authentication Admin* role). Absent ⇒ push skipped and erasure records an undeleted login. |
 | `DATABASE_URL` | GitHub Environment secret | staging, production | **direct** Neon URL for migrations, not Hyperdrive |
 | `CLOUDFLARE_API_TOKEN` | GitHub Environment secret | staging, production | scoped: Workers Scripts:Edit, Hyperdrive:Read, KV:Read — nothing else |
 | `CLOUDFLARE_ACCOUNT_ID` | GitHub Environment secret | staging, production | |
