@@ -1,0 +1,10 @@
+# Lint config for openapi.yaml. Structural (spec) errors fail; stylistic rules
+# that add noise to a contract-first doc are relaxed deliberately.
+extends: [recommended]
+rules:
+  operation-summary: warn
+  operation-operationId: off
+  tag-description: off
+  operation-4xx-response: off
+  no-server-example.com: off
+  security-defined: error

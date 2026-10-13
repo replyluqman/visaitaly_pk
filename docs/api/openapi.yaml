@@ -1,0 +1,1388 @@
+openapi: 3.1.0
+info:
+  title: VisaItaly PK API
+  version: 0.2.0
+  license: { name: Proprietary, identifier: LicenseRef-Proprietary }
+  description: |
+    Contract for the Flutter app (`/v1`) and the admin CMS (`/admin/v1`).
+
+    **Source of truth for shapes is `@visaitaly/shared`.** This file mirrors it so
+    Flutter (freezed models) and the CMS can be built against a fixed contract.
+    When the two disagree, the shared package wins and this file is the bug.
+
+    `x-status: live` = implemented (Modules 1–2). `x-status: planned` = contract
+    agreed, not built. `x-module` = build-order module (PRD §25).
+
+    Conventions:
+    - Auth: `Authorization: Bearer <Firebase ID token>` + `X-Device-Id: <uuid v4>` on every `/v1` route except `/health`, `/v1/auth/session`, `/v1/public/*`.
+    - Admin routes use a token from the **separate admin Firebase project**; no `X-Device-Id`.
+    - Unauthorised access to another user's resource returns **404, never 403** (SECURITY.md).
+    - Lists paginate by opaque `cursor` (keyset on `created_at, id`). Never offset.
+    - Money is integer minor units (`amountMinor`) + ISO 4217 `currency`.
+    - Dates are `YYYY-MM-DD`; timestamps are RFC 3339 UTC.
+    - Clients branch on `error.code`, never `error.message`.
+    - Idempotent creates take `clientRequestId` (uuid); a replay returns the original resource.
+servers:
+  - url: https://api.visaitaly.pk
+    description: production
+  - url: https://api-staging.visaitaly.pk
+    description: staging
+  - url: http://localhost:8787
+    description: wrangler dev
+
+security:
+  - firebaseUser: []
+    deviceId: []
+
+tags:
+  - { name: system }
+  - { name: public, description: 'Pre-auth surfaces: Eligibility Quick Check, How We Verify, pricing' }
+  - { name: auth }
+  - { name: legal }
+  - { name: onboarding }
+  - { name: applicants }
+  - { name: checklist }
+  - { name: documents }
+  - { name: today }
+  - { name: notifications }
+  - { name: orders }
+  - { name: refunds }
+  - { name: premium }
+  - { name: support }
+  - { name: referral }
+  - { name: account }
+  - { name: admin }
+
+paths:
+  # ───────────────────────────────────────── system / public
+  /health:
+    get:
+      tags: [system]
+      summary: Liveness
+      security: []
+      x-status: live
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { type: object, properties: { ok: { type: boolean } } } } } }
+
+  /v1/public/eligibility-check:
+    get:
+      tags: [public]
+      summary: Quick Check question set (Screen 2)
+      security: []
+      x-status: planned
+      x-module: 4
+      description: CMS-driven questions. Cached at the edge (Cache-Control public, 1h).
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/EligibilityQuestionSet' } } } }
+    post:
+      tags: [public]
+      summary: Orientation result — never a verdict (PRD §11, §18 risk 1)
+      security: []
+      x-status: planned
+      x-module: 4
+      description: Stateless. Answers are not persisted server-side. Rate-limited per IP.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/EligibilityAnswers' } } } }
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/EligibilityResult' } } } }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /v1/public/verification-summary:
+    get:
+      tags: [public]
+      summary: How We Verify stats + recent updates (Screen 15)
+      security: []
+      x-status: planned
+      x-module: 4
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/VerificationSummary' } } } }
+
+  /v1/public/pricing:
+    get:
+      tags: [public]
+      summary: Current CMS prices for paywall, appointment, translation, courier
+      security: []
+      x-status: planned
+      x-module: 6
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/PricingResponse' } } } }
+
+  /v1/public/app-config:
+    get:
+      tags: [public]
+      summary: Client-visible config — SLA, working hours, feature flags (urdu_content_complete), min app version
+      security: []
+      x-status: planned
+      x-module: 5
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/PublicConfig' } } } }
+
+  # ───────────────────────────────────────── auth & devices
+  /v1/auth/session:
+    post:
+      tags: [auth]
+      summary: Register device after Firebase sign-in; evicts oldest beyond limit (PRD §2)
+      security: [ { firebaseUser: [] } ]
+      x-status: live
+      x-module: 1
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RegisterSessionInput' } } } }
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/RegisterSessionResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+  /v1/me:
+    get:
+      tags: [auth]
+      summary: App-launch snapshot — identity, entitlement, onboarding, devices
+      x-status: live
+      x-module: 1
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/MeResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /v1/devices:
+    get:
+      tags: [account]
+      x-status: live
+      x-module: 1
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { type: object, properties: { devices: { type: array, items: { $ref: '#/components/schemas/DeviceSummary' } } } } } } }
+  /v1/devices/{deviceId}:
+    delete:
+      tags: [account]
+      summary: Remote sign-out of another device
+      x-status: live
+      x-module: 1
+      parameters: [ { name: deviceId, in: path, required: true, schema: { type: string, format: uuid } } ]
+      responses:
+        '204': { description: signed out }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/devices/current/push-token:
+    put:
+      tags: [account]
+      summary: Update FCM token for the calling device
+      x-status: planned
+      x-module: 5
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [fcmToken], properties: { fcmToken: { type: string, maxLength: 512 } } } } } }
+      responses:
+        '204': { description: updated }
+
+  # ───────────────────────────────────────── legal & onboarding
+  /v1/legal/current:
+    get:
+      tags: [legal]
+      x-status: live
+      x-module: 2
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/CurrentLegalResponse' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/legal/current/{docType}:
+    get:
+      tags: [legal]
+      x-status: live
+      x-module: 2
+      parameters: [ { name: docType, in: path, required: true, schema: { type: string, enum: [disclaimer, terms, privacy] } } ]
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/LegalDocumentResponse' } } } }
+  /v1/legal/accept:
+    post:
+      tags: [legal]
+      x-status: live
+      x-module: 2
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [versionIds], properties: { versionIds: { type: array, minItems: 1, maxItems: 10, items: { type: string, format: uuid } }, appVersion: { type: string, maxLength: 32 } } } } } }
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/CurrentLegalResponse' } } } }
+
+  /v1/onboarding/applicant-count:
+    patch:
+      tags: [onboarding]
+      x-status: live
+      x-module: 2
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [declaredApplicantCount], properties: { declaredApplicantCount: { type: integer, minimum: 1, maximum: 99 } } } } } }
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/MeResponse' } } } }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /v1/reference/relationships:
+    get:
+      tags: [onboarding]
+      x-status: live
+      x-module: 2
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { type: object, properties: { relationships: { type: array, items: { $ref: '#/components/schemas/RelationshipOption' } } } } } } }
+
+  # ───────────────────────────────────────── applicants
+  /v1/applicants:
+    get:
+      tags: [applicants]
+      summary: All applicants with readiness (bounded by app_config.onboarding.max_applicants)
+      x-status: live
+      x-module: 2
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/ApplicantListResponse' } } } }
+    post:
+      tags: [applicants]
+      x-status: live
+      x-module: 2
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateApplicantInput' } } } }
+      responses:
+        '201': { description: created, content: { application/json: { schema: { $ref: '#/components/schemas/Applicant' } } } }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+  /v1/applicants/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [applicants]
+      x-status: live
+      x-module: 2
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Applicant' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [applicants]
+      description: A relationship/DOB/location change re-evaluates applicability in the same transaction (Module 4).
+      x-status: live
+      x-module: 2
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PatchApplicantInput' } } } }
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Applicant' } } } }
+        '403': { $ref: '#/components/responses/ReadOnly' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [applicants]
+      x-status: live
+      x-module: 2
+      responses:
+        '204': { description: deleted }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/applicants/{id}/stage:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    patch:
+      tags: [applicants]
+      summary: Set stage; generates the case in the same transaction (invariant 10)
+      x-status: live
+      x-module: 2
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [currentStage], properties: { currentStage: { $ref: '#/components/schemas/JourneyStage' } } } } } }
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Applicant' } } } }
+  /v1/applicants/{id}/journey:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [applicants]
+      summary: Stage timeline (Screen 12)
+      x-status: planned
+      x-module: 4
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/JourneyResponse' } } } }
+  /v1/applicants/{id}/visa-granted:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post:
+      tags: [premium]
+      summary: User self-confirms visa granted → grace starts (PRD §7)
+      x-status: planned
+      x-module: 7
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Applicant' } } } }
+  /v1/applicants/{id}/renewal-requests:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post:
+      tags: [premium]
+      summary: Request renewal after grace (admin-gated, never automatic)
+      x-status: planned
+      x-module: 7
+      responses:
+        '201': { description: created, content: { application/json: { schema: { $ref: '#/components/schemas/RenewalRequest' } } } }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  # ───────────────────────────────────────── checklist / case
+  /v1/applicants/{id}/checklist:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [checklist]
+      summary: Case file (Screen 10). Free users get 3 items + lockedCount.
+      x-status: planned
+      x-module: 4
+      parameters:
+        - { name: since, in: query, schema: { type: string, format: date-time }, description: Delta sync — only rows changed after this timestamp }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/ItemDisplayStatus' } }
+        - { name: blocking, in: query, schema: { type: boolean } }
+        - { name: translation, in: query, schema: { type: boolean } }
+        - { name: apostille, in: query, schema: { type: boolean } }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/ChecklistResponse' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/checklist/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [checklist]
+      summary: Item detail (Screen 11)
+      x-status: planned
+      x-module: 4
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/ChecklistItemDetail' } } } }
+        '402': { $ref: '#/components/responses/PremiumRequired' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [checklist]
+      summary: Set status. Offline-queued mutations send baseVersion for conflict detection (PRD §12).
+      x-status: planned
+      x-module: 4
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PatchChecklistItemInput' } } } }
+      responses:
+        '200': { description: applied, content: { application/json: { schema: { $ref: '#/components/schemas/ChecklistItem' } } } }
+        '409': { description: 'Server changed since baseVersion — item now carries needsReview. Code CHECKLIST_CONFLICT.', content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+        '403': { $ref: '#/components/responses/ReadOnly' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/checklist/{id}/acknowledge-review:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post:
+      tags: [checklist]
+      summary: Clear the Needs Review badge after the user re-checks the item
+      x-status: planned
+      x-module: 4
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/ChecklistItem' } } } }
+
+  # ───────────────────────────────────────── documents (R2)
+  /v1/documents:
+    get:
+      tags: [documents]
+      summary: My Documents (Screen 14)
+      x-status: planned
+      x-module: 4
+      parameters:
+        - { name: applicantId, in: query, schema: { type: string, format: uuid } }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/DocumentList' } } } }
+  /v1/documents/upload-url:
+    post:
+      tags: [documents]
+      summary: Step 1 — get a short-lived signed PUT URL. Quota + type checked here.
+      x-status: planned
+      x-module: 4
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UploadUrlInput' } } } }
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/UploadUrlResponse' } } } }
+        '413': { description: 'Quota exceeded or file too large. Code UPLOAD_TOO_LARGE / UPLOAD_QUOTA_EXCEEDED.' }
+  /v1/documents/{id}/complete:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post:
+      tags: [documents]
+      summary: Step 2 — confirm upload; server verifies size + magic bytes from R2 head/range read
+      x-status: planned
+      x-module: 4
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Document' } } } }
+        '422': { description: 'Magic bytes do not match declared type. Code UPLOAD_REJECTED.' }
+  /v1/documents/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [documents]
+      summary: Metadata + short-lived signed GET URL
+      x-status: planned
+      x-module: 4
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Document' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [documents]
+      summary: Deletes the R2 object, not only the row (SECURITY.md)
+      x-status: planned
+      x-module: 4
+      responses:
+        '204': { description: deleted }
+
+  # ───────────────────────────────────────── today / notifications
+  /v1/today:
+    get:
+      tags: [today]
+      summary: Top 3–5 actions across applicants, read from next_actions (Screen 9)
+      x-status: planned
+      x-module: 4
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/TodayResponse' } } } }
+
+  /v1/notifications:
+    get:
+      tags: [notifications]
+      summary: Inbox per tab (Screen 13)
+      x-status: planned
+      x-module: 5
+      parameters:
+        - { name: tab, in: query, required: true, schema: { type: string, enum: [reminder, update, activity] } }
+        - { $ref: '#/components/parameters/Cursor' }
+        - { $ref: '#/components/parameters/Limit' }
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/NotificationList' } } } }
+  /v1/notifications/unread-count:
+    get:
+      tags: [notifications]
+      summary: Bell badge — single indexed count (PRD §4 constraint 5)
+      x-status: planned
+      x-module: 5
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { type: object, properties: { total: { type: integer }, byTab: { type: object, properties: { reminder: { type: integer }, update: { type: integer }, activity: { type: integer } } } } } } } }
+  /v1/notifications/{id}/read:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post:
+      tags: [notifications]
+      x-status: planned
+      x-module: 5
+      responses: { '204': { description: marked } }
+  /v1/notifications/read-all:
+    post:
+      tags: [notifications]
+      x-status: planned
+      x-module: 5
+      requestBody: { content: { application/json: { schema: { type: object, properties: { tab: { type: string, enum: [reminder, update, activity] } } } } } }
+      responses: { '204': { description: marked } }
+  /v1/notification-preferences:
+    get:
+      tags: [account]
+      x-status: planned
+      x-module: 5
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/NotificationPreferences' } } } }
+    put:
+      tags: [account]
+      x-status: planned
+      x-module: 5
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/NotificationPreferences' } } } }
+      responses: { '200': { description: ok } }
+
+  # ───────────────────────────────────────── orders & payments
+  /v1/orders/quote:
+    post:
+      tags: [orders]
+      summary: Price a prospective order server-side (Checkout breakdown). Never trust client totals.
+      x-status: planned
+      x-module: 6
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/OrderDraft' } } } }
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/Quote' } } } }
+  /v1/orders:
+    get:
+      tags: [orders]
+      summary: My Orders (Screen 23)
+      x-status: planned
+      x-module: 6
+      parameters: [ { $ref: '#/components/parameters/Cursor' }, { $ref: '#/components/parameters/Limit' } ]
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/OrderList' } } } }
+    post:
+      tags: [orders]
+      summary: Place order — price snapshot written here (Screen 20). Idempotent on clientRequestId.
+      x-status: planned
+      x-module: 6
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateOrderInput' } } } }
+      responses:
+        '201': { description: created, content: { application/json: { schema: { $ref: '#/components/schemas/Order' } } } }
+        '409': { description: 'PRICE_CHANGED — quote is stale; re-quote. Or APPLICANT_ALREADY_PREMIUM.' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+  /v1/orders/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [orders]
+      summary: Order detail incl. timeline, shipment, refund eligibility (Screen 24)
+      x-status: planned
+      x-module: 6
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/OrderDetail' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/orders/{id}/payment-proof/upload-url:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post:
+      tags: [orders]
+      x-status: planned
+      x-module: 6
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UploadUrlInput' } } } }
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/UploadUrlResponse' } } } }
+        '409': { description: 'ORDER_NOT_AWAITING_PAYMENT' }
+  /v1/orders/{id}/payment-proof/complete:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post:
+      tags: [orders]
+      summary: Confirms proof → status pending_verification, verificationDueAt computed (Screen 21→22)
+      x-status: planned
+      x-module: 6
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [proofId], properties: { proofId: { type: string, format: uuid } } } } } }
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/OrderDetail' } } } }
+  /v1/orders/{id}/receipt:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [orders]
+      summary: Signed URL to PDF receipt; 404 RECEIPT_NOT_READY until the Cron renders it
+      x-status: planned
+      x-module: 6
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/SignedUrl' } } } }
+
+  /v1/orders/{id}/refund-requests:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post:
+      tags: [refunds]
+      summary: Request refund (Screen 26). Eligibility recomputed server-side.
+      x-status: planned
+      x-module: 9
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateRefundInput' } } } }
+      responses:
+        '201': { description: created, content: { application/json: { schema: { $ref: '#/components/schemas/RefundRequest' } } } }
+        '409': { description: 'REFUND_NOT_ELIGIBLE or REFUND_ALREADY_OPEN' }
+  /v1/reason-codes:
+    get:
+      tags: [refunds]
+      summary: CMS reason lists the user can pick from
+      x-status: planned
+      x-module: 6
+      parameters: [ { name: kind, in: query, required: true, schema: { type: string, enum: [refund_request] } } ]
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { type: object, properties: { reasons: { type: array, items: { $ref: '#/components/schemas/ReasonCode' } } } } } } }
+
+  # ───────────────────────────────────────── support
+  /v1/support/thread:
+    get:
+      tags: [support]
+      summary: The user's single thread + SLA (Screen 25)
+      x-status: planned
+      x-module: 8
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/SupportThread' } } } }
+  /v1/support/messages:
+    get:
+      tags: [support]
+      x-status: planned
+      x-module: 8
+      parameters: [ { $ref: '#/components/parameters/Cursor' }, { $ref: '#/components/parameters/Limit' } ]
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/SupportMessageList' } } } }
+    post:
+      tags: [support]
+      summary: Send. Free users limited to presales topics (PRD §8). Idempotent on clientRequestId.
+      x-status: planned
+      x-module: 8
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateSupportMessageInput' } } } }
+      responses:
+        '201': { description: created, content: { application/json: { schema: { $ref: '#/components/schemas/SupportMessage' } } } }
+        '403': { description: 'SUPPORT_TOPIC_NOT_ALLOWED' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  # ───────────────────────────────────────── referral
+  /v1/referral:
+    get:
+      tags: [referral]
+      summary: Code, balance, history (Screen 27)
+      x-status: planned
+      x-module: 10
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/ReferralSummary' } } } }
+  /v1/referral/claim:
+    post:
+      tags: [referral]
+      summary: Attach a referral code to the caller (once, before first paid order)
+      x-status: planned
+      x-module: 10
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [code], properties: { code: { type: string, minLength: 6, maxLength: 12 } } } } } }
+      responses:
+        '204': { description: claimed }
+        '409': { description: 'REFERRAL_ALREADY_CLAIMED / REFERRAL_SELF / REFERRAL_TOO_LATE' }
+  /v1/payout-account:
+    get:
+      tags: [referral]
+      summary: Masked (last4 only)
+      x-status: planned
+      x-module: 10
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/PayoutAccountMasked' } } } }
+    put:
+      tags: [referral]
+      x-status: planned
+      x-module: 10
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PayoutAccountInput' } } } }
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/PayoutAccountMasked' } } } }
+  /v1/withdrawals:
+    get:
+      tags: [referral]
+      summary: Withdrawal history
+      x-status: planned
+      x-module: 10
+      parameters: [ { $ref: '#/components/parameters/Cursor' }, { $ref: '#/components/parameters/Limit' } ]
+      responses:
+        '200': { description: ok, content: { application/json: { schema: { type: object, properties: { items: { type: array, items: { $ref: '#/components/schemas/Withdrawal' } }, nextCursor: { type: [string, 'null'] } } } } } }
+    post:
+      tags: [referral]
+      x-status: planned
+      x-module: 10
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [amountMinor, clientRequestId], properties: { amountMinor: { type: integer, minimum: 1 }, clientRequestId: { type: string, format: uuid } } } } } }
+      responses:
+        '201': { description: created, content: { application/json: { schema: { $ref: '#/components/schemas/Withdrawal' } } } }
+        '409': { description: 'INSUFFICIENT_CREDIT / BELOW_MIN_WITHDRAWAL / PAYOUT_ACCOUNT_MISSING' }
+
+  # ───────────────────────────────────────── account / privacy
+  /v1/account/preferences:
+    patch:
+      tags: [account]
+      summary: Locale (Urdu only when urdu_content_complete), consents
+      x-status: planned
+      x-module: 5
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PreferencesInput' } } } }
+      responses: { '200': { description: ok } }
+  /v1/account/data-export:
+    post:
+      tags: [account]
+      summary: GDPR export — async; delivered as a notification with a signed URL
+      x-status: planned
+      x-module: 11
+      responses: { '202': { description: accepted } }
+  /v1/account:
+    delete:
+      tags: [account]
+      summary: GDPR delete — see docs/GDPR.md. Requires recent re-auth (token auth_time < 5 min).
+      x-status: planned
+      x-module: 11
+      responses:
+        '202': { description: accepted }
+        '401': { description: 'REAUTH_REQUIRED' }
+
+  # ───────────────────────────────────────── admin (CMS) — summary surface
+  /admin/v1/me:
+    get:
+      tags: [admin]
+      security: [ { firebaseAdmin: [] } ]
+      summary: Admin identity + scopes (Screen 30)
+      x-status: planned
+      x-module: 11
+      responses: { '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/AdminMe' } } } } }
+  /admin/v1/overview:
+    get:
+      tags: [admin]
+      security: [ { firebaseAdmin: [] } ]
+      summary: Queue counts + SLA breaches, filtered by scope (Screen 31)
+      x-status: planned
+      x-module: 11
+      responses: { '200': { description: ok } }
+  /admin/v1/orders:
+    get:
+      tags: [admin]
+      security: [ { firebaseAdmin: [] } ]
+      x-scope: [payment_approve, translation_manage, appointment_manage, read_only]
+      x-status: planned
+      x-module: 6
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: service, in: query, schema: { type: string, enum: [premium, translation, appointment] } }
+        - { $ref: '#/components/parameters/Cursor' }
+      responses: { '200': { description: ok } }
+  /admin/v1/orders/{id}/approve:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post:
+      tags: [admin]
+      security: [ { firebaseAdmin: [] } ]
+      x-scope: [payment_approve]
+      summary: One Postgres transaction — paid + entitlement + notification + audit (PRD §5, §9)
+      x-status: planned
+      x-module: 6
+      responses: { '200': { description: ok }, '409': { description: ORDER_NOT_PENDING } }
+  /admin/v1/orders/{id}/reject:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post:
+      tags: [admin]
+      security: [ { firebaseAdmin: [] } ]
+      x-scope: [payment_approve]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [reasonCode], properties: { reasonCode: { type: string }, note: { type: string, maxLength: 1000 } } } } } }
+      x-status: planned
+      x-module: 6
+      responses: { '200': { description: ok } }
+  /admin/v1/orders/{id}/status:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post:
+      tags: [admin]
+      security: [ { firebaseAdmin: [] } ]
+      x-scope: [translation_manage, appointment_manage]
+      summary: Advance service status; shipment fields for translation
+      x-status: planned
+      x-module: 7
+      responses: { '200': { description: ok } }
+  /admin/v1/requirements:
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [verification_manage, read_only], x-status: planned, x-module: 4, responses: { '200': { description: ok } } }
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [verification_manage], x-status: planned, x-module: 4, responses: { '201': { description: created } } }
+  /admin/v1/requirements/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    patch: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [verification_manage], description: Bumps version; writes requirement_versions, x-status: planned, x-module: 4, responses: { '200': { description: ok } } }
+  /admin/v1/requirements/{id}/transition:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [verification_manage], description: 'created→verified→published→reviewed→archived. Publish fans out Updates notifications.', x-status: planned, x-module: 4, responses: { '200': { description: ok } } }
+  /admin/v1/source-flags:
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [verification_manage], x-status: planned, x-module: 4, responses: { '200': { description: ok } } }
+  /admin/v1/source-flags/{id}/resolve:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [verification_manage], x-status: planned, x-module: 4, responses: { '200': { description: ok } } }
+  /admin/v1/support/threads:
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [support_manage], summary: SLA-sorted inbox, x-status: planned, x-module: 8, responses: { '200': { description: ok } } }
+  /admin/v1/support/threads/{id}/messages:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [support_manage], description: 'Body OR cannedResponseId. Audit-logged.', x-status: planned, x-module: 8, responses: { '201': { description: created } } }
+  /admin/v1/canned-responses:
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [support_manage], x-status: planned, x-module: 8, responses: { '200': { description: ok } } }
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [support_manage], x-status: planned, x-module: 8, responses: { '201': { description: created } } }
+  /admin/v1/refunds:
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [refund_manage], x-status: planned, x-module: 9, responses: { '200': { description: ok } } }
+  /admin/v1/refunds/{id}/decide:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [refund_manage], description: 'approve|decline|mark_refunded, reason mandatory', x-status: planned, x-module: 9, responses: { '200': { description: ok } } }
+  /admin/v1/renewals:
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [expiry_manage], x-status: planned, x-module: 7, responses: { '200': { description: ok } } }
+  /admin/v1/applicants/{id}/premium:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [expiry_manage], summary: 'Override: confirm visa, set/extend/reverse grace, grant renewal', x-status: planned, x-module: 7, responses: { '200': { description: ok } } }
+  /admin/v1/withdrawals:
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [referral_payout, cash_dept], x-status: planned, x-module: 10, responses: { '200': { description: ok } } }
+  /admin/v1/withdrawals/{id}/transition:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [referral_payout, cash_dept], x-status: planned, x-module: 10, responses: { '200': { description: ok } } }
+  /admin/v1/lookup:
+    get:
+      tags: [admin]
+      security: [ { firebaseAdmin: [] } ]
+      x-scope: [read_only]
+      summary: Search by email / order ref / referral code. Every call audit-logged (PRD §16).
+      parameters: [ { name: q, in: query, required: true, schema: { type: string, minLength: 3, maxLength: 120 } } ]
+      x-status: planned
+      x-module: 11
+      responses: { '200': { description: ok } }
+  /admin/v1/config:
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [pricing_config, read_only], x-status: planned, x-module: 11, responses: { '200': { description: ok } } }
+  /admin/v1/config/{key}:
+    parameters: [ { name: key, in: path, required: true, schema: { type: string } } ]
+    put: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [pricing_config], description: Validated per key by a zod schema; audit-logged with before/after, x-status: planned, x-module: 11, responses: { '200': { description: ok } } }
+  /admin/v1/legal-versions:
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [legal_manage, read_only], x-status: planned, x-module: 11, responses: { '200': { description: ok } } }
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [legal_manage], x-status: planned, x-module: 11, responses: { '201': { description: created } } }
+  /admin/v1/legal-versions/{id}/publish:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [legal_manage], description: Makes current; users re-accept on next launch, x-status: planned, x-module: 11, responses: { '200': { description: ok } } }
+  /admin/v1/admins:
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [super_admin], x-status: planned, x-module: 11, responses: { '200': { description: ok } } }
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [super_admin], x-status: planned, x-module: 11, responses: { '201': { description: created } } }
+  /admin/v1/admins/{id}/permissions:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    put: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [super_admin], x-status: planned, x-module: 11, responses: { '200': { description: ok } } }
+  /admin/v1/audit-log:
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [read_only], x-status: planned, x-module: 11, parameters: [ { $ref: '#/components/parameters/Cursor' } ], responses: { '200': { description: ok } } }
+
+components:
+  securitySchemes:
+    firebaseUser: { type: http, scheme: bearer, bearerFormat: Firebase ID token (user project) }
+    deviceId: { type: apiKey, in: header, name: X-Device-Id, description: 'Client-generated UUIDv4, persisted in flutter_secure_storage' }
+    firebaseAdmin: { type: http, scheme: bearer, bearerFormat: 'Firebase ID token (admin project, MFA enforced)' }
+
+  parameters:
+    Id: { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    Cursor: { name: cursor, in: query, schema: { type: string, maxLength: 200 }, description: Opaque; from previous nextCursor }
+    Limit: { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+
+  responses:
+    Unauthenticated: { description: 'UNAUTHENTICATED / DEVICE_* / USER_DELETED — terminal, client wipes session', content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+    NotFound: { description: 'NOT_FOUND — also returned for other users'' resources', content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+    Conflict: { description: CONFLICT or a specific 409 code, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+    ReadOnly: { description: 'APPLICANT_READ_ONLY — grace / expired (PRD §7)', content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+    PremiumRequired: { description: 'PREMIUM_REQUIRED — free tier beyond preview', content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+    ValidationFailed: { description: VALIDATION_FAILED with details, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+    RateLimited: { description: RATE_LIMITED, headers: { Retry-After: { schema: { type: integer } } }, content: { application/json: { schema: { $ref: '#/components/schemas/ApiError' } } } }
+
+  schemas:
+    ApiError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          properties:
+            code:
+              type: string
+              description: |
+                Live: UNAUTHENTICATED DEVICE_HEADER_MISSING DEVICE_UNKNOWN DEVICE_EVICTED DEVICE_SIGNED_OUT USER_DELETED
+                APPLICANT_LIMIT_REACHED APPLICANT_READ_ONLY LEGAL_ACCEPTANCE_REQUIRED ONBOARDING_STEP_REQUIRED
+                VALIDATION_FAILED NOT_FOUND CONFLICT RATE_LIMITED INTERNAL.
+                Planned (add to packages/shared/src/errors.ts with their module): PREMIUM_REQUIRED CHECKLIST_CONFLICT
+                UPLOAD_TOO_LARGE UPLOAD_QUOTA_EXCEEDED UPLOAD_REJECTED PRICE_CHANGED APPLICANT_ALREADY_PREMIUM
+                ORDER_NOT_AWAITING_PAYMENT ORDER_NOT_PENDING RECEIPT_NOT_READY REFUND_NOT_ELIGIBLE REFUND_ALREADY_OPEN
+                SUPPORT_TOPIC_NOT_ALLOWED REFERRAL_ALREADY_CLAIMED REFERRAL_SELF REFERRAL_TOO_LATE INSUFFICIENT_CREDIT
+                BELOW_MIN_WITHDRAWAL PAYOUT_ACCOUNT_MISSING REAUTH_REQUIRED APP_VERSION_UNSUPPORTED ADMIN_SCOPE_REQUIRED.
+            message: { type: string }
+            details: { type: object, additionalProperties: { type: array, items: { type: string } } }
+            requestId: { type: string }
+
+    Money:
+      type: object
+      required: [amountMinor, currency]
+      properties:
+        amountMinor: { type: integer, description: 'Minor units. €99.99 = 9999' }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+    LocalizedText: { type: string, description: Resolved server-side to the user's locale }
+
+    JourneyStage: { type: string, enum: [eligibility, nulla_osta, documents, translation, appointment, application, processing, decision] }
+    AccessLevel: { type: string, enum: [free, premium, grace_read_only, expired] }
+    ItemDisplayStatus: { type: string, enum: [not_started, in_progress, ready, issue_found, not_applicable] }
+    ItemStatusWritable: { type: string, enum: [not_started, in_progress, ready, issue_found] }
+    Badge: { type: string, enum: [blocking, needs_review, source_under_review] }
+
+    RegisterSessionInput:
+      type: object
+      required: [deviceId, platform, appVersion]
+      properties:
+        deviceId: { type: string, format: uuid }
+        platform: { type: string, enum: [android, ios] }
+        appVersion: { type: string, maxLength: 32 }
+        osVersion: { type: string, maxLength: 64 }
+        model: { type: string, maxLength: 128 }
+        fcmToken: { type: string, maxLength: 512 }
+    MeResponse:
+      type: object
+      properties:
+        user:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            email: { type: [string, 'null'] }
+            displayName: { type: [string, 'null'] }
+            onboardingState: { type: string, enum: [disclaimer_pending, applicants_pending, stage_pending, complete] }
+            createdAt: { type: string, format: date-time }
+        entitlement:
+          type: object
+          properties:
+            premiumApplicantIds: { type: array, items: { type: string, format: uuid } }
+            hasAnyPremium: { type: boolean }
+        devices:
+          type: object
+          properties: { maxActive: { type: integer }, activeCount: { type: integer } }
+    RegisterSessionResponse:
+      allOf:
+        - $ref: '#/components/schemas/MeResponse'
+        - type: object
+          properties:
+            session:
+              type: object
+              properties:
+                evictedDeviceIds: { type: array, items: { type: string, format: uuid } }
+                isNewUser: { type: boolean }
+    DeviceSummary:
+      type: object
+      properties:
+        deviceId: { type: string, format: uuid }
+        platform: { type: string, enum: [android, ios] }
+        model: { type: [string, 'null'] }
+        appVersion: { type: [string, 'null'] }
+        lastLoginAt: { type: string, format: date-time }
+        lastSeenAt: { type: string, format: date-time }
+        isCurrent: { type: boolean }
+
+    LegalVersionSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        docType: { type: string, enum: [disclaimer, terms, privacy] }
+        locale: { type: string }
+        version: { type: string }
+        title: { type: string }
+        isMandatory: { type: boolean }
+        publishedAt: { type: [string, 'null'], format: date-time }
+        accepted: { type: boolean }
+    CurrentLegalResponse:
+      type: object
+      properties:
+        documents: { type: array, items: { $ref: '#/components/schemas/LegalVersionSummary' } }
+        requiresAcceptance: { type: boolean }
+    LegalDocumentResponse:
+      allOf: [ { $ref: '#/components/schemas/LegalVersionSummary' }, { type: object, properties: { bodyMd: { type: string } } } ]
+
+    RelationshipOption:
+      type: object
+      properties:
+        code: { type: string }
+        label: { type: string }
+        category: { type: string, enum: [spouse, child, parent] }
+        requiresDob: { type: boolean }
+    CreateApplicantInput:
+      type: object
+      required: [displayName, relationshipCode, currentLocation]
+      properties:
+        displayName: { type: string, minLength: 1, maxLength: 80 }
+        relationshipCode: { type: string, maxLength: 32 }
+        dateOfBirth: { type: string, format: date }
+        currentLocation: { type: string, enum: [pakistan, italy, other] }
+        nullaOstaStatus: { type: string, enum: [not_applicable, not_started, in_process, received] }
+        nullaOstaIssueDate: { type: string, format: date }
+        nullaOstaExpiryDate: { type: string, format: date }
+        currentStage: { $ref: '#/components/schemas/JourneyStage' }
+    PatchApplicantInput:
+      allOf: [ { $ref: '#/components/schemas/CreateApplicantInput' } ]
+      description: All fields optional; at least one required.
+    Applicant:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        displayName: { type: string }
+        relationshipCode: { type: string }
+        relationshipLabel: { type: string }
+        relationshipCategory: { type: string, enum: [spouse, child, parent] }
+        dateOfBirth: { type: [string, 'null'], format: date }
+        currentLocation: { type: string, enum: [pakistan, italy, other] }
+        currentStage: { oneOf: [ { $ref: '#/components/schemas/JourneyStage' }, { type: 'null' } ] }
+        stageUpdatedAt: { type: [string, 'null'], format: date-time }
+        caseGeneratedAt: { type: [string, 'null'], format: date-time }
+        nullaOsta:
+          type: object
+          properties:
+            status: { type: string }
+            issueDate: { type: [string, 'null'], format: date }
+            expiryDate: { type: [string, 'null'], format: date }
+            daysRemaining: { type: [integer, 'null'] }
+        access:
+          type: object
+          properties:
+            level: { $ref: '#/components/schemas/AccessLevel' }
+            canWrite: { type: boolean }
+            accessUntil: { type: [string, 'null'], format: date-time }
+            graceUntil: { type: [string, 'null'], format: date-time }
+        readiness:
+          x-status: planned
+          type: object
+          description: Added in Module 4; derived, never stored
+          properties:
+            percent: { type: integer, minimum: 0, maximum: 100 }
+            applicableCount: { type: integer }
+            readyCount: { type: integer }
+            blockingCount: { type: integer }
+            notApplicableCount: { type: integer }
+            categorySpecificCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+    ApplicantListResponse:
+      type: object
+      properties:
+        applicants: { type: array, items: { $ref: '#/components/schemas/Applicant' } }
+        maxApplicants: { type: integer }
+        combinedReadiness: { type: integer, x-status: planned }
+    JourneyResponse:
+      type: object
+      properties:
+        currentStage: { $ref: '#/components/schemas/JourneyStage' }
+        stages:
+          type: array
+          items:
+            type: object
+            properties:
+              stage: { $ref: '#/components/schemas/JourneyStage' }
+              state: { type: string, enum: [done, current, upcoming] }
+              itemCount: { type: integer }
+              readyCount: { type: integer }
+
+    ChecklistItem:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        requirementCode: { type: string }
+        stage: { $ref: '#/components/schemas/JourneyStage' }
+        title: { $ref: '#/components/schemas/LocalizedText' }
+        status: { $ref: '#/components/schemas/ItemDisplayStatus' }
+        badges: { type: array, items: { $ref: '#/components/schemas/Badge' } }
+        notApplicableReason: { type: [string, 'null'] }
+        translationRequired: { type: boolean }
+        apostilleRequired: { type: boolean }
+        lastVerifiedAt: { type: string, format: date-time }
+        requirementVersion: { type: integer }
+        documentCount: { type: integer }
+        updatedAt: { type: string, format: date-time }
+    ChecklistItemDetail:
+      allOf:
+        - $ref: '#/components/schemas/ChecklistItem'
+        - type: object
+          properties:
+            purpose: { type: string }
+            whoProvides: { type: string }
+            whereToObtain: { type: string }
+            recommendedTiming: { type: string }
+            conditionNote: { type: [string, 'null'] }
+            source:
+              type: object
+              properties:
+                name: { type: string }
+                url: { type: string, format: uri }
+                document: { type: [string, 'null'] }
+                publishedAt: { type: [string, 'null'], format: date }
+            documents: { type: array, items: { $ref: '#/components/schemas/Document' } }
+            canWrite: { type: boolean }
+    ChecklistResponse:
+      type: object
+      properties:
+        applicantId: { type: string, format: uuid }
+        items: { type: array, items: { $ref: '#/components/schemas/ChecklistItem' } }
+        lockedCount: { type: integer, description: 'Free tier: number of items hidden behind the paywall ("+18 more documents")' }
+        nextCursor: { type: [string, 'null'] }
+        syncedAt: { type: string, format: date-time, description: Pass as `since` on next delta sync }
+    PatchChecklistItemInput:
+      type: object
+      required: [status]
+      properties:
+        status: { $ref: '#/components/schemas/ItemStatusWritable' }
+        baseVersion: { type: integer, description: requirementVersion the client last saw; omit when online }
+        clientMutationAt: { type: string, format: date-time }
+
+    UploadUrlInput:
+      type: object
+      required: [mime, sizeBytes, sha256]
+      properties:
+        mime: { type: string, enum: [image/jpeg, image/png, application/pdf] }
+        sizeBytes: { type: integer, minimum: 1 }
+        sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        applicantId: { type: string, format: uuid }
+        checklistItemId: { type: string, format: uuid }
+        expiryDate: { type: string, format: date }
+    UploadUrlResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        uploadUrl: { type: string, format: uri }
+        expiresAt: { type: string, format: date-time }
+        requiredHeaders: { type: object, additionalProperties: { type: string } }
+    Document:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        applicantId: { type: string, format: uuid }
+        checklistItemId: { type: [string, 'null'], format: uuid }
+        mime: { type: string }
+        sizeBytes: { type: integer }
+        expiryDate: { type: [string, 'null'], format: date }
+        createdAt: { type: string, format: date-time }
+        viewUrl: { type: [string, 'null'], format: uri, description: 'Short-lived signed GET, detail only' }
+    DocumentList:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Document' } }
+        nextCursor: { type: [string, 'null'] }
+        quota: { type: object, properties: { usedBytes: { type: integer }, maxBytes: { type: integer } } }
+    SignedUrl:
+      type: object
+      properties: { url: { type: string, format: uri }, expiresAt: { type: string, format: date-time } }
+
+    TodayResponse:
+      type: object
+      properties:
+        actions:
+          type: array
+          maxItems: 5
+          items:
+            type: object
+            properties:
+              kind: { type: string, enum: [expiring, blocking, ready_to_do, waiting_on_us] }
+              title: { type: string }
+              subtitle: { type: string }
+              applicantId: { type: string, format: uuid }
+              deepLink: { type: string }
+              dueDate: { type: [string, 'null'], format: date }
+        allClear:
+          type: [object, 'null']
+          properties: { nextMilestone: { type: string }, inDays: { type: integer } }
+        computedAt: { type: string, format: date-time }
+
+    Notification:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        tab: { type: string, enum: [reminder, update, activity] }
+        type: { type: string }
+        title: { type: string }
+        body: { type: string }
+        deepLink: { type: string }
+        applicantId: { type: [string, 'null'], format: uuid }
+        orderId: { type: [string, 'null'], format: uuid }
+        createdAt: { type: string, format: date-time }
+        readAt: { type: [string, 'null'], format: date-time }
+    NotificationList:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Notification' } }
+        nextCursor: { type: [string, 'null'] }
+    NotificationPreferences:
+      type: object
+      properties:
+        push:
+          type: object
+          properties: { reminder: { type: boolean }, update: { type: boolean }, activity: { type: boolean } }
+
+    EligibilityQuestionSet:
+      type: object
+      properties:
+        version: { type: integer }
+        disclaimer: { type: string }
+        questions:
+          type: array
+          maxItems: 6
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              text: { type: string }
+              options: { type: array, items: { type: object, properties: { value: { type: string }, label: { type: string } } } }
+    EligibilityAnswers:
+      type: object
+      required: [version, answers]
+      properties:
+        version: { type: integer }
+        answers: { type: object, additionalProperties: { type: string, maxLength: 64 }, maxProperties: 6 }
+    EligibilityResult:
+      type: object
+      description: Orientation only. Copy is CMS-owned and lawyer-reviewed. Never contains verdict language.
+      properties:
+        summary: { type: string }
+        typicalItems: { type: array, maxItems: 3, items: { type: object, properties: { title: { type: string }, why: { type: string } } } }
+        lockedCount: { type: integer }
+        disclaimer: { type: string }
+        whatsappUrl: { type: [string, 'null'], format: uri }
+
+    VerificationSummary:
+      type: object
+      properties:
+        requirementsTracked: { type: integer }
+        sourceLinkedPercent: { type: integer }
+        lastSweepAt: { type: string, format: date-time }
+        openFlags: { type: integer }
+        recentUpdates:
+          type: array
+          items:
+            type: object
+            properties:
+              requirementTitle: { type: string }
+              changeSummary: { type: string }
+              effectiveDate: { type: string, format: date }
+              publishedAt: { type: string, format: date-time }
+
+    PricingResponse:
+      type: object
+      properties:
+        premium: { type: object, properties: { first: { $ref: '#/components/schemas/Money' }, additional: { $ref: '#/components/schemas/Money' } } }
+        appointment: { type: object, properties: { first: { $ref: '#/components/schemas/Money' }, additional: { $ref: '#/components/schemas/Money' } } }
+        translationDocTypes:
+          type: array
+          items: { type: object, properties: { code: { type: string }, label: { type: string }, price: { $ref: '#/components/schemas/Money' } } }
+        courierFee: { $ref: '#/components/schemas/Money' }
+        referralCredit: { $ref: '#/components/schemas/Money' }
+    PublicConfig:
+      type: object
+      properties:
+        minSupportedAppVersion: { type: string }
+        sla: { type: object, properties: { paymentHours: { type: integer }, supportPaidHours: { type: integer }, supportFreeHours: { type: integer } } }
+        workingHoursText: { type: string }
+        urduAvailable: { type: boolean }
+        whatsappUrl: { type: [string, 'null'] }
+
+    OrderDraft:
+      type: object
+      required: [service]
+      properties:
+        service: { type: string, enum: [premium, translation, appointment] }
+        applicantIds: { type: array, items: { type: string, format: uuid }, maxItems: 20, description: premium / appointment }
+        translationItems:
+          type: array
+          maxItems: 30
+          items: { type: object, required: [docTypeCode, quantity], properties: { docTypeCode: { type: string }, quantity: { type: integer, minimum: 1, maximum: 20 }, applicantId: { type: string, format: uuid } } }
+        applyCredit: { type: boolean, description: Ignored for premium (PRD §15) }
+    Quote:
+      type: object
+      properties:
+        quoteToken: { type: string, description: 'Signed hash of priced inputs; required on POST /orders so a price change between quote and order returns PRICE_CHANGED' }
+        lines:
+          type: array
+          items:
+            type: object
+            properties:
+              category: { type: string, enum: [visaitaly_service, courier, official, service_provider] }
+              label: { type: string }
+              quantity: { type: integer }
+              unit: { $ref: '#/components/schemas/Money' }
+              total: { $ref: '#/components/schemas/Money' }
+        creditApplied: { $ref: '#/components/schemas/Money' }
+        total: { $ref: '#/components/schemas/Money' }
+        payable: { $ref: '#/components/schemas/Money' }
+        refundTerms: { type: string }
+        requiresWithdrawalWaiver: { type: boolean }
+    CreateOrderInput:
+      allOf:
+        - $ref: '#/components/schemas/OrderDraft'
+        - type: object
+          required: [clientRequestId, quoteToken, acceptedTerms]
+          properties:
+            clientRequestId: { type: string, format: uuid }
+            quoteToken: { type: string }
+            acceptedTerms: { type: boolean, const: true }
+            withdrawalWaiver: { type: boolean }
+            delivery:
+              type: object
+              description: Required for translation
+              required: [recipientName, phone, line1, city, province]
+              properties:
+                recipientName: { type: string, maxLength: 100 }
+                phone: { type: string, pattern: '^\+92[0-9]{9,10}$' }
+                line1: { type: string, maxLength: 200 }
+                line2: { type: string, maxLength: 200 }
+                city: { type: string, maxLength: 80 }
+                province: { type: string, enum: [punjab, sindh, kpk, balochistan, islamabad, gb, ajk] }
+                postalCode: { type: string, pattern: '^[0-9]{5}$' }
+    Order:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        reference: { type: string, example: VIP-7K3M9QXA }
+        service: { type: string, enum: [premium, translation, appointment] }
+        status: { type: string, enum: [awaiting_payment, pending_verification, rejected, paid, in_progress, ready, dispatched, delivered, completed, cancelled, refunded] }
+        total: { $ref: '#/components/schemas/Money' }
+        payable: { $ref: '#/components/schemas/Money' }
+        bankDetails:
+          type: object
+          description: From app_config, shown while awaiting_payment
+          properties: { accountTitle: { type: string }, bankName: { type: string }, iban: { type: string }, transferNote: { type: string } }
+        verificationDueAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+    OrderDetail:
+      allOf:
+        - $ref: '#/components/schemas/Order'
+        - type: object
+          properties:
+            lines: { type: array, items: { type: object } }
+            timeline: { type: array, items: { type: object, properties: { status: { type: string }, at: { type: string, format: date-time }, note: { type: [string, 'null'] } } } }
+            rejection: { type: [object, 'null'], properties: { reason: { type: string }, note: { type: [string, 'null'] } } }
+            shipment: { type: [object, 'null'], properties: { status: { type: string }, courierName: { type: string }, trackingRef: { type: string } } }
+            receiptAvailable: { type: boolean }
+            refund:
+              type: object
+              properties:
+                eligible: { type: boolean }
+                reason: { type: string, description: Human explanation of why / why not }
+                eligibleUntil: { type: [string, 'null'], format: date-time }
+                openRequest: { oneOf: [ { $ref: '#/components/schemas/RefundRequest' }, { type: 'null' } ] }
+    OrderList:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/Order' } }
+        nextCursor: { type: [string, 'null'] }
+
+    ReasonCode:
+      type: object
+      properties: { code: { type: string }, label: { type: string } }
+    CreateRefundInput:
+      type: object
+      required: [reasonCode, clientRequestId]
+      properties:
+        reasonCode: { type: string }
+        note: { type: string, maxLength: 1000 }
+        clientRequestId: { type: string, format: uuid }
+    RefundRequest:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        orderId: { type: string, format: uuid }
+        status: { type: string, enum: [requested, reviewed, approved, declined, refunded] }
+        amount: { $ref: '#/components/schemas/Money' }
+        decisionReason: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+    RenewalRequest:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        applicantId: { type: string, format: uuid }
+        status: { type: string, enum: [requested, approved, declined] }
+        createdAt: { type: string, format: date-time }
+
+    SupportThread:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [open, awaiting_support, awaiting_user, closed] }
+        tier: { type: string, enum: [free, paid] }
+        replyDueAt: { type: [string, 'null'], format: date-time }
+        workingHoursText: { type: string }
+        allowedTopics: { type: array, items: { type: string } }
+        unreadCount: { type: integer }
+        disclaimer: { type: string }
+    SupportMessage:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        senderType: { type: string, enum: [user, admin, system] }
+        body: { type: string }
+        topic: { type: string }
+        requirementLink: { type: [object, 'null'], properties: { checklistDeepLink: { type: string }, title: { type: string } } }
+        attachment: { type: [object, 'null'], properties: { mime: { type: string }, viewUrl: { type: string } } }
+        orderId: { type: [string, 'null'], format: uuid }
+        createdAt: { type: string, format: date-time }
+    SupportMessageList:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/SupportMessage' } }
+        nextCursor: { type: [string, 'null'] }
+    CreateSupportMessageInput:
+      type: object
+      required: [body, topic, clientRequestId]
+      properties:
+        body: { type: string, minLength: 1, maxLength: 4000 }
+        topic: { type: string, enum: [payment, order, courier, refund, account, app_problem, presales] }
+        orderId: { type: string, format: uuid }
+        applicantId: { type: string, format: uuid }
+        attachmentId: { type: string, format: uuid }
+        clientRequestId: { type: string, format: uuid }
+
+    ReferralSummary:
+      type: object
+      properties:
+        code: { type: string }
+        shareUrl: { type: string, format: uri }
+        rewardPerReferral: { $ref: '#/components/schemas/Money' }
+        balance: { $ref: '#/components/schemas/Money' }
+        minWithdrawal: { $ref: '#/components/schemas/Money' }
+        history:
+          type: array
+          items: { type: object, properties: { refereeLabel: { type: string, description: 'Masked, e.g. "A***"' }, status: { type: string }, credited: { $ref: '#/components/schemas/Money' }, at: { type: string, format: date-time } } }
+    PayoutAccountInput:
+      type: object
+      required: [accountTitle, bankName, iban]
+      properties:
+        accountTitle: { type: string, maxLength: 100 }
+        bankName: { type: string, maxLength: 100 }
+        iban: { type: string, pattern: '^PK[0-9]{2}[A-Z]{4}[0-9]{16}$', description: 'Pakistani IBAN, 24 chars' }
+    PayoutAccountMasked:
+      type: [object, 'null']
+      properties: { accountTitle: { type: string }, bankName: { type: string }, last4: { type: string } }
+    Withdrawal:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        amount: { $ref: '#/components/schemas/Money' }
+        status: { type: string, enum: [requested, reviewed, approved, paid, rejected] }
+        createdAt: { type: string, format: date-time }
+
+    PreferencesInput:
+      type: object
+      properties:
+        locale: { type: string, enum: [en, ur] }
+        consents:
+          type: object
+          properties: { analytics: { type: boolean }, crash_reports: { type: boolean }, marketing_push: { type: boolean } }
+
+    AdminMe:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        isSuper: { type: boolean }
+        scopes:
+          type: array
+          items: { type: string, enum: [payment_approve, translation_manage, appointment_manage, verification_manage, referral_payout, cash_dept, pricing_config, legal_manage, expiry_manage, support_manage, refund_manage, read_only] }
