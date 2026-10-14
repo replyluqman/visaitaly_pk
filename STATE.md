@@ -1,4 +1,9 @@
-# State — Modules 1–5, 8, 10a (incl. 3b, 3c, 4a, 4b) built and gated · Module 6 (payments) BLOCKED on owner decision O1
+# State — Modules 1–5, 8, 10a/10b (incl. 3b, 3c, 4a, 4b) built and gated · Module 6 (payments) BLOCKED on owner decision O1
+
+## Phase 7 — Module 10b Config editor + admin overview (done)
+
+No migration; `apps/api/MODULE-10B-CONFIG-OVERVIEW.md`. **317 tests**; Gate 4 passes (5 new queries). Editable keys are an allow-list of 12 with strict, bounded schemas; writes audited before/after; overview is scope-filtered and shows absent (not zero) for unbuilt modules.
+Price keys, refund/renewal/payout sections arrive with Modules 6/7/9 (blocked on O1).
 
 ## Phase 6 — Module 8 Support (done)
 

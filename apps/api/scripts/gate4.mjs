@@ -176,6 +176,16 @@ const QUERIES = {
   'privacy: erasure — tombstone users row': [`UPDATE users SET email = NULL, display_name = NULL, firebase_uid = 'deleted:' || id::text WHERE id = $1`, [u.id]],
   'legal admin: acceptances keyset': [`SELECT id, user_id, accepted_at FROM legal_acceptances WHERE legal_version_id = (SELECT id FROM legal_versions LIMIT 1) AND (accepted_at, id) > ('2000-01-01', '00000000-0000-0000-0000-000000000000'::uuid) ORDER BY accepted_at, id LIMIT 51`, []],
   'legal admin: acceptance count': [`SELECT count(*)::int FROM legal_acceptances WHERE legal_version_id = (SELECT id FROM legal_versions LIMIT 1)`, []],
+  'admin overview: verification counts': [`
+    SELECT (SELECT count(*)::int FROM source_flags WHERE status = 'open'),
+           (SELECT count(*)::int FROM sources WHERE is_active AND consecutive_failures >= 3),
+           (SELECT count(*)::int FROM requirements WHERE verification_status = 'created'),
+           (SELECT count(*)::int FROM requirements WHERE verification_status = 'verified')`, []],
+  'admin overview: legal drafts': [`SELECT count(*)::int FROM legal_versions WHERE published_at IS NULL`, []],
+  'admin overview: open privacy requests': [`
+    SELECT count(*)::int, min(requested_at)::text FROM data_requests WHERE status IN ('received','processing')`, []],
+  'admin config: list': [`SELECT key, value, description, updated_by, updated_at FROM app_config ORDER BY key`, []],
+  'admin config: lock row for update': [`SELECT value FROM app_config WHERE key = 'sla' FOR UPDATE`, []],
   'support: my thread + unread (user)': [`
     SELECT t.id, t.status, t.sla_due_at,
            (SELECT count(*)::int FROM support_messages m WHERE m.thread_id = t.id AND m.sender_type = 'admin' AND m.read_by_user_at IS NULL)

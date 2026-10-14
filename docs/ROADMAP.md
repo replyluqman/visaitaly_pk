@@ -21,7 +21,7 @@ requirements, stages and pricing — additive expand-migrations plus relaxing a 
 | 7 | Services (translation + courier, appointment) + premium lifecycle (expiry, renewal) | | | 17–19 | 37, 38, 42 |
 | 8 | Support thread + admin inbox + canned responses | built (0013) | G1–G5 ✓ (R2 adapter + CPU unmeasured) | 25 | 35 |
 | 9 | Referral + payouts | | | 27, 28 | 41 |
-| 10 | Admin RBAC + audit log (**4a, 0008**) + case lookup + legal manager + data export/deletion (**10a, 0011–0012**; pricing/config editor, refund/support/renewal/payout lookups remain) | | | 29 | 30, 32, 36, 44, 45 |
+| 10 | Admin RBAC + audit log (**4a, 0008**) + case lookup + legal manager + data export/deletion (**10a, 0011–0012**; **10b:** config editor + admin overview; refund/renewal/payout lookups and price keys arrive with Modules 6/7/9) | | | 29 | 30, 32, 36, 44, 45 |
 
 Gates 1–5 have run for Modules 1–3 (`apps/api/MODULE-0N-*.md`). One cross-cutting gap remains for all of them:
 **Worker CPU p99 (10 ms ceiling) is unmeasured** — it needs a deployed staging Worker.

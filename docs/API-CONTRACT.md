@@ -195,6 +195,10 @@ Admins are pre-registered by a super admin and link on first sign-in with a veri
 `slaDueAt` is working-hours computed and is shown only beside `workingHoursText` (PRD §14a). A message to a closed thread reopens it; a follow-up while awaiting support does not move the deadline.
 Admin (`support_manage`, Screen 35): `GET /v1/admin/support/summary|threads|threads/:id`, `POST …/threads/:id/messages` (free text + topic, or `cannedResponseId`), `…/assign`, `…/close`, `…/reopen`, `GET /v1/admin/canned-responses`, `POST|PATCH …`. See `openapi.yaml`.
 
+### Admin config & overview (Module 10b) — admin token
+`GET /v1/admin/overview` → `{support?:{awaitingSupport,breached,unassigned}, verification?:{openHashFlags,unreachableSources,drafts,awaitingPublish}, legal?:{draftVersions}, privacy?:{openRequests,oldestOpenAt}}` — a section is present only if the admin has its scope, `read_only`, or is super; absent ≠ zero.
+`GET /v1/admin/config` → `{items:[{key,value,isDefault,description,updatedBy,updatedAt}]}` · `PUT /v1/admin/config/:key {value}` (scope `pricing_config`) replaces the value; strict schema per key (422 on unknown field/key or out-of-bounds); audited before/after.
+
 ### Notifications (Module 5) — session-authenticated
 
 `GET /v1/notifications?tab=reminder|update|activity&cursor&limit` → `{items[], nextCursor}` · `GET /v1/notifications/unread-count` → `{total, byTab}` ·

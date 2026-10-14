@@ -745,10 +745,11 @@ paths:
     get:
       tags: [admin]
       security: [ { firebaseAdmin: [] } ]
-      summary: Queue counts + SLA breaches, filtered by scope (Screen 31)
-      x-status: planned
-      x-module: 10
-      responses: { '200': { description: ok } }
+      summary: 'Queue counts + SLA breaches (Screen 31). A section appears only for its scope / read_only / super; sections for unbuilt modules are absent, never zero.'
+      x-status: live
+      x-module: "10b"
+      responses:
+        '200': { description: 'ok — {support?, verification?, legal?, privacy?}' }
   /v1/admin/orders:
     get:
       tags: [admin]
@@ -869,10 +870,10 @@ paths:
       x-module: "10a"
       responses: { '200': { description: ok }, '404': { description: no match (still audited) }, '422': { description: not exactly one key } }
   /v1/admin/config:
-    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [pricing_config, read_only], x-status: planned, x-module: 10, responses: { '200': { description: ok } } }
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [pricing_config, read_only], summary: 'Every editable key with its value (isDefault when no row yet)', x-status: live, x-module: "10b", responses: { '200': { description: ok } } }
   /v1/admin/config/{key}:
     parameters: [ { name: key, in: path, required: true, schema: { type: string } } ]
-    put: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [pricing_config], description: Validated per key by a zod schema; audit-logged with before/after, x-status: planned, x-module: 10, responses: { '200': { description: ok } } }
+    put: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [pricing_config], description: 'Body {value}. Replaces the whole value; strict per-key schema (unknown fields rejected). Before/after audited in the same transaction. Verdict language in working_hours_text rejected.', x-status: live, x-module: "10b", responses: { '200': { description: ok }, '422': { description: invalid or unknown key } } }
   /v1/admin/legal-versions:
     get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [legal_manage, read_only], summary: 'Versions with acceptance counts (keyset)', x-status: live, x-module: "10a", parameters: [ { $ref: '#/components/parameters/Cursor' } ], responses: { '200': { description: ok } } }
     post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [legal_manage], summary: 'Create a DRAFT', x-status: live, x-module: "10a", responses: { '201': { description: created }, '409': { description: duplicate } } }

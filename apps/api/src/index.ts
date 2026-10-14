@@ -20,6 +20,7 @@ import { pushSenderFor } from './lib/fcm.js';
 import { identityDeleterFor } from './lib/identity.js';
 import { legalAdminRoutes } from './modules/legal-admin/legal-admin.routes.js';
 import { supportRoutes } from './modules/support/support.routes.js';
+import { configAdminRoutes } from './modules/config-admin/config-admin.routes.js';
 import { supportAdminRoutes } from './modules/support-admin/support-admin.routes.js';
 import { accountRoutes } from './modules/privacy/privacy.routes.js';
 import { notificationPreferenceRoutes, notificationRoutes } from './modules/notifications/notifications.routes.js';
@@ -106,6 +107,7 @@ export function createApp(deps: AppDeps = {}): Hono<AppEnv> {
   app.route('/v1/admin', cmsRoutes);
   app.route('/v1/admin', legalAdminRoutes);
   app.route('/v1/admin', supportAdminRoutes);
+  app.route('/v1/admin', configAdminRoutes);
   app.route('/v1/support', supportRoutes);
   app.route('/v1/public', verificationPublicRoutes);
 

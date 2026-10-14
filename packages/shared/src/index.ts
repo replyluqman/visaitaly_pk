@@ -10,3 +10,4 @@ export * from './cms.types.js';
 export * from './notification.types.js';
 export * from './privacy.types.js';
 export * from './support.types.js';
+export * from './config.types.js';

@@ -35,6 +35,8 @@ Rule: any change to `docs/API-CONTRACT.md` gets a line here, and anything that b
 
 - **Module 8 — support.** User: `GET /v1/support/thread`, `GET|POST /v1/support/messages`, `POST /v1/support/read`, jpeg/png attachments (`POST /v1/support/attachments/upload-url`, `GET /v1/support/attachments/:id`, capability `…/content`). Admin (`support_manage`): `/v1/admin/support/{summary,threads,threads/:id,threads/:id/messages|assign|close|reopen,attachments/:id/url}`, `/v1/admin/canned-responses`. Migration `0013` (`support_threads`, `support_messages`, `support_attachments`, `canned_responses`; config `support`, `sla`). SLA deadlines count **working hours** (`lib/working-hours.ts`). Cron `support_retention`; erasure and export now cover support data. New code `SUPPORT_TOPIC_NOT_ALLOWED`. `support_reply` notification type. `POST /v1/support/messages` is **not** idempotent (no `clientRequestId`; the planned field was removed from the OpenAPI schema).
 
+- **Module 10b — config editor + admin overview.** `GET /v1/admin/overview` (scoped queue counts, SLA breaches), `GET /v1/admin/config`, `PUT /v1/admin/config/:key` (strict per-key schemas in `@visaitaly/shared`, before/after audited, copy screened). No migration, no new error codes.
+
 ### Fixed
 - **Foreign keys covered only by partial indexes** (`applicants.user_id`, `documents.user_id/applicant_id/applicant_requirement_id`, `source_flags.source_id`) made erasure and cascades seq-scan; unconditional indexes added (0012) and the CI/preflight FK audit now rejects partial-only coverage.
 - Drizzle `sql` expanded JS arrays into a record, breaking `text[]` writes (CMS `appliesLocations` / `requiresNullaOstaStatus`) — `pgArray()` helper; regression-tested.
