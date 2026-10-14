@@ -76,6 +76,8 @@ export interface ChecklistItem {
 }
 
 export interface ChecklistItemDetail extends ChecklistItem {
+  /** The applicant this item belongs to (Today and notification deep links open an item without its case). */
+  applicantId: string;
   purpose: string | null;
   whoProvides: string | null;
   whereToObtain: string | null;

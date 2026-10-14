@@ -338,6 +338,7 @@ export async function getChecklistItem(
 function toDetail(r: DetailRow, gate: AccessInputs, documents: Document[], staleAfterDays: number): ChecklistItemDetail {
   return {
     ...toItem(r),
+    applicantId: r.applicant_id,
     purpose: r.purpose,
     whoProvides: r.who_provides,
     whereToObtain: r.where_to_obtain,

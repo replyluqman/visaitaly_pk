@@ -79,6 +79,12 @@ void main() {
       expect([e.code, e.requestId], [ApiCodes.internal, 'abc']);
     });
 
+    test('an error body delivered as a plain string (signed-URL transfers) is still decoded', () async {
+      final t = make((_) => reply(422, errorBody('UPLOAD_REJECTED')));
+      final e = await failure(t.dio.get<dynamic>('/v1/x', options: Options(responseType: ResponseType.plain)));
+      expect(e.code, 'UPLOAD_REJECTED');
+    });
+
     test('no response at all is NETWORK', () async {
       final t = make((_) => reply(0));
       expect((await failure(t.dio.post<dynamic>('/v1/x'))).code, ApiCodes.network);

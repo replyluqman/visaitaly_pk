@@ -1,0 +1,12 @@
+{
+  "status": "none",
+  "tier": "free",
+  "slaDueAt": null,
+  "unreadCount": 0,
+  "workingHoursText": null,
+  "allowedTopics": [
+    "account",
+    "app_problem",
+    "presales"
+  ]
+}

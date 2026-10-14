@@ -21,6 +21,12 @@ class FakeServer {
   final List<RequestLog> log = [];
   int _n = 0;
 
+  /// Stubs for endpoints beyond onboarding: key is `METHOD /path`, or `~METHOD regex` for a pattern.
+  /// The first matching stub wins and stays in place (unlike [failures], which are one-shot).
+  final Map<String, ({int status, Object? body, Map<String, String>? headers}) Function(RequestOptions)> stubs = {};
+
+  void stub(String key, Object? body, {int status = 200}) => stubs[key] = (_) => reply(status, body);
+
   /// One-shot overrides: path → response, consumed on first use.
   final Map<String, ({int status, Object? body, Map<String, String>? headers})> failures = {};
 
@@ -71,11 +77,18 @@ class FakeServer {
   }
 
   ({int status, Object? body, Map<String, String>? headers}) handle(RequestOptions o) {
-    final key = '${o.method} ${o.path}';
-    log.add(RequestLog(o.method, o.path, o.data));
+    // Signed capability URLs are absolute; route on the URI path either way.
+    final routePath = o.uri.path;
+    final key = '${o.method} $routePath';
+    log.add(RequestLog(o.method, routePath, o.data));
     final fail = failures.remove(key);
     if (fail != null) return fail;
-    final path = o.path;
+    for (final e in stubs.entries) {
+      final k = e.key;
+      final hit = k.startsWith('~') ? RegExp('^${k.substring(1)}\$').hasMatch(key) : k == key;
+      if (hit) return e.value(o);
+    }
+    final path = routePath;
     final data = o.data is Map ? Map<String, dynamic>.from(o.data as Map) : <String, dynamic>{};
 
     if (key == 'POST /v1/auth/session') {

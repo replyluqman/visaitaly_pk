@@ -56,3 +56,32 @@ enum ItemBadge { blocking, needsReview, sourceUnderReview, unknown }
 
 /// Statuses a client may write (everything except the derived ones).
 const writableStatuses = [ItemStatus.notStarted, ItemStatus.inProgress, ItemStatus.ready, ItemStatus.issueFound];
+
+@JsonEnum(fieldRename: FieldRename.snake)
+enum TodayKind { expiring, blocking, todo, unknown }
+
+/// Why a Today action is listed. The server holds no English: the client composes the sentence from this.
+@JsonEnum(fieldRename: FieldRename.snake)
+enum TodayReason { documentExpires, nullaOstaExpires, blocksSubmission, issueFound, inProgress, notStarted, unknown }
+
+@JsonEnum(fieldRename: FieldRename.snake)
+enum NotificationTab { reminder, update, activity, unknown }
+
+@JsonEnum(fieldRename: FieldRename.snake)
+enum SupportStatus { none, open, awaitingSupport, awaitingUser, closed, unknown }
+
+@JsonEnum(fieldRename: FieldRename.snake)
+enum SupportTier { free, paid, unknown }
+
+@JsonEnum(fieldRename: FieldRename.snake)
+enum SenderType { user, admin, system, unknown }
+
+/// Support topics (PRD §10). Free accounts get the server-provided subset.
+@JsonEnum(fieldRename: FieldRename.snake)
+enum SupportTopic { payment, order, courier, refund, account, appProblem, presales, unknown }
+
+@JsonEnum(fieldRename: FieldRename.snake)
+enum StageState { done, current, upcoming, unknown }
+
+@JsonEnum(fieldRename: FieldRename.snake)
+enum DataRequestStatus { received, processing, completed, rejected, failed, unknown }

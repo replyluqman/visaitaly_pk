@@ -1,0 +1,25 @@
+{
+  "items": [
+    {
+      "id": "e313cf98-2857-45ba-976c-505402d83018",
+      "senderType": "admin",
+      "body": "Premium includes your personalised checklist.",
+      "topic": "presales",
+      "applicantId": null,
+      "attachment": null,
+      "createdAt": "2026-10-14T03:41:52.639Z",
+      "readByUserAt": null
+    },
+    {
+      "id": "39d903b2-0fe1-419b-adc5-87247db787e1",
+      "senderType": "user",
+      "body": "What does Premium include?",
+      "topic": "presales",
+      "applicantId": null,
+      "attachment": null,
+      "createdAt": "2026-10-14T03:41:52.612Z",
+      "readByUserAt": "2026-10-14T03:41:52.612Z"
+    }
+  ],
+  "nextCursor": null
+}

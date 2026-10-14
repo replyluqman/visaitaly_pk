@@ -1,0 +1,57 @@
+{
+  "applicantId": "60ff495e-c3ad-4e9b-83a0-28a6f60ef6d8",
+  "items": [
+    {
+      "id": "3cb333e7-d1ca-4ed4-b0f0-26b364d5820a",
+      "requirementCode": "passport",
+      "stage": "eligibility",
+      "title": "passport",
+      "status": "not_started",
+      "badges": [
+        "blocking"
+      ],
+      "notApplicableReason": null,
+      "translationRequired": false,
+      "apostilleRequired": false,
+      "lastVerifiedAt": "2026-10-14T03:41:51.141Z",
+      "requirementVersion": 1,
+      "documentCount": 0,
+      "updatedAt": "2026-10-14T03:41:51.240Z"
+    },
+    {
+      "id": "245d909e-985d-4eaa-b9f3-026ab8692cce",
+      "requirementCode": "nikah",
+      "stage": "documents",
+      "title": "nikah",
+      "status": "not_started",
+      "badges": [
+        "blocking"
+      ],
+      "notApplicableReason": null,
+      "translationRequired": true,
+      "apostilleRequired": true,
+      "lastVerifiedAt": "2026-10-14T03:41:51.144Z",
+      "requirementVersion": 1,
+      "documentCount": 0,
+      "updatedAt": "2026-10-14T03:41:51.240Z"
+    },
+    {
+      "id": "f2fda80f-b659-4cf5-8a5e-5f0c157f8f8e",
+      "requirementCode": "adult_only",
+      "stage": "documents",
+      "title": "adult_only",
+      "status": "not_started",
+      "badges": [],
+      "notApplicableReason": null,
+      "translationRequired": false,
+      "apostilleRequired": false,
+      "lastVerifiedAt": "2026-10-14T03:41:51.154Z",
+      "requirementVersion": 1,
+      "documentCount": 0,
+      "updatedAt": "2026-10-14T03:41:51.240Z"
+    }
+  ],
+  "lockedCount": 3,
+  "nextCursor": null,
+  "syncedAt": "2026-10-14T03:41:51.279Z"
+}

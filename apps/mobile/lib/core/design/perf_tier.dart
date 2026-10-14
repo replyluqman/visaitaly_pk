@@ -2,6 +2,8 @@ import 'dart:ui' show FrameTiming;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../settings_store.dart';
+
 /// Visual-effects budget (DESIGN-SYSTEM.md §4). Decided once at startup and overridable in Settings.
 ///  full  — blur allowed per the glass rules
 ///  lite  — no blur anywhere; glass becomes the unblurred tint; static mesh kept
@@ -69,7 +71,11 @@ class PerfTierController extends Notifier<PerfTier> {
   bool _userReduced = false;
 
   @override
-  PerfTier build() => _detected = decideTier(ref.read(deviceFactsProvider));
+  PerfTier build() {
+    _detected = decideTier(ref.read(deviceFactsProvider));
+    _userReduced = ref.read(settingsStoreProvider).reduceEffects;
+    return _userReduced ? PerfTier.solid : _detected;
+  }
 
   void setDetected(PerfTier t) {
     _detected = t;
@@ -78,6 +84,7 @@ class PerfTierController extends Notifier<PerfTier> {
 
   void setUserReduced(bool v) {
     _userReduced = v;
+    ref.read(settingsStoreProvider).setReduceEffects(v);
     _apply();
   }
 

@@ -1,0 +1,12 @@
+{
+  "error": {
+    "code": "VALIDATION_FAILED",
+    "message": "Request validation failed.",
+    "details": {
+      "version": [
+        "The questions have changed. Please reload and answer again."
+      ]
+    },
+    "requestId": "8bf544f9-e0e4-4811-9ab8-579bba7b915b"
+  }
+}

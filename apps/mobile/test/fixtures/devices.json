@@ -1,0 +1,13 @@
+{
+  "devices": [
+    {
+      "deviceId": "e16abbfc-9d40-426c-ba2b-be15bce785b2",
+      "platform": "android",
+      "model": null,
+      "appVersion": "1.0.0",
+      "lastLoginAt": "2026-10-14T03:41:52.860Z",
+      "lastSeenAt": "2026-10-14T03:41:52.860Z",
+      "isCurrent": true
+    }
+  ]
+}

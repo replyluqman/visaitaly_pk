@@ -1,11 +1,11 @@
 {
   "user": {
-    "id": "b9d38ba1-c82d-42c0-a1fb-633278314bc3",
-    "email": "3553580d@example.com",
+    "id": "be5c9e8e-df84-476f-9098-cf3e42d8250e",
+    "email": "347033dd@example.com",
     "displayName": null,
     "onboardingState": "disclaimer_pending",
     "emailVerified": true,
-    "createdAt": "2026-10-14T03:16:28.543Z"
+    "createdAt": "2026-10-14T03:41:54.537Z"
   },
   "app": {
     "minAppVersion": "0.0.0"

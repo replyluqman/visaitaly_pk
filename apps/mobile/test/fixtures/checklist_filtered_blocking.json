@@ -1,0 +1,59 @@
+{
+  "applicantId": "52563188-45b1-4b27-a576-4e5c6d47520b",
+  "items": [
+    {
+      "id": "253abde2-18fa-4299-9c28-82e389c7a513",
+      "requirementCode": "passport",
+      "stage": "eligibility",
+      "title": "passport",
+      "status": "not_started",
+      "badges": [
+        "blocking"
+      ],
+      "notApplicableReason": null,
+      "translationRequired": false,
+      "apostilleRequired": false,
+      "lastVerifiedAt": "2026-10-14T03:41:51.449Z",
+      "requirementVersion": 1,
+      "documentCount": 0,
+      "updatedAt": "2026-10-14T03:41:51.525Z"
+    },
+    {
+      "id": "62c4614e-3d7b-42fc-8f88-9c978981c97d",
+      "requirementCode": "nikah",
+      "stage": "documents",
+      "title": "nikah",
+      "status": "not_started",
+      "badges": [
+        "blocking"
+      ],
+      "notApplicableReason": null,
+      "translationRequired": true,
+      "apostilleRequired": true,
+      "lastVerifiedAt": "2026-10-14T03:41:51.451Z",
+      "requirementVersion": 1,
+      "documentCount": 0,
+      "updatedAt": "2026-10-14T03:41:51.525Z"
+    },
+    {
+      "id": "5d3772d7-7022-4cbf-913c-51e29ced6154",
+      "requirementCode": "appointment_slot",
+      "stage": "appointment",
+      "title": "appointment_slot",
+      "status": "not_started",
+      "badges": [
+        "blocking"
+      ],
+      "notApplicableReason": null,
+      "translationRequired": false,
+      "apostilleRequired": false,
+      "lastVerifiedAt": "2026-10-14T03:41:51.461Z",
+      "requirementVersion": 1,
+      "documentCount": 0,
+      "updatedAt": "2026-10-14T03:41:51.525Z"
+    }
+  ],
+  "lockedCount": 0,
+  "nextCursor": null,
+  "syncedAt": "2026-10-14T03:41:51.576Z"
+}

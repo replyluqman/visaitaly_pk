@@ -29,6 +29,9 @@ abstract class AuthGateway {
   Future<void> signInWithEmail(String email, String password);
   Future<void> signUpWithEmail(String email, String password);
   Future<void> signOut();
+
+  /// Re-confirms the signed-in user's password (needed for destructive actions: REAUTH_REQUIRED).
+  Future<void> reauthenticate(String password);
 }
 
 class FirebaseAuthGateway implements AuthGateway {
@@ -54,7 +57,15 @@ class FirebaseAuthGateway implements AuthGateway {
   @override
   Future<void> signOut() => _auth.signOut();
 
-  Future<void> _guard(Future<Object?> Function() f) async {
+  @override
+  Future<void> reauthenticate(String password) => _guard(() async {
+        final u = _auth.currentUser;
+        final email = u?.email;
+        if (u == null || email == null) throw FirebaseAuthException(code: 'user-not-found');
+        await u.reauthenticateWithCredential(EmailAuthProvider.credential(email: email, password: password));
+      });
+
+  Future<void> _guard(Future<void> Function() f) async {
     try {
       await f();
     } on FirebaseAuthException catch (e) {

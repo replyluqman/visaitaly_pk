@@ -269,7 +269,7 @@ describe('list: filters, badges, order, pagination, delta', () => {
     const d = await as(u)('GET', `/v1/checklist/${item.id}`);
     expect(d.status).toBe(200);
     expect(d.body).toMatchObject({
-      purpose: 'why', canWrite: true, documents: [], staleAfterDays: 30,
+      purpose: 'why', canWrite: true, documents: [], staleAfterDays: 30, applicantId: id,
       source: { name: 'Test Source', url: 'https://example.test/src', document: 'p.12', publishedAt: null },
     });
   });

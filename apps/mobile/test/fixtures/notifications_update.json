@@ -1,0 +1,16 @@
+{
+  "items": [
+    {
+      "id": "738ba08a-06d3-4949-af96-453e849a0bf5",
+      "tab": "update",
+      "type": "requirement_changed",
+      "title": "T:requirement_changed",
+      "body": "B:requirement_changed|Nikah certificate|Attestation now required||",
+      "deepLink": "/applicants/c859ec87-c899-43af-8010-001f8cb3b1b4",
+      "applicantId": "c859ec87-c899-43af-8010-001f8cb3b1b4",
+      "createdAt": "2026-10-14T03:41:52.297Z",
+      "readAt": null
+    }
+  ],
+  "nextCursor": null
+}

@@ -9,7 +9,14 @@ import 'network/dio_client.dart';
 import 'session/session_controller.dart';
 import 'session/session_state.dart';
 import 'storage/device_id_store.dart';
+import '../features/account/data/account_repository.dart';
 import '../features/applicants/data/applicants_repository.dart';
+import '../features/checklist/data/checklist_repository.dart';
+import '../features/documents/data/documents_repository.dart';
+import '../features/notifications/data/notifications_repository.dart';
+import '../features/public/data/public_repository.dart';
+import '../features/support/data/support_repository.dart';
+import '../features/today/data/today_repository.dart';
 import '../features/auth/data/auth_repository.dart';
 import '../features/legal/data/legal_repository.dart';
 
@@ -35,5 +42,13 @@ final dioProvider = Provider<Dio>((ref) {
 final authRepositoryProvider = Provider((ref) => AuthRepository(ref.watch(dioProvider)));
 final legalRepositoryProvider = Provider((ref) => LegalRepository(ref.watch(dioProvider)));
 final applicantsRepositoryProvider = Provider((ref) => ApplicantsRepository(ref.watch(dioProvider)));
+
+final checklistRepositoryProvider = Provider((ref) => ChecklistRepository(ref.watch(dioProvider)));
+final documentsRepositoryProvider = Provider((ref) => DocumentsRepository(ref.watch(dioProvider)));
+final todayRepositoryProvider = Provider((ref) => TodayRepository(ref.watch(dioProvider)));
+final notificationsRepositoryProvider = Provider((ref) => NotificationsRepository(ref.watch(dioProvider)));
+final supportRepositoryProvider = Provider((ref) => SupportRepository(ref.watch(dioProvider)));
+final accountRepositoryProvider = Provider((ref) => AccountRepository(ref.watch(dioProvider)));
+final publicRepositoryProvider = Provider((ref) => PublicRepository(ref.watch(dioProvider)));
 
 final sessionControllerProvider = NotifierProvider<SessionController, SessionState>(SessionController.new);

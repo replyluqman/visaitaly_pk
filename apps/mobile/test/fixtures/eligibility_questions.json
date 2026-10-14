@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "disclaimer": "Orientation only.",
+  "questions": [
+    {
+      "id": "who",
+      "text": "Who is the application for?",
+      "options": [
+        {
+          "value": "spouse",
+          "label": "Spouse"
+        },
+        {
+          "value": "child",
+          "label": "Child"
+        }
+      ]
+    },
+    {
+      "id": "where",
+      "text": "Where are they now?",
+      "options": [
+        {
+          "value": "pakistan",
+          "label": "Pakistan"
+        },
+        {
+          "value": "italy",
+          "label": "Italy"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "id": "beeec81b-11b0-47ff-b9e5-a561825e57f6",
+  "uploadUrl": "http://t/v1/support/attachments/beeec81b-11b0-47ff-b9e5-a561825e57f6/content?exp=1791950212&sig=UCpt0jrcTBUKQ-IJ-X8rV6x-OB7CEsbzSp8eAsnwO4E",
+  "expiresAt": "2026-10-14T03:56:52.000Z",
+  "requiredHeaders": {
+    "Content-Type": "image/png"
+  }
+}

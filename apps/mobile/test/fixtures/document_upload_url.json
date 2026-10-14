@@ -1,0 +1,8 @@
+{
+  "id": "7ea06229-c827-4bd2-993e-63ebe77cd1aa",
+  "uploadUrl": "http://t/v1/documents/7ea06229-c827-4bd2-993e-63ebe77cd1aa/content?exp=1791950211&sig=5hyIcJ7_D7KBJS7rZQ0z8X3zxkJB0WZYsSjQXn9YT7U",
+  "expiresAt": "2026-10-14T03:56:51.000Z",
+  "requiredHeaders": {
+    "Content-Type": "image/png"
+  }
+}

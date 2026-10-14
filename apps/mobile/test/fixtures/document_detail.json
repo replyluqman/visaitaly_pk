@@ -1,0 +1,10 @@
+{
+  "id": "7ea06229-c827-4bd2-993e-63ebe77cd1aa",
+  "applicantId": "52563188-45b1-4b27-a576-4e5c6d47520b",
+  "checklistItemId": "62c4614e-3d7b-42fc-8f88-9c978981c97d",
+  "mime": "image/png",
+  "sizeBytes": 100,
+  "expiryDate": null,
+  "createdAt": "2026-10-14T03:41:51.677Z",
+  "viewUrl": "http://t/v1/documents/7ea06229-c827-4bd2-993e-63ebe77cd1aa/content?exp=1791949611&sig=hbxTVkrGP84iMeUVUYn1TPN4uNxb_auvPbtXshP6fWs"
+}

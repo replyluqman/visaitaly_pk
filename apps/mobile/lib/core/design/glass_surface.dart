@@ -46,7 +46,8 @@ class GlassSurface extends ConsumerWidget {
         borderRadius: br,
         border: Border.all(color: tier == PerfTier.solid ? p.strokeHairline : p.strokeGlass),
       ),
-      child: Padding(padding: padding ?? EdgeInsets.zero, child: child),
+      // A transparent Material so ListTile / InkWell children can paint their ink over the glass.
+      child: Material(type: MaterialType.transparency, child: Padding(padding: padding ?? EdgeInsets.zero, child: child)),
     );
     if (tier != PerfTier.full || strong) return ClipRRect(borderRadius: br, child: decorated);
     return ClipRRect(

@@ -53,6 +53,15 @@ class FakeAuthGateway implements AuthGateway {
     emit(AuthUser(uid: 'u1', email: email));
   }
 
+  AuthFailure? failReauth;
+  int reauthCalls = 0;
+
+  @override
+  Future<void> reauthenticate(String password) async {
+    reauthCalls++;
+    if (failReauth != null) throw failReauth!;
+  }
+
   @override
   Future<void> signOut() async {
     signOutCalls++;

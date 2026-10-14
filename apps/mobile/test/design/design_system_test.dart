@@ -118,7 +118,8 @@ void main() {
       final offenders = <String>[];
       for (final f in Directory('lib').listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart'))) {
         if (f.path.endsWith('core/design/glass_surface.dart')) continue;
-        if (f.readAsStringSync().contains('BackdropFilter')) offenders.add(f.path);
+        final code = f.readAsLinesSync().where((l) => !l.trimLeft().startsWith('//'));
+        if (code.any((l) => l.contains('BackdropFilter'))) offenders.add(f.path);
       }
       expect(offenders, isEmpty);
     });

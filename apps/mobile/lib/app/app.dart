@@ -9,6 +9,7 @@ import '../core/design/mesh_background.dart';
 import '../core/design/perf_tier.dart';
 import '../core/design/theme.dart';
 import '../core/design/tokens.dart';
+import '../features/notifications/presentation/notifications_controller.dart';
 import 'router.dart';
 
 class VisaItalyApp extends ConsumerStatefulWidget {
@@ -40,7 +41,10 @@ class _VisaItalyAppState extends ConsumerState<VisaItalyApp> with WidgetsBinding
   /// Resume after a long pause: re-fetch /v1/me so entitlement and legal state are never stale (PRD §5).
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) ref.read(sessionControllerProvider.notifier).refreshIfStale();
+    if (state == AppLifecycleState.resumed) {
+      ref.read(sessionControllerProvider.notifier).refreshIfStale();
+      ref.invalidate(unreadCountProvider); // the bell badge is cheap to refresh and goes stale while backgrounded
+    }
   }
 
   @override

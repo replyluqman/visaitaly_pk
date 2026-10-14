@@ -1,0 +1,53 @@
+{
+  "currentStage": "documents",
+  "stages": [
+    {
+      "stage": "eligibility",
+      "state": "done",
+      "itemCount": 1,
+      "readyCount": 0
+    },
+    {
+      "stage": "nulla_osta",
+      "state": "done",
+      "itemCount": 0,
+      "readyCount": 0
+    },
+    {
+      "stage": "documents",
+      "state": "current",
+      "itemCount": 3,
+      "readyCount": 0
+    },
+    {
+      "stage": "translation",
+      "state": "upcoming",
+      "itemCount": 0,
+      "readyCount": 0
+    },
+    {
+      "stage": "appointment",
+      "state": "upcoming",
+      "itemCount": 1,
+      "readyCount": 0
+    },
+    {
+      "stage": "application",
+      "state": "upcoming",
+      "itemCount": 1,
+      "readyCount": 0
+    },
+    {
+      "stage": "processing",
+      "state": "upcoming",
+      "itemCount": 0,
+      "readyCount": 0
+    },
+    {
+      "stage": "decision",
+      "state": "upcoming",
+      "itemCount": 0,
+      "readyCount": 0
+    }
+  ]
+}

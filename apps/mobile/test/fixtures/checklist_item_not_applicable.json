@@ -1,0 +1,30 @@
+{
+  "id": "e08be818-d73a-448e-aacc-4a875aa5f511",
+  "requirementCode": "birth_cert",
+  "stage": "documents",
+  "title": "birth_cert",
+  "status": "not_applicable",
+  "badges": [],
+  "notApplicableReason": "Not for your category.",
+  "translationRequired": true,
+  "apostilleRequired": false,
+  "lastVerifiedAt": "2026-10-14T03:41:51.453Z",
+  "requirementVersion": 1,
+  "documentCount": 0,
+  "updatedAt": "2026-10-14T03:41:51.525Z",
+  "applicantId": "52563188-45b1-4b27-a576-4e5c6d47520b",
+  "purpose": "why",
+  "whoProvides": null,
+  "whereToObtain": null,
+  "recommendedTiming": null,
+  "conditionNote": null,
+  "source": {
+    "name": "Test Source",
+    "url": "https://example.test/src",
+    "document": "p.12",
+    "publishedAt": null
+  },
+  "documents": [],
+  "canWrite": false,
+  "staleAfterDays": 30
+}

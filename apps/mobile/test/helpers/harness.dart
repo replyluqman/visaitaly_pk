@@ -57,3 +57,17 @@ Dio _dio(Ref ref, FakeAuthGateway auth, ScriptedAdapter adapter) => createDio(
       adapter: adapter,
       sleep: (_) async {},
     );
+
+/// Like [harness] but with a caller-supplied adapter (e.g. one that records request bodies).
+Harness harnessWith(ScriptedAdapter adapter, {AuthUser? user}) {
+  final auth = FakeAuthGateway(user: user);
+  final clock = Clock(DateTime.utc(2026, 10, 14, 12));
+  return Harness(auth, adapter, clock, [
+    appConfigProvider.overrideWithValue(testConfig),
+    authGatewayProvider.overrideWithValue(auth),
+    appInfoProvider.overrideWithValue(testAppInfo),
+    deviceIdStoreProvider.overrideWithValue(FakeDeviceIdStore()),
+    clockProvider.overrideWithValue(clock.call),
+    dioProvider.overrideWith((ref) => _dio(ref, auth, adapter)),
+  ]);
+}

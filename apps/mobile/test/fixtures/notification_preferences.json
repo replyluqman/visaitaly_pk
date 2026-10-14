@@ -1,0 +1,7 @@
+{
+  "push": {
+    "reminder": true,
+    "update": true,
+    "activity": true
+  }
+}

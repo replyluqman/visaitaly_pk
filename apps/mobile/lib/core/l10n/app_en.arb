@@ -188,5 +188,399 @@
         "type": "int"
       }
     }
-  }
+  },
+  "navHome": "Home",
+  "navToday": "Today",
+  "navDocuments": "Documents",
+  "navAccount": "Account",
+  "bellLabel": "Notifications",
+  "bellLabelUnread": "{count, plural, =1{1 unread notification} other{{count} unread notifications}}",
+  "@bellLabelUnread": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeQuickDocuments": "My documents",
+  "homeQuickSupport": "Support",
+  "homeQuickVerify": "How we verify",
+  "homeCombined": "Combined readiness",
+  "homeApplicantsHeading": "Applicants",
+  "caseTitle": "Your case",
+  "casePersonalization": "{total} requirements · {specific} specific to {category} category · {na} not applicable to you",
+  "@casePersonalization": {
+    "placeholders": {
+      "total": {
+        "type": "int"
+      },
+      "specific": {
+        "type": "int"
+      },
+      "category": {
+        "type": "String"
+      },
+      "na": {
+        "type": "int"
+      }
+    }
+  },
+  "categorySpouse": "Spouse",
+  "categoryChild": "Child",
+  "categoryParent": "Parent",
+  "caseSearchHint": "Search your checklist",
+  "filterAll": "All",
+  "filterBlocking": "Blocking",
+  "filterTranslation": "Translation",
+  "filterApostille": "Apostille",
+  "filterStatus": "Status",
+  "caseNoResults": "No items match your search or filters.",
+  "caseJourney": "Journey timeline",
+  "caseVerify": "How we verify",
+  "caseLockedMore": "+{count} more documents",
+  "@caseLockedMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "caseLockedBody": "The rest of your checklist is part of Premium.",
+  "nullaCardTitle": "Nulla Osta",
+  "nullaIssued": "Issued {date}",
+  "nullaExpires": "Expires {date}",
+  "nullaNoDates": "No dates recorded yet.",
+  "nullaDaysLeft": "{days, plural, =0{Expires today} =1{1 day left} other{{days} days left}}",
+  "@nullaDaysLeft": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "nullaExpiredAgo": "Expired {days, plural, =1{1 day ago} other{{days} days ago}}",
+  "@nullaExpiredAgo": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "paywallTitle": "Part of Premium",
+  "paywallBody": "Your free preview covers the first items. The rest of your checklist, Today and document reminders are included with Premium.",
+  "paywallVerify": "How we verify",
+  "paywallAsk": "Ask a pre-sales question",
+  "paywallNoPurchase": "Purchasing is not available in the app yet.",
+  "itemWhy": "Why it's needed",
+  "itemWho": "Who provides it",
+  "itemWhere": "Where to obtain it",
+  "itemTiming": "Recommended timing",
+  "itemCondition": "When it applies",
+  "itemTranslation": "Translation may be required",
+  "itemApostille": "Apostille may be required",
+  "itemStatus": "Status",
+  "itemSource": "Official source",
+  "itemOpenSource": "Open source",
+  "itemVerifyFooter": "Verify with official source",
+  "itemSourceFailed": "Couldn't open the link.",
+  "itemReadOnly": "You can view this item but not change it.",
+  "itemAckHint": "This item changed while you were away. Please check it, then confirm.",
+  "itemAckButton": "I've reviewed this",
+  "itemDocuments": "Documents",
+  "itemAddDocument": "Add a document",
+  "itemNoDocuments": "No documents yet.",
+  "itemDeleteDocument": "Delete",
+  "itemDeleteConfirm": "Delete this document?",
+  "itemDeleted": "Document deleted",
+  "itemUploadFailed": "Couldn't upload the file. Please try again.",
+  "itemPickFailed": "Couldn't read that file.",
+  "itemUploading": "Uploading…",
+  "itemStatusSaved": "Saved",
+  "journeyTitle": "Journey",
+  "journeyDone": "Done",
+  "journeyCurrent": "You are here",
+  "journeyUpcoming": "Up next",
+  "journeyItems": "{ready} of {count} ready",
+  "@journeyItems": {
+    "placeholders": {
+      "ready": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "premiumRequired": "This is part of Premium.",
+  "todayTitle": "Today",
+  "todayItemFallback": "An item",
+  "todayExpiringDoc": "{title} expires {date}",
+  "@todayExpiringDoc": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "todayNullaExpires": "Nulla Osta expires {date}",
+  "@todayNullaExpires": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "todayBlocking": "{title} is blocking submission",
+  "@todayBlocking": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "todayIssue": "Issue found: {title}",
+  "@todayIssue": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "todayInProgress": "Continue: {title}",
+  "@todayInProgress": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "todayNotStarted": "Start: {title}",
+  "@todayNotStarted": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "todayAllClear": "Nothing needs you today",
+  "todayAllClearNext": "Nothing needs you today — next stage: {stage}",
+  "@todayAllClearNext": {
+    "placeholders": {
+      "stage": {
+        "type": "String"
+      }
+    }
+  },
+  "todayPreparing": "We're preparing your list. Please check back soon.",
+  "todayFor": "For {name}",
+  "@todayFor": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "docsTitle": "My documents",
+  "docsEmpty": "Start with your passport — it's needed at every stage",
+  "docsUpload": "Upload a document",
+  "docsPickApplicant": "Whose document is this?",
+  "docsQuota": "{used} of {max} used",
+  "@docsQuota": {
+    "placeholders": {
+      "used": {
+        "type": "String"
+      },
+      "max": {
+        "type": "String"
+      }
+    }
+  },
+  "docsLinked": "Linked to a checklist item",
+  "docsUnlinked": "Not linked to an item",
+  "docsExpires": "Expires {date}",
+  "@docsExpires": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "docsFilterEveryone": "Everyone",
+  "notifTitle": "Notifications",
+  "tabReminders": "Reminders",
+  "tabUpdates": "Updates",
+  "tabActivity": "Activity",
+  "notifEmpty": "You're up to date. We check official sources daily.",
+  "notifMarkAll": "Mark all as read",
+  "verifyTitle": "How we verify",
+  "verifyIntro": "Every requirement in this app is linked to an official source. Here is how we keep it current.",
+  "verifyPoint1": "Each requirement is linked to the official source it comes from.",
+  "verifyPoint2": "We check those sources every day for changes.",
+  "verifyPoint3": "When something changes, we re-verify it before you see it, and tell you what changed.",
+  "verifyPoint4": "Every item shows when it was last verified.",
+  "verifyTracked": "{count} requirements tracked",
+  "@verifyTracked": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "verifyLinked": "{percent}% linked to an official source",
+  "@verifyLinked": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "verifyLastSweep": "Last check: {when}",
+  "@verifyLastSweep": {
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  },
+  "verifyNoSweep": "Not checked yet",
+  "verifyFlags": "{count, plural, =0{No sources under review} =1{1 source under review} other{{count} sources under review}}",
+  "@verifyFlags": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "verifyRecent": "Recent updates",
+  "verifyNoRecent": "No updates yet.",
+  "verifyEffective": "Effective {date}",
+  "@verifyEffective": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "supportTitle": "Support",
+  "supportSlaBy": "We aim to reply by {deadline}",
+  "@supportSlaBy": {
+    "placeholders": {
+      "deadline": {
+        "type": "String"
+      }
+    }
+  },
+  "supportHours": "Working hours: {hours}",
+  "@supportHours": {
+    "placeholders": {
+      "hours": {
+        "type": "String"
+      }
+    }
+  },
+  "supportPickTopic": "Choose a topic to start",
+  "supportInputHint": "Write a message",
+  "supportSend": "Send",
+  "supportAttach": "Attach an image",
+  "supportAttached": "Image attached",
+  "supportRemoveAttachment": "Remove",
+  "supportClosed": "This conversation is closed. Sending a message reopens it.",
+  "supportUnread": "New reply",
+  "supportDisclaimer": "Support can explain how the app works and point you to our verified requirements. It can't give legal advice or tell you whether you will qualify.",
+  "supportTopicLocked": "More topics are available with Premium.",
+  "topicPayment": "Payment",
+  "topicOrder": "Order",
+  "topicCourier": "Courier",
+  "topicRefund": "Refund",
+  "topicAccount": "Account or device",
+  "topicAppProblem": "App problem",
+  "topicPresales": "Pre-sales question",
+  "supportYou": "You",
+  "supportTeam": "VisaItaly PK support",
+  "supportLoadOlder": "Load earlier messages",
+  "supportOpenImage": "View image",
+  "accountTitle": "Account",
+  "accountLanguage": "Language",
+  "accountLanguageValue": "English",
+  "accountVersion": "App version {version}",
+  "@accountVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "accountNotifications": "Push notifications",
+  "accountPrivacy": "Privacy",
+  "accountDevices": "Active devices",
+  "accountDevicesNote": "Up to {max} devices can be signed in at once.",
+  "@accountDevicesNote": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "accountThisDevice": "This device",
+  "accountSignOutDevice": "Sign out",
+  "accountLegal": "Legal documents",
+  "accountLegalAccepted": "Accepted",
+  "accountVisualEffects": "Reduce visual effects",
+  "accountVisualEffectsNote": "Turns off blur and background effects. Helps on older phones.",
+  "consentAnalytics": "Usage analytics",
+  "consentCrash": "Crash reports",
+  "consentMarketing": "Marketing messages",
+  "accountExport": "Download my data",
+  "accountExportRequested": "Your export is being prepared.",
+  "accountExportReady": "Your export is ready.",
+  "accountExportDownload": "Download",
+  "accountExportExpired": "Request a new export",
+  "accountExportFailed": "The export failed. Please request it again.",
+  "accountDelete": "Delete my account",
+  "accountDeleteTitle": "Delete your account?",
+  "accountDeleteBody": "This permanently deletes your profile, applicants, checklists and documents. It cannot be undone.",
+  "accountDeleteConfirm": "Delete everything",
+  "accountDeleting": "Your account is being deleted.",
+  "accountReauthTitle": "Confirm it's you",
+  "accountReauthBody": "Enter your password to continue.",
+  "accountReauthWrong": "That password is incorrect.",
+  "accountSignOut": "Sign out",
+  "eligTitle": "Quick check",
+  "eligIntro": "Answer a few questions to see what applications like yours typically involve. No account needed.",
+  "eligStart": "Start",
+  "eligNext": "Next",
+  "eligBack": "Back",
+  "eligSeeResult": "See the result",
+  "eligSkip": "Skip for now",
+  "eligResultTitle": "What applications like yours typically involve",
+  "eligLocked": "+{count} more items in a full checklist",
+  "@eligLocked": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "eligCreate": "Create an account",
+  "eligWhatsapp": "Ask a pre-sales question on WhatsApp",
+  "eligStale": "The questions were updated. Please start again.",
+  "eligUnavailable": "The quick check isn't available right now.",
+  "eligProgress": "Question {current} of {total}",
+  "@eligProgress": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "nullaPhraseReceived": "Nulla Osta received",
+  "nullaPhraseInProcess": "Nulla Osta in process",
+  "nullaPhraseNotStarted": "Nulla Osta not started",
+  "homeHeroTitle": "Combined readiness"
 }

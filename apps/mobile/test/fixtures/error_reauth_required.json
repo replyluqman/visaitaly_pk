@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "REAUTH_REQUIRED",
+    "message": "Please sign in again to confirm this action.",
+    "requestId": "a89c07e6-3a4d-4c80-8d99-eb4c44365e86"
+  }
+}

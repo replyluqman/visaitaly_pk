@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 
 /// Error codes are the contract: branch on [ApiError.code], never on the message (docs/API-CONTRACT.md).
@@ -16,6 +18,13 @@ abstract final class ApiCodes {
   static const conflict = 'CONFLICT';
   static const rateLimited = 'RATE_LIMITED';
   static const appUpdateRequired = 'APP_UPDATE_REQUIRED';
+  static const premiumRequired = 'PREMIUM_REQUIRED';
+  static const checklistConflict = 'CHECKLIST_CONFLICT';
+  static const uploadTooLarge = 'UPLOAD_TOO_LARGE';
+  static const uploadQuotaExceeded = 'UPLOAD_QUOTA_EXCEEDED';
+  static const uploadRejected = 'UPLOAD_REJECTED';
+  static const supportTopicNotAllowed = 'SUPPORT_TOPIC_NOT_ALLOWED';
+  static const reauthRequired = 'REAUTH_REQUIRED';
   static const internal = 'INTERNAL';
 
   /// Client-only: no response was received (offline, timeout, DNS).
@@ -60,7 +69,15 @@ class ApiError implements Exception {
     if (res == null) {
       return ApiError(code: ApiCodes.network, message: 'No connection.', requestId: null);
     }
-    final data = res.data;
+    var data = res.data;
+    // Requests made with ResponseType.plain / bytes (signed-URL transfers) deliver the error body undecoded.
+    if (data is String) {
+      try {
+        data = jsonDecode(data);
+      } on FormatException {
+        // not JSON (e.g. an HTML error page from a proxy) — handled as a non-contract body below
+      }
+    }
     final body = data is Map ? data['error'] : null;
     if (body is Map) {
       final raw = body['code'];
@@ -73,7 +90,7 @@ class ApiError implements Exception {
         });
       }
       return ApiError(
-        code: raw is String && ApiCodes.known.contains(raw) ? code : ApiCodes.internal,
+        code: code,
         message: body['message'] is String ? body['message'] as String : 'Something went wrong.',
         details: details,
         requestId: body['requestId'] is String ? body['requestId'] as String : res.headers.value('x-request-id'),
