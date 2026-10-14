@@ -1,3 +1,4 @@
+# Version-update PRs are disabled (limit 0). Security updates are unaffected.
 version: 2
 updates:
   # pnpm uses the "npm" ecosystem. One PR for all minor/patch bumps per week;
@@ -9,9 +10,10 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 0
