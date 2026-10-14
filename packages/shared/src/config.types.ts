@@ -34,7 +34,7 @@ export const CONFIG_SCHEMAS = {
   verification: z
     .object({
       hash_sweep_batch: int(1, 45), fetch_timeout_ms: int(1_000, 25_000), max_body_bytes: int(10_000, 10_000_000),
-      failure_alert_after: int(1, 100), recheck_after_hours: int(1, 720),
+      failure_alert_after: int(1, 100), recheck_after_hours: int(1, 720), stale_days: int(1, 365),
     })
     .strict(),
   notifications: z

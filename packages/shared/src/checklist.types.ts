@@ -89,6 +89,8 @@ export interface ChecklistItemDetail extends ChecklistItem {
   } | null;
   documents: Document[];
   canWrite: boolean;
+  /** Config (`verification.stale_days`): the "Verified N days ago" stamp turns amber beyond this. */
+  staleAfterDays: number;
 }
 
 export interface ChecklistResponse {

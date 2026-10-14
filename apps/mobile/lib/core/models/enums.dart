@@ -46,3 +46,13 @@ String wire(Enum e) {
   final n = e.name;
   return n.replaceAllMapped(RegExp('[A-Z]'), (m) => '_${m[0]!.toLowerCase()}');
 }
+
+/// Checklist statuses (PRD §12). Only the first four are stored/writable; `notApplicable` is derived by the server.
+@JsonEnum(fieldRename: FieldRename.snake)
+enum ItemStatus { notStarted, inProgress, ready, issueFound, notApplicable, unknown }
+
+@JsonEnum(fieldRename: FieldRename.snake)
+enum ItemBadge { blocking, needsReview, sourceUnderReview, unknown }
+
+/// Statuses a client may write (everything except the derived ones).
+const writableStatuses = [ItemStatus.notStarted, ItemStatus.inProgress, ItemStatus.ready, ItemStatus.issueFound];

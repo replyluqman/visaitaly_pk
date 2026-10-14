@@ -91,6 +91,8 @@ export interface VerificationConfigValue {
   failure_alert_after: number;
   /** A source is re-checked once it has gone this long without a check (the sweep runs every tick). */
   recheck_after_hours: number;
+  /** The "Verified N days ago" stamp turns amber beyond this many days (shown to users on item detail). */
+  stale_days: number;
 }
 
 export const VERIFICATION_CONFIG_FALLBACK: VerificationConfigValue = {
@@ -99,6 +101,7 @@ export const VERIFICATION_CONFIG_FALLBACK: VerificationConfigValue = {
   max_body_bytes: 2_000_000,
   failure_alert_after: 3,
   recheck_after_hours: 20,
+  stale_days: 30,
 };
 
 /** app_config['notifications'] */

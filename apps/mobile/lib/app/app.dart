@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/l10n/app_localizations.dart';
 import '../core/providers.dart';
+import '../core/design/mesh_background.dart';
+import '../core/design/perf_tier.dart';
+import '../core/design/theme.dart';
+import '../core/design/tokens.dart';
 import 'router.dart';
 
 class VisaItalyApp extends ConsumerStatefulWidget {
@@ -18,11 +23,17 @@ class _VisaItalyAppState extends ConsumerState<VisaItalyApp> with WidgetsBinding
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // The tier is decided from the device when its provider first builds; the frame monitor can only lower it.
+    _frames = FrameDropMonitor(onDowngrade: () => ref.read(perfTierProvider.notifier).downgradeToLite());
+    SchedulerBinding.instance.addTimingsCallback(_frames.onTimings);
   }
+
+  late final FrameDropMonitor _frames;
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    SchedulerBinding.instance.removeTimingsCallback(_frames.onTimings);
     super.dispose();
   }
 
@@ -37,7 +48,12 @@ class _VisaItalyAppState extends ConsumerState<VisaItalyApp> with WidgetsBinding
     return MaterialApp.router(
       onGenerateTitle: (c) => AppLocalizations.of(c).appName,
       routerConfig: ref.watch(routerProvider),
-      theme: ThemeData(colorSchemeSeed: const Color(0xFF0B6E4F), useMaterial3: true),
+      theme: buildTheme(Brightness.light),
+      darkTheme: buildTheme(Brightness.dark),
+      builder: (context, child) => MediaQuery.withClampedTextScaling(
+        maxScaleFactor: VipType.maxScale, // OS font scale is honoured up to 1.3×
+        child: MeshBackground(child: child ?? const SizedBox.shrink()),
+      ),
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,

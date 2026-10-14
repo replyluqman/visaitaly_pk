@@ -160,5 +160,33 @@
   "updateTitle": "Update needed",
   "updateBody": "This version of the app is no longer supported. Please update to keep using it. Your account and data are safe.",
   "updateButton": "Update on Google Play",
-  "updateFailed": "Couldn't open Google Play. Please update from the Play Store."
+  "updateFailed": "Couldn't open Google Play. Please update from the Play Store.",
+  "statusNotStarted": "Not started",
+  "statusInProgress": "In progress",
+  "statusReady": "Ready",
+  "statusIssueFound": "Issue found",
+  "statusNotApplicable": "Not applicable",
+  "badgeBlocking": "Blocking submission",
+  "badgeNeedsReview": "Needs review",
+  "badgeSourceUnderReview": "Source updated — under review",
+  "verifiedDaysAgo": "{days, plural, =0{Verified today} =1{Verified 1 day ago} other{Verified {days} days ago}}",
+  "@verifiedDaysAgo": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "verifiedNever": "Not verified yet",
+  "readinessSemantics": "{percent} percent ready, {blocking, plural, =0{nothing blocking} =1{1 item blocking submission} other{{blocking} items blocking submission}}",
+  "@readinessSemantics": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      },
+      "blocking": {
+        "type": "int"
+      }
+    }
+  }
 }

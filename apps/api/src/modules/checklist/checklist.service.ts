@@ -16,7 +16,7 @@ import {
 } from '@visaitaly/shared';
 import type { Db } from '../../db/client.js';
 import { AppError } from '../../lib/errors.js';
-import { CHECKLIST_CONFIG_FALLBACK, readConfig } from '../../lib/app-config.js';
+import { CHECKLIST_CONFIG_FALLBACK, VERIFICATION_CONFIG_FALLBACK, readConfig } from '../../lib/app-config.js';
 import { DOC_COLUMNS, toDocument, type DocumentRow } from '../documents/document.mapper.js';
 import { requirementApplies } from './applicability.js';
 import {
@@ -331,10 +331,11 @@ export async function getChecklistItem(
      WHERE d.applicant_requirement_id = ${itemId}::uuid AND d.user_id = ${userId} AND d.status = 'active'
      ORDER BY d.created_at, d.id
   `);
-  return toDetail(row, gate, docs.rows.map((d) => toDocument(d)));
+  const verification = await readConfig(db, 'verification', VERIFICATION_CONFIG_FALLBACK);
+  return toDetail(row, gate, docs.rows.map((d) => toDocument(d)), verification.stale_days);
 }
 
-function toDetail(r: DetailRow, gate: AccessInputs, documents: Document[]): ChecklistItemDetail {
+function toDetail(r: DetailRow, gate: AccessInputs, documents: Document[], staleAfterDays: number): ChecklistItemDetail {
   return {
     ...toItem(r),
     purpose: r.purpose,
@@ -352,6 +353,7 @@ function toDetail(r: DetailRow, gate: AccessInputs, documents: Document[]): Chec
       : null,
     documents,
     canWrite: r.is_applicable && resolveAccess(gate).canWrite,
+    staleAfterDays,
   };
 }
 
