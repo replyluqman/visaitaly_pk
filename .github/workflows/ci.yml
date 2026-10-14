@@ -33,7 +33,7 @@ jobs:
           --health-cmd "pg_isready -U postgres"
           --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # the immutability check needs the merge base
       - uses: pnpm/action-setup@v4
@@ -130,7 +130,7 @@ jobs:
     environment: staging
     concurrency: deploy-staging
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version-file: .node-version, cache: pnpm }
@@ -157,7 +157,7 @@ jobs:
     environment: production
     concurrency: deploy-production
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version-file: .node-version, cache: pnpm }
