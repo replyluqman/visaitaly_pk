@@ -155,12 +155,15 @@ class _ResultView extends ConsumerWidget {
       Text(result.summary, key: const Key('eligSummary'), style: VipType.body),
       const SizedBox(height: Sp.l),
       for (final i in result.typicalItems)
-        Card(
-          child: ListTile(
-            key: Key('typical_${i.title}'),
-            leading: Icon(Icons.description_outlined, color: p.lagoon),
-            title: Text(i.title),
-            subtitle: i.why == null ? null : Text(i.why!),
+        Padding(
+          padding: const EdgeInsets.only(bottom: Sp.s),
+          child: Card(
+            child: ListTile(
+              key: Key('typical_${i.title}'),
+              leading: Icon(Icons.description_outlined, color: p.lagoon),
+              title: Text(i.title),
+              subtitle: i.why == null ? null : Text(i.why!),
+            ),
           ),
         ),
       if (result.lockedCount > 0)
@@ -169,7 +172,7 @@ class _ResultView extends ConsumerWidget {
       FilledButton(key: const Key('eligCreate'), onPressed: onCreate, child: Text(l.eligCreate)),
       if (result.whatsappUrl != null) ...[
         const SizedBox(height: Sp.s),
-        OutlinedButton(key: const Key('eligWhatsapp'), onPressed: () => ref.read(urlOpenerProvider)(Uri.parse(result.whatsappUrl!)), child: Text(l.eligWhatsapp)),
+        OutlinedButton(key: const Key('eligWhatsapp'), onPressed: () => ref.read(urlOpenerProvider)(Uri.parse(result.whatsappUrl!)), child: Text(l.eligWhatsapp, textAlign: TextAlign.center)),
       ],
       const SizedBox(height: Sp.xl),
       GlassSurface(

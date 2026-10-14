@@ -146,9 +146,11 @@ class _Body extends ConsumerWidget {
                 label: Text(statusStyle(context, s).label),
                 avatar: Icon(statusStyle(context, s).icon, size: 18, color: statusStyle(context, s).color),
                 selected: item.status == s,
-                onSelected: (!writable || actions.isLoading || item.status == s)
+                // The current status stays an enabled (selected) chip — a disabled look would read as "unavailable".
+                onSelected: (!writable || actions.isLoading)
                     ? null
                     : (_) {
+                        if (item.status == s) return;
                         Haptics.light();
                         ref.read(itemActionsProvider.notifier).setStatus(item, s);
                       },

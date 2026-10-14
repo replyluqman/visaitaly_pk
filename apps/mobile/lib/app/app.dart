@@ -50,6 +50,7 @@ class _VisaItalyAppState extends ConsumerState<VisaItalyApp> with WidgetsBinding
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
+      debugShowCheckedModeBanner: false,
       onGenerateTitle: (c) => AppLocalizations.of(c).appName,
       routerConfig: ref.watch(routerProvider),
       theme: buildTheme(Brightness.light),
