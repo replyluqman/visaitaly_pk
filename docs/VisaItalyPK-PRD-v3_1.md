@@ -28,6 +28,7 @@ Stack, pricing, entitlement model, and legal posture are **unchanged**. All chan
 | 18 | Lawyer review scope **extended to all user-facing copy**; Copy Rules made enforceable |
 | 20 | MVP scope updated: support, notification centre, refund requests, eligibility check |
 | 24 | Open items updated |
+| 4 *(errata 2026-10-14)* | Firebase Auth is **not** unlimited/free at any scale: free to 50k MAU only. Login is email + password, no SMS. Auth exit plan added (ADR 0013). Stack otherwise unchanged. |
 
 ---
 
@@ -97,7 +98,7 @@ Applicants struggle because requirements are fragmented across sources, differ b
 | API | Cloudflare Workers | 100k req/day | Flat cheap paid tier ($5/mo → 10M req) |
 | DB connection | Cloudflare Hyperdrive | Included in all Workers plans | Cloudflare-recommended for Neon; pooling + query routing |
 | Storage | Cloudflare R2 | 10 GB | **Zero egress fees** — the real long-term cost saver |
-| Auth | Firebase Auth | Unlimited users | Never becomes a cost line |
+| Auth | Firebase Auth (email + password; no SMS/phone auth) | **Free up to 50,000 MAU**, then per-MAU pricing (tiered; verified 2026-10-14 — see ADR 0013) | Not free at scale: ≈$275/mo at 100k MAU. Exit plan to native Workers auth in ADR 0013, trigger ≈35k MAU |
 | Auth-in-Workers | `firebase-auth-cloudflare-workers` + `@hono/firebase-auth` | Free | Zero-dependency, Web Standard APIs only |
 | Cron | Cloudflare Cron Triggers | Free | Bundled with Workers |
 | CMS hosting | Cloudflare Pages | Free | Next.js admin |

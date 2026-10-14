@@ -29,7 +29,7 @@ module, and record test results in it.
 | Router | Hono |
 | DB | Postgres (Neon) via Cloudflare Hyperdrive — mandatory, PRD §4 |
 | ORM | Drizzle (`drizzle-orm/node-postgres` + `pg`) |
-| Auth | Firebase, via `firebase-auth-cloudflare-workers` |
+| Auth | Firebase email + password, via `firebase-auth-cloudflare-workers` — no SMS/phone/anonymous/social, no custom claims; planned exit to native auth at ≈35k MAU (`docs/adr/0013-auth-exit-plan.md`) |
 | Storage | R2 (zero egress) |
 | Validation | zod, schemas exported from `@visaitaly/shared` |
 | Monorepo | pnpm workspaces |
@@ -91,6 +91,13 @@ Cross-module calls go service → service, never routes → routes.
    local-midnight `Date` and shifts the day.
 10. **Case generation runs in the same transaction as the stage write.** Either both
     land or both roll back — never a half-generated case.
+
+## Auth rules (ADR 0013)
+
+- Outside the auth module, identity is `users.id` only — never `firebase_uid`.
+- Token verification stays behind one interface so a second issuer can be added.
+- The Eligibility Quick Check needs no account and no token.
+- The ADR 0013 migration-readiness checklist is part of the build, not a later project.
 
 ## Data access rules
 

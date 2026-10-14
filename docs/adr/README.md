@@ -10,7 +10,7 @@ Status values: `Proposed` · `Accepted` · `Superseded by NNNN` · `Rejected`.
 |---|---|---|
 | 0001 | Cloudflare Workers + Hono for the API | Accepted (PRD §4) |
 | 0002 | Neon via Hyperdrive, `pg` + Drizzle, one client per request | Accepted (PRD §4) |
-| 0003 | Firebase for identity only; entitlement lives in Neon | Accepted (PRD §5) |
+| 0003 | Firebase for identity only; entitlement lives in Neon | Accepted (PRD §5); amended by 0013 |
 | 0004 | App-level device sessions and eviction | Accepted |
 | 0005 | Custom SQL migration runner, expand → backfill → contract | Accepted |
 | 0006 | Unauthorised access returns 404, never 403 | Accepted |
@@ -20,6 +20,7 @@ Status values: `Proposed` · `Accepted` · `Superseded by NNNN` · `Rejected`.
 | 0010 | Checklist engine data design (Module 3) | Accepted (built on owner instruction; revisit by superseding) |
 | 0011 | Three environments with per-env bindings | Proposed — re-confirm |
 | 0012 | Admin identity (separate Firebase project), RBAC scopes, audit log | Accepted |
+| 0013 | Firebase Auth now (email + password), planned exit to native Workers auth (≥35k MAU) | Accepted |
 
 ## Template
 

@@ -1,0 +1,13 @@
+# Every path needs review from the owner. Enforced only when branch protection
+# on main has "Require review from Code Owners" turned on.
+*                                   @replyluqman
+
+# High-risk paths — listed explicitly so a future team split keeps them guarded.
+/apps/api/migrations/               @replyluqman
+/apps/api/src/middleware/           @replyluqman
+/apps/api/src/lib/firebase.ts       @replyluqman
+/apps/api/wrangler.toml             @replyluqman
+/apps/api/scripts/                  @replyluqman
+/packages/shared/src/errors.ts      @replyluqman
+/.github/                           @replyluqman
+/.claude/                           @replyluqman

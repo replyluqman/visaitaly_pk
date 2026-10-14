@@ -112,3 +112,11 @@ doc, including "none found".
 - [ ] Rate limiting live at the Cloudflare edge
 - [ ] A written GDPR delete procedure exists and has been executed once on a
       test account, end to end, including R2 objects
+
+## Auth (ADR 0013)
+
+- Firebase email/password only. Enable Firebase email-enumeration protection and
+  password policy in the console; confirm current options when configuring.
+- Never log tokens or email addresses.
+- At migration to native auth: Turnstile on signup, per-account login throttle, hashing
+  chosen by measured CPU, lazy email verification — see ADR 0013.

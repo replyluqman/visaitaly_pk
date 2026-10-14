@@ -1,5 +1,5 @@
 # 0003 — Firebase for identity only; entitlement lives in Neon
-Status: Accepted (PRD §5) | Date: 2026-09
+Status: Accepted (PRD §5) — amended by 0013 (cost, email+password only, exit plan) | Date: 2026-09
 
 ## Context
 Entitlement written in several systems causes "paid but not unlocked" desync.
