@@ -1,5 +1,10 @@
 # State — Modules 1–5, 8, 10a/10b (incl. 3b, 3c, 4a, 4b) built and gated · Module 6 (payments) BLOCKED on owner decision O1
 
+## Phase 10 — Flutter screens F2 (done, unbuilt on Android)
+
+`apps/mobile/MODULE-F2-SCREENS.md`. Design system (glass-lite, perf tiers) + Screens 2, 8–15, 25, 29 on top of F1. **179 Flutter tests**, 330 API tests; additive API changes (`staleAfterDays`, `applicantId`; migration 0016).
+Not built: Screens 16–24, 26–28 (need Modules 6/7/9 → owner decision O1), offline queue, push registration, Urdu. **Not verified:** any device run, visual review, low-end frame timing, TalkBack.
+
 ## Phase 9 — ADR 0013 migration-readiness (done)
 
 Migrations `0014` (users.auth_provider / email_verified) and `0015` (app_config.app.min_app_version). **330 API tests + 77 Flutter tests**; round-trip identical (15 migrations); Gate 4 passes.

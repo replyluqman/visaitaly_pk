@@ -261,6 +261,7 @@ Rules the client relies on:
   `clientMutationAt`, the change is **not applied**, the item gets the `needs_review` badge and the call returns
   `CHECKLIST_CONFLICT`. Re-fetch the item; clear with `acknowledge-review`.
 - `badges`: `blocking` (blocks submission and not ready), `needs_review`, `source_under_review` (open hash flag on its source).
+- `ChecklistItemDetail` also carries `applicantId` and `staleAfterDays` (config `verification.stale_days`; the "Verified N days ago" stamp turns amber beyond it).
 - `documentCount` is the number of active documents on the item; `ChecklistItemDetail.documents` lists them (no `viewUrl` — fetch `GET /v1/documents/:id`).
 - The list is ordered by journey stage then `sort_order`; the cursor is opaque. Pagination is keyset on
   `(stage_order, sort_order, id)` — the one documented deviation from the `(created_at, id)` rule.

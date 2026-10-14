@@ -58,4 +58,4 @@ iOS · Urdu · payment gateway · live courier tracking · WhatsApp reminders ·
 collaboration · more visa categories/countries.
 
 
-**Flutter:** F1 skeleton + Screens 1, 3–8 built (`apps/mobile/MODULE-F1-SKELETON.md`, 68 tests). Android build, Firebase and staging integration are unverified. Remaining screens follow the backend modules above.
+**Flutter:** F2 screens built for everything the backend supports (`apps/mobile/MODULE-F2-SCREENS.md`, 179 tests); payments / services / referral screens wait for Modules 6/7/9. F1 skeleton + Screens 1, 3–8 built (`apps/mobile/MODULE-F1-SKELETON.md`, 68 tests). Android build, Firebase and staging integration are unverified. Remaining screens follow the backend modules above.

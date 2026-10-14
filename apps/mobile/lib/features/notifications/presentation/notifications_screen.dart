@@ -101,7 +101,7 @@ class _TabListState extends ConsumerState<_TabList> {
     if (state.items.isEmpty) {
       return RefreshIndicator(
         onRefresh: notifier.refresh,
-        child: ListView(children: [EmptyState(key: Key('empty_${widget.tab.name}'), icon: Icons.notifications_none, message: l.notifEmpty)]),
+        child: ListView(physics: const AlwaysScrollableScrollPhysics(), children: [EmptyState(key: Key('empty_${widget.tab.name}'), icon: Icons.notifications_none, message: l.notifEmpty)]),
       );
     }
     final hasUnread = state.items.any((n) => n.readAt == null);
@@ -109,6 +109,7 @@ class _TabListState extends ConsumerState<_TabList> {
       onRefresh: notifier.refresh,
       child: ListView.separated(
         controller: _scroll,
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(Sp.gutter),
         itemCount: state.items.length + 1,
         separatorBuilder: (_, _) => const SizedBox(height: Sp.s),

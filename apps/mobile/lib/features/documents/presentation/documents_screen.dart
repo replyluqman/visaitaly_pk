@@ -108,15 +108,16 @@ class _DocumentsScreenState extends ConsumerState<DocumentsScreen> {
             child: docs.loadingFirst
                 ? const Center(child: CircularProgressIndicator())
                 : docs.error != null && docs.items.isEmpty
-                    ? ListView(children: [
+                    ? ListView(physics: const AlwaysScrollableScrollPhysics(), children: [
                         const SizedBox(height: Sp.x4),
                         Center(child: Text(errorText(l, docs.error!))),
                         Center(child: TextButton(onPressed: () => ref.read(documentsProvider(_applicantId).notifier).refresh(), child: Text(l.commonRetry))),
                       ])
                     : docs.items.isEmpty
-                        ? ListView(children: [EmptyState(key: const Key('docsEmpty'), icon: Icons.folder_open, message: l.docsEmpty)])
+                        ? ListView(physics: const AlwaysScrollableScrollPhysics(), children: [EmptyState(key: const Key('docsEmpty'), icon: Icons.folder_open, message: l.docsEmpty)])
                         : ListView.separated(
                             controller: _scroll,
+                            physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.fromLTRB(Sp.gutter, Sp.s, Sp.gutter, 96),
                             itemCount: docs.items.length + 1,
                             separatorBuilder: (_, _) => const SizedBox(height: Sp.s),

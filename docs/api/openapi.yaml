@@ -1163,6 +1163,8 @@ components:
                 publishedAt: { type: [string, 'null'], format: date }
             documents: { type: array, items: { $ref: '#/components/schemas/Document' } }
             canWrite: { type: boolean }
+            applicantId: { type: string, format: uuid, description: The applicant this item belongs to }
+            staleAfterDays: { type: integer, description: 'Config verification.stale_days — the Verified stamp turns amber beyond this' }
     ChecklistResponse:
       type: object
       properties:

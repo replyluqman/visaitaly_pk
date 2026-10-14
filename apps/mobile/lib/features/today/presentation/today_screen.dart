@@ -58,7 +58,7 @@ class TodayScreen extends ConsumerWidget {
                   message: l.premiumRequired,
                   action: FilledButton(onPressed: () => showPaywallPreview(context), child: Text(l.paywallTitle)),
                 )
-              : ListView(children: [
+              : ListView(physics: const AlwaysScrollableScrollPhysics(), children: [
                   const SizedBox(height: Sp.x4),
                   Center(child: Text(errorText(l, e))),
                   Center(child: TextButton(onPressed: () => ref.invalidate(todayProvider), child: Text(l.commonRetry))),
@@ -66,6 +66,7 @@ class TodayScreen extends ConsumerWidget {
           data: (t) {
             if (t.actions.isNotEmpty) {
               return ListView.separated(
+                physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(Sp.gutter),
                 itemCount: t.actions.length,
                 separatorBuilder: (_, _) => const SizedBox(height: Sp.s),
@@ -101,10 +102,10 @@ class TodayScreen extends ConsumerWidget {
             }
             // Nothing to list. "Not computed yet" and "all clear" are different answers and must not be conflated.
             if (t.allClear == null) {
-              return ListView(children: [EmptyState(key: const Key('todayPreparing'), icon: Icons.hourglass_empty, message: l.todayPreparing)]);
+              return ListView(physics: const AlwaysScrollableScrollPhysics(), children: [EmptyState(key: const Key('todayPreparing'), icon: Icons.hourglass_empty, message: l.todayPreparing)]);
             }
             final next = t.allClear!.nextStage;
-            return ListView(children: [
+            return ListView(physics: const AlwaysScrollableScrollPhysics(), children: [
               EmptyState(
                 key: const Key('todayAllClear'),
                 icon: Icons.check_circle_outline,
