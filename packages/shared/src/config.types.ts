@@ -11,6 +11,8 @@ const int = (min: number, max: number) => z.number().int().min(min).max(max);
 
 export const CONFIG_SCHEMAS = {
   auth: z.object({ max_active_devices: int(1, 10) }).strict(),
+  /** Raising this above the newest published build locks every user out until they update — see ADR 0013. */
+  app: z.object({ min_app_version: z.string().regex(/^\d{1,5}\.\d{1,5}\.\d{1,5}$/, 'Use major.minor.patch, e.g. 1.4.0.') }).strict(),
   onboarding: z.object({ max_applicants: int(1, 50) }).strict(),
   nulla_osta: z.object({ validity_months: int(1, 36), expiry_warning_days: int(1, 365) }).strict(),
   checklist: z.object({ free_preview_items: int(0, 100) }).strict(),

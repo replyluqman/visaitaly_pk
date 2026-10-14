@@ -40,12 +40,12 @@ is **unmeasured**; scrypt/argon2 are not in Web Crypto (argon2 only via WASM).
    chosen by a **CPU measurement spike** on a real Worker — not by assumption.
 
 ## Migration-readiness checklist (build with Modules 1–3)
-- [ ] `users.id` (uuid) is the only identity used outside the auth module; `firebase_uid` never appears in any API response or other table.
-- [ ] Migration (expand step): `users.auth_provider text NOT NULL DEFAULT 'firebase'` (`firebase|native`) and `users.email_verified boolean NOT NULL DEFAULT false`, with `.down.sql`.
-- [ ] Token verification behind one interface returning `{ subject, email, emailVerified }`; middleware accepts multiple issuers (`iss`) so both token types can work during transition.
-- [ ] Flutter: login behind an `AuthRepository` interface; no Firebase types leak into features.
-- [ ] No Firebase custom claims, phone auth, anonymous auth, or social providers anywhere.
-- [ ] Minimum-app-version check (server flag in `app_config` + client enforcement) so old clients can be forced to update at cutover.
+- [x] `users.id` (uuid) is the only identity used outside the auth module; `firebase_uid` never appears in any API response or other table. *(verified 2026-10-14: it appears only in auth, admin, privacy-erasure and middleware code)*
+- [x] *(0014, built)* Migration (expand step): `users.auth_provider text NOT NULL DEFAULT 'firebase'` (`firebase|native`) and `users.email_verified boolean NOT NULL DEFAULT false`, with `.down.sql`.
+- [ ] *(still open — needed only when the second issuer is added)* Token verification behind one interface returning `{ subject, email, emailVerified }`; middleware accepts multiple issuers (`iss`) so both token types can work during transition.
+- [x] Flutter: login behind an interface — `AuthGateway` (F1); the Firebase SDK is imported only by `FirebaseAuthGateway` and `bootstrap`.
+- [x] No Firebase custom claims, phone auth, anonymous auth, or social providers anywhere. *(the client offers email + password only)*
+- [x] *(0015, built)* Minimum-app-version check (server flag in `app_config` + client enforcement) so old clients can be forced to update at cutover. Server: 426 at session registration; client: update screen, plus `/v1/me` carries `app.minAppVersion` for running builds. **Not built:** per-request enforcement (a build that never re-registers is only caught by `/me` on its next launch/resume).
 - [ ] Firebase MAU watched monthly (Firebase/Identity Platform usage page); alert at 30,000.
 
 ## Migration paths (documented, not built)

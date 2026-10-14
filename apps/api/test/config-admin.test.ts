@@ -92,6 +92,18 @@ describe('PUT /v1/admin/config/:key', () => {
     expect(await q(`SELECT 1 FROM audit_log WHERE action='config.update'`)).toHaveLength(0);
   });
 
+  it('app (minimum version): major.minor.patch only; a valid value is audited and then enforced at login', async () => {
+    const a = await admin({ scopes: ['pricing_config'] });
+    for (const v of ['2', '2.0', 'v2.0.0', '2.0.0-beta', '']) {
+      expect([v, (await a.call('PUT', '/v1/admin/config/app', { value: { min_app_version: v } })).status]).toEqual([v, 422]);
+    }
+    expect((await a.call('PUT', '/v1/admin/config/app', { value: { min_app_version: '3.1.0', extra: 1 } })).status).toBe(422);
+    expect((await a.call('PUT', '/v1/admin/config/app', { value: { min_app_version: '3.1.0' } })).status).toBe(200);
+    expect(await valueOf('app')).toEqual({ min_app_version: '3.1.0' });
+    const r = await call('POST', '/v1/auth/session', { uid: 'cfg-u', email: 'c@example.com', body: { deviceId: '33333333-3333-4333-8333-333333333333', platform: 'android', appVersion: '3.0.9' } });
+    expect(r.status).toBe(426);
+  });
+
   it('unknown key → 422 (not a way to create arbitrary settings)', async () => {
     const a = await admin({ isSuper: true });
     expect((await a.call('PUT', '/v1/admin/config/stripe_secret', { value: { a: 1 } })).status).toBe(422);

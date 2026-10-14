@@ -187,6 +187,13 @@ export const SLA_CONFIG_FALLBACK: SlaConfigValue = {
   working_hours_text: undefined,
 };
 
+/** app_config['app'] (ADR 0013) */
+export interface AppVersionConfigValue {
+  /** Oldest app build allowed to register a session. "0.0.0" blocks nobody. */
+  min_app_version: string;
+}
+export const APP_VERSION_CONFIG_FALLBACK: AppVersionConfigValue = { min_app_version: '0.0.0' };
+
 export const AUTH_CONFIG_FALLBACK: AuthConfigValue = { max_active_devices: 2 };
 export const ONBOARDING_CONFIG_FALLBACK: OnboardingConfigValue = { max_applicants: 10 };
 export const CHECKLIST_CONFIG_FALLBACK: ChecklistConfigValue = { free_preview_items: 3 };
@@ -209,6 +216,7 @@ export interface AppConfigMap {
   privacy: PrivacyConfigValue;
   support: SupportConfigValue;
   sla: SlaConfigValue;
+  app: AppVersionConfigValue;
 }
 
 export type AppConfigKey = keyof AppConfigMap;

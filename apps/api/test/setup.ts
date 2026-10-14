@@ -14,7 +14,7 @@ vi.mock('../src/lib/firebase.js', async (orig) => {
     verifyFirebaseIdToken: async (header: string | undefined) => {
       if (!header) throw AppError.unauthenticated('Missing Authorization header.');
       const jwt = header.replace(/^Bearer\s+/i, '').trim();
-      const [prefix, uid, email, name, authAge] = jwt.split(':');
+      const [prefix, uid, email, name, authAge, unverified] = jwt.split(':');
       if (prefix !== 'test' || !uid) {
         throw AppError.unauthenticated('Session expired. Please sign in again.');
       }
@@ -22,7 +22,7 @@ vi.mock('../src/lib/firebase.js', async (orig) => {
         uid,
         email: email ? email.toLowerCase() : null,
         displayName: name || null,
-        emailVerified: true,
+        emailVerified: unverified !== '1',
         authTime: Math.floor(Date.now() / 1000) - Number(authAge || 10),
       };
     },

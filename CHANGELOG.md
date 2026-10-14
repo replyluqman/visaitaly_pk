@@ -37,6 +37,8 @@ Rule: any change to `docs/API-CONTRACT.md` gets a line here, and anything that b
 
 - **Module 10b — config editor + admin overview.** `GET /v1/admin/overview` (scoped queue counts, SLA breaches), `GET /v1/admin/config`, `PUT /v1/admin/config/:key` (strict per-key schemas in `@visaitaly/shared`, before/after audited, copy screened). No migration, no new error codes.
 
+- **ADR 0013 migration-readiness.** `users.auth_provider` (`firebase|native`) and `users.email_verified` (migration `0014`, expand-only); `app_config['app'].min_app_version` (migration `0015`, default `0.0.0`). `POST /v1/auth/session` from a build below it → **426 `APP_UPDATE_REQUIRED`** before any write. `MeResponse` gains `user.emailVerified` and `app.minAppVersion` (additive). Config editor accepts the `app` key. Flutter: blocking update screen (the user stays signed in).
+
 ### Fixed
 - **Foreign keys covered only by partial indexes** (`applicants.user_id`, `documents.user_id/applicant_id/applicant_requirement_id`, `source_flags.source_id`) made erasure and cascades seq-scan; unconditional indexes added (0012) and the CI/preflight FK audit now rejects partial-only coverage.
 - Drizzle `sql` expanded JS arrays into a record, breaking `text[]` writes (CMS `appliesLocations` / `requiresNullaOstaStatus`) — `pgArray()` helper; regression-tested.

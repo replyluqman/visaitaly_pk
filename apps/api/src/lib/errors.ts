@@ -21,6 +21,7 @@ const STATUS_BY_CODE: Record<ErrorCode, ContentfulStatusCode> = {
   UPLOAD_TOO_LARGE: 413,
   UPLOAD_QUOTA_EXCEEDED: 413,
   UPLOAD_REJECTED: 422,
+  APP_UPDATE_REQUIRED: 426,
   SUPPORT_TOPIC_NOT_ALLOWED: 403,
   REAUTH_REQUIRED: 401,
   ADMIN_FORBIDDEN: 403,
@@ -178,6 +179,11 @@ export class AppError extends Error {
     return new AppError(
       ErrorCode.UPLOAD_REJECTED, 'That file could not be accepted. Please upload a JPEG, PNG or PDF.',
     );
+  }
+
+  /** The app build is below the configured minimum (ADR 0013). Not session-terminal: the user stays signed in and updates. */
+  static appUpdateRequired(minVersion: string): AppError {
+    return new AppError(ErrorCode.APP_UPDATE_REQUIRED, `Please update the app to version ${minVersion} or newer to continue.`);
   }
 
   /** PRD §8: free accounts get pre-sales topics only. The client shows the upgrade path. */

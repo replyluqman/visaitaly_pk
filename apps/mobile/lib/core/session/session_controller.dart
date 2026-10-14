@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../network/api_error.dart';
+import '../version.dart';
 import '../../features/auth/data/dto/me_dto.dart';
 import '../providers.dart';
 import 'session_state.dart';
@@ -60,15 +61,25 @@ class SessionController extends Notifier<SessionState> {
         }
         _registerOnRetry = false;
         _loadedAt = ref.read(clockProvider)();
-        state = SessionReady(me);
+        state = _readyOrUpdate(me);
       } on ApiError catch (e) {
         if (state is SessionSignedOut) return; // a terminal code already ended the session
+        if (e.code == ApiCodes.appUpdateRequired) {
+          state = const SessionUpdateRequired();
+          return;
+        }
         _registerOnRetry = register;
         state = SessionFailed(e);
       } finally {
         _inFlight = null;
       }
     }();
+  }
+
+  /// Ready, unless the snapshot says this build is below the server's minimum (ADR 0013).
+  SessionState _readyOrUpdate(MeResponse me) {
+    final min = me.app.minAppVersion;
+    return isBelowMinimum(ref.read(appInfoProvider).appVersion, min) ? SessionUpdateRequired(min) : SessionReady(me);
   }
 
   /// Splash "Try again".
@@ -80,7 +91,7 @@ class SessionController extends Notifier<SessionState> {
     try {
       final me = await ref.read(authRepositoryProvider).getMe();
       _loadedAt = ref.read(clockProvider)();
-      if (state is SessionReady || state is SessionFailed) state = SessionReady(me);
+      if (state is SessionReady || state is SessionFailed || state is SessionUpdateRequired) state = _readyOrUpdate(me);
     } on ApiError {
       // terminal codes were already routed to terminate(); anything else keeps the last good snapshot
     }

@@ -9,6 +9,8 @@ import type {
 import type { Db } from '../../db/client.js';
 import { AppError } from '../../lib/errors.js';
 import type { VerifiedToken } from '../../lib/firebase.js';
+import { APP_VERSION_CONFIG_FALLBACK, readConfig } from '../../lib/app-config.js';
+import { isBelowMinimum } from '../../lib/version.js';
 
 const DEFAULT_MAX_ACTIVE_DEVICES = 2; // fallback only if app_config row is missing
 
@@ -30,10 +32,11 @@ type UserRowLite = {
  */
 async function upsertUser(db: Db, token: VerifiedToken): Promise<UserRowLite> {
   const result = await db.execute<UserRowLite>(sql`
-    INSERT INTO users (firebase_uid, email, display_name, last_login_at)
-    VALUES (${token.uid}, ${token.email}, ${token.displayName}, now())
+    INSERT INTO users (firebase_uid, email, email_verified, display_name, last_login_at)
+    VALUES (${token.uid}, ${token.email}, ${token.emailVerified}, ${token.displayName}, now())
     ON CONFLICT (firebase_uid) DO UPDATE
-      SET email         = COALESCE(EXCLUDED.email, users.email),
+      SET email          = COALESCE(EXCLUDED.email, users.email),
+          email_verified = EXCLUDED.email_verified,
           display_name  = COALESCE(users.display_name, EXCLUDED.display_name),
           last_login_at = now()
       WHERE users.status = 'active'
@@ -100,6 +103,8 @@ async function evictOverflowDevices(db: Db, userId: string, keep: number): Promi
 }
 
 type MeSnapshotRow = UserRowLite & {
+  email_verified: boolean;
+  min_app_version: string | null;
   declared_applicant_count: number | null;
   max_active_devices: number | null;
   active_device_count: number;
@@ -140,6 +145,9 @@ async function loadMeSnapshot(
       SELECT (value->>'max_active_devices')::int AS max_active_devices
         FROM app_config WHERE key = 'auth'
     ),
+    appcfg AS (
+      SELECT value->>'min_app_version' AS min_app_version FROM app_config WHERE key = 'app'
+    ),
     ent AS (
       SELECT COALESCE(array_agg(id) FILTER (WHERE bucket = 'premium'), '{}') AS premium_ids,
              COALESCE(array_agg(id) FILTER (WHERE bucket = 'grace'),   '{}') AS grace_ids
@@ -175,8 +183,9 @@ async function loadMeSnapshot(
               AND av.version  = v.version
          )
     )
-    SELECT u.id, u.email, u.display_name, u.onboarding_state, u.created_at,
+    SELECT u.id, u.email, u.email_verified, u.display_name, u.onboarding_state, u.created_at,
            u.declared_applicant_count,
+           (SELECT min_app_version FROM appcfg)   AS min_app_version,
            false AS is_new,
            (SELECT max_active_devices FROM cfg)   AS max_active_devices,
            (SELECT count(*)::int FROM devices d
@@ -212,8 +221,10 @@ function toMeResponse(row: MeSnapshotRow): MeResponse {
       email: row.email,
       displayName: row.display_name,
       onboardingState: row.onboarding_state,
+      emailVerified: row.email_verified,
       createdAt: new Date(row.created_at).toISOString(),
     },
+    app: { minAppVersion: row.min_app_version ?? APP_VERSION_CONFIG_FALLBACK.min_app_version },
     entitlement,
     devices: {
       maxActive: row.max_active_devices ?? DEFAULT_MAX_ACTIVE_DEVICES,
@@ -237,6 +248,10 @@ function toMeResponse(row: MeSnapshotRow): MeResponse {
  * is — no half-registered device that would lock the user out on the next request.
  */
 export async function registerSession(db: Db, token: VerifiedToken, input: RegisterSessionInput) {
+  // Version gate BEFORE any write: a build that is too old must not create or evict anything (ADR 0013).
+  const { min_app_version } = await readConfig(db, 'app', APP_VERSION_CONFIG_FALLBACK);
+  if (isBelowMinimum(input.appVersion, min_app_version)) throw AppError.appUpdateRequired(min_app_version);
+
   return db.transaction(async (tx) => {
     const user = await upsertUser(tx, token);
     const keep = await maxActiveDevices(tx);

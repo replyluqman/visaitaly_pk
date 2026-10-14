@@ -15,6 +15,7 @@ abstract final class ApiCodes {
   static const notFound = 'NOT_FOUND';
   static const conflict = 'CONFLICT';
   static const rateLimited = 'RATE_LIMITED';
+  static const appUpdateRequired = 'APP_UPDATE_REQUIRED';
   static const internal = 'INTERNAL';
 
   /// Client-only: no response was received (offline, timeout, DNS).
@@ -27,7 +28,7 @@ abstract final class ApiCodes {
   static const known = {
     unauthenticated, deviceUnknown, deviceEvicted, deviceSignedOut, userDeleted, legalAcceptanceRequired,
     onboardingStepInvalid, applicantLimitReached, applicantReadOnly, validationFailed, notFound, conflict,
-    rateLimited, internal, 'DEVICE_HEADER_MISSING', 'PREMIUM_REQUIRED', 'CHECKLIST_CONFLICT',
+    rateLimited, appUpdateRequired, internal, 'DEVICE_HEADER_MISSING', 'PREMIUM_REQUIRED', 'CHECKLIST_CONFLICT',
     'UPLOAD_TOO_LARGE', 'UPLOAD_QUOTA_EXCEEDED', 'UPLOAD_REJECTED', 'SUPPORT_TOPIC_NOT_ALLOWED', 'REAUTH_REQUIRED',
   };
 }

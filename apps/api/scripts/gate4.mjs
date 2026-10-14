@@ -40,6 +40,7 @@ const { rows: [ap] } = await client.query(`SELECT id FROM applicants WHERE user_
 
 const ME = `
 WITH cfg AS (SELECT (value->>'max_active_devices')::int AS m FROM app_config WHERE key='auth'),
+appcfg AS (SELECT value->>'min_app_version' AS v FROM app_config WHERE key='app'),
 ent AS (
   SELECT COALESCE(array_agg(id) FILTER (WHERE bucket='premium'),'{}') AS p,
          COALESCE(array_agg(id) FILTER (WHERE bucket='grace'),'{}') AS g
@@ -53,7 +54,7 @@ legal AS (SELECT COALESCE(array_agg(DISTINCT v.doc_type),'{}') AS pend FROM lega
            WHERE v.is_current AND v.is_mandatory AND NOT EXISTS (
              SELECT 1 FROM legal_acceptances a JOIN legal_versions av ON av.id=a.legal_version_id
               WHERE a.user_id=$1 AND av.doc_type=v.doc_type AND av.version=v.version))
-SELECT u.id, (SELECT m FROM cfg), (SELECT count(*) FROM devices d WHERE d.user_id=u.id AND d.status='active'),
+SELECT u.id, u.email_verified, (SELECT v FROM appcfg), (SELECT m FROM cfg), (SELECT count(*) FROM devices d WHERE d.user_id=u.id AND d.status='active'),
        (SELECT p FROM ent), (SELECT g FROM ent), (SELECT total FROM appl), (SELECT pend FROM legal)
   FROM users u WHERE u.id=$1`;
 

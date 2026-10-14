@@ -156,5 +156,9 @@
       }
     }
   },
-  "homeDisclaimer": "This app helps you organise your application. It is not legal advice and cannot guarantee any outcome."
+  "homeDisclaimer": "This app helps you organise your application. It is not legal advice and cannot guarantee any outcome.",
+  "updateTitle": "Update needed",
+  "updateBody": "This version of the app is no longer supported. Please update to keep using it. Your account and data are safe.",
+  "updateButton": "Update on Google Play",
+  "updateFailed": "Couldn't open Google Play. Please update from the Play Store."
 }

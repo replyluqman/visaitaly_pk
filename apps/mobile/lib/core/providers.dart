@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'app_info.dart';
 import 'auth/auth_gateway.dart';
@@ -17,6 +18,8 @@ final appConfigProvider = Provider<AppConfig>((ref) => throw UnimplementedError(
 final authGatewayProvider = Provider<AuthGateway>((ref) => throw UnimplementedError('override authGatewayProvider'));
 final appInfoProvider = Provider<AppInfo>((ref) => throw UnimplementedError('override appInfoProvider'));
 final deviceIdStoreProvider = Provider<DeviceIdStore>((ref) => SecureDeviceIdStore());
+/// Opens an external URL. Injected so tests don't need a platform channel.
+final urlOpenerProvider = Provider<Future<bool> Function(Uri)>((ref) => (uri) => launchUrl(uri, mode: LaunchMode.externalApplication));
 final clockProvider = Provider<DateTime Function()>((ref) => DateTime.now);
 
 /// The single Dio. The terminator reads the session controller lazily (at call time) so the providers do not form a cycle.

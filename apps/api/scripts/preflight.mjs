@@ -171,7 +171,7 @@ async function checkDb(client) {
   // 2d. Config keys the API reads should exist rather than falling back.
   // A fallback in production means behaviour depends on whether a row loaded.
   const { rows: cfg } = await client.query(`
-    SELECT d.key FROM (VALUES ('auth'),('onboarding'),('nulla_osta'),('checklist'),('uploads'),('today'),('verification'),('notifications'),('reminders')) AS d(key)
+    SELECT d.key FROM (VALUES ('auth'),('onboarding'),('nulla_osta'),('checklist'),('uploads'),('today'),('verification'),('notifications'),('reminders'),('privacy'),('support'),('sla'),('app')) AS d(key)
      WHERE NOT EXISTS (SELECT 1 FROM app_config c WHERE c.key = d.key)
   `);
   for (const r of cfg) warn(`app_config['${r.key}'] missing — the API will use its coded fallback.`);

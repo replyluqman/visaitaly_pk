@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { as, call, login, newUser, rawFetch as app_fetch } from './helpers/app.js';
 import { closePool, q, resetDb, seedLegal } from './helpers/db.js';
@@ -242,5 +242,65 @@ describe('X-Request-Id', () => {
     expect(err.status).toBe(401);
     const body = (await err.json()) as any;
     expect(err.headers.get('X-Request-Id')).toBe(body.error.requestId);
+  });
+});
+
+describe('ADR 0013: identity columns and the minimum-app-version gate', () => {
+  const setMin = (v: string) => q(`UPDATE app_config SET value = jsonb_build_object('min_app_version', $1::text) WHERE key = 'app'`, [v]);
+  afterEach(() => setMin('0.0.0'));
+
+  it('records auth_provider = firebase and email_verified from the token; rewrites it on the next login', async () => {
+    const u = newUser();
+    const first = await call('POST', '/v1/auth/session', {
+      uid: u.uid, email: u.email, unverified: true,
+      body: { deviceId: u.deviceId, platform: 'android', appVersion: '1.0.0' },
+    });
+    expect(first.body.user.emailVerified).toBe(false);
+    expect((await q(`SELECT auth_provider, email_verified FROM users WHERE firebase_uid=$1`, [u.uid]))[0]).toEqual({ auth_provider: 'firebase', email_verified: false });
+    const again = await login(u); // the helper's token is verified
+    expect(again.body.user.emailVerified).toBe(true);
+    expect((await q(`SELECT email_verified FROM users WHERE firebase_uid=$1`, [u.uid]))[0]).toEqual({ email_verified: true });
+    expect((await as(u)('GET', '/v1/me')).body.user.emailVerified).toBe(true);
+  });
+
+  it('auth_provider only accepts firebase|native (DB check)', async () => {
+    const u = newUser();
+    await login(u);
+    await expect(q(`UPDATE users SET auth_provider='ldap' WHERE firebase_uid=$1`, [u.uid])).rejects.toThrow(/users_auth_provider_chk/);
+    await q(`UPDATE users SET auth_provider='native' WHERE firebase_uid=$1`, [u.uid]); // allowed for the future cutover
+  });
+
+  it('/v1/me and the session response carry app.minAppVersion from config', async () => {
+    const u = newUser();
+    expect((await login(u)).body.app).toEqual({ minAppVersion: '0.0.0' });
+    await setMin('2.1.0');
+    expect((await as(u)('GET', '/v1/me')).body.app).toEqual({ minAppVersion: '2.1.0' });
+  });
+
+  it('a build below the minimum gets 426 APP_UPDATE_REQUIRED and NOTHING is written (no user, no device, no eviction)', async () => {
+    await setMin('2.0.0');
+    const u = newUser();
+    const r = await login(u, { appVersion: '1.9.9' });
+    expect(r.status).toBe(426);
+    expect(r.body.error.code).toBe('APP_UPDATE_REQUIRED');
+    expect(r.body.error.message).toContain('2.0.0');
+    expect(await q(`SELECT 1 FROM users WHERE firebase_uid=$1`, [u.uid])).toHaveLength(0);
+    expect(await q(`SELECT 1 FROM devices`)).toHaveLength(0);
+  });
+
+  it('a build at or above the minimum, a build+suffix, and an unparsable version all register', async () => {
+    await setMin('2.0.0');
+    for (const appVersion of ['2.0.0', '2.3.1+77', '3.0.0', 'not-a-version']) {
+      expect([appVersion, (await login(newUser(), { appVersion })).status]).toEqual([appVersion, 201]);
+    }
+  });
+
+  it('a too-old build does not evict an existing device', async () => {
+    const u = newUser();
+    await login(u);
+    await setMin('2.0.0');
+    const second = { ...u, deviceId: randomUUID() };
+    expect((await login(second, { appVersion: '1.0.0' })).status).toBe(426);
+    expect((await as(u)('GET', '/v1/me')).status).toBe(200); // first device still active
   });
 });

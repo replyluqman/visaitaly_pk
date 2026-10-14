@@ -976,7 +976,12 @@ components:
             email: { type: [string, 'null'] }
             displayName: { type: [string, 'null'] }
             onboardingState: { type: string, enum: [disclaimer_pending, applicants_pending, stage_pending, complete] }
+            emailVerified: { type: boolean, description: 'Identity provider verified the email (ADR 0013)' }
             createdAt: { type: string, format: date-time }
+        app:
+          type: object
+          properties:
+            minAppVersion: { type: string, description: "major.minor.patch; '0.0.0' blocks nobody. POST /v1/auth/session from an older build → 426 APP_UPDATE_REQUIRED." }
         entitlement:
           type: object
           properties:

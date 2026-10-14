@@ -50,6 +50,7 @@ only on `VALIDATION_FAILED`. Quote `requestId` in support tickets.
 | `UPLOAD_TOO_LARGE` | 413 | no | File over the per-file cap — message states it. |
 | `UPLOAD_QUOTA_EXCEEDED` | 413 | no | Storage limit reached — offer to delete files. |
 | `UPLOAD_REJECTED` | 422 | no | Object failed verification and was discarded — ask the user to re-pick. |
+| `APP_UPDATE_REQUIRED` | 426 | no | `POST /v1/auth/session` from a build older than `app_config.app.min_app_version` (ADR 0013). Nothing was written. Show the blocking update screen; do **not** sign out. |
 | `SUPPORT_TOPIC_NOT_ALLOWED` | 403 | no | Free account chose a Premium topic — show the pre-sales topics / upgrade CTA. |
 | `REAUTH_REQUIRED` | 401 | no | Re-authenticate with Firebase (password/Google), then retry the same call. Not session-terminal. |
 | `ADMIN_FORBIDDEN` | 403 | no (CMS) | Not an active admin / missing the scope — hide the screen. |
@@ -95,7 +96,8 @@ undone. Every response carries an `X-Request-Id` header (same value as `error.re
 
 ```ts
 {
-  user:        { id, email, displayName, onboardingState, createdAt },
+  user:        { id, email, displayName, onboardingState, emailVerified, createdAt },
+  app:         { minAppVersion: string },   // 'major.minor.patch'; '0.0.0' blocks nobody — a running build older than this shows the update screen
   entitlement: { premiumApplicantIds: string[], graceApplicantIds: string[], hasAnyPremium: boolean },
   devices:     { maxActive: number, activeCount: number },
   legal:       { requiresAcceptance: boolean, pendingDocTypes: ('disclaimer'|'terms'|'privacy')[] },

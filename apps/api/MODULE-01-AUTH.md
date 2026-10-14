@@ -145,3 +145,9 @@ grep -rn "verifyIdToken" node_modules/firebase-auth-cloudflare-workers/dist/*.d.
 - [x] No IP stored anywhere; no PII in logs (only `requestId`, path, method, message)
 - [ ] **Rate limiting** — not in code. Enforced at the Cloudflare edge (WAF rate-limit rule on `/v1/auth/*`, per-IP); must be configured before launch (`LAUNCH-CHECKLIST.md`). Per-user write limits deferred.
 - N/A: uploads/R2 (Module 3b)
+
+## Addendum — ADR 0013 migration-readiness (migrations 0014, 0015)
+- `users.auth_provider` (`firebase|native`, CHECK) and `users.email_verified`: expand-only, constant defaults (no backfill pass needed); `email_verified` is rewritten from the token at every login. Exposed as `user.emailVerified` on `/v1/me`.
+- Minimum app version: `app_config['app'].min_app_version` (default `0.0.0`). `registerSession` checks it **before any write** → `426 APP_UPDATE_REQUIRED` (not session-terminal); `/v1/me` returns `app.minAppVersion` so a running build can block itself. The comparison fails **open** on unparsable versions (`lib/version.ts`, mirrored in the Flutter app).
+- Tests: `test/auth.test.ts` (5 new), `test/version.test.ts`, `test/config-admin.test.ts` (the `app` key). Round-trip: 15 migrations, identical schema.
+- Not built: per-request version enforcement; the second-issuer token-verifier interface (only needed at cutover).

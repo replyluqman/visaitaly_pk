@@ -33,6 +33,13 @@ class SessionFailed extends SessionState {
   final ApiError error;
 }
 
+/// The server (or the snapshot's minAppVersion) says this build is too old. The user stays SIGNED IN — they
+/// update, they are not logged out. [minVersion] is null when only the registration error told us.
+class SessionUpdateRequired extends SessionState {
+  const SessionUpdateRequired([this.minVersion]);
+  final String? minVersion;
+}
+
 class SessionReady extends SessionState {
   const SessionReady(this.me);
   final MeResponse me;

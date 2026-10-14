@@ -1,10 +1,14 @@
 {
   "user": {
-    "id": "a43e85bb-bef9-49f6-9dea-29a4c25cb787",
-    "email": "78854ed7@example.com",
+    "id": "b9d38ba1-c82d-42c0-a1fb-633278314bc3",
+    "email": "3553580d@example.com",
     "displayName": null,
     "onboardingState": "disclaimer_pending",
-    "createdAt": "2026-10-14T01:31:09.601Z"
+    "emailVerified": true,
+    "createdAt": "2026-10-14T03:16:28.543Z"
+  },
+  "app": {
+    "minAppVersion": "0.0.0"
   },
   "entitlement": {
     "premiumApplicantIds": [],

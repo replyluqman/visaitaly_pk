@@ -76,7 +76,13 @@ export interface MeResponse {
     email: string | null;
     displayName: string | null;
     onboardingState: OnboardingState;
+    /** Whether the identity provider verified this email (used to gate payment; ADR 0013). */
+    emailVerified: boolean;
     createdAt: string;
+  };
+  /** Client-side half of the minimum-version gate: a running app older than this shows the update screen. */
+  app: {
+    minAppVersion: string;
   };
   entitlement: Entitlement;
   devices: {

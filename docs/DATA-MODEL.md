@@ -34,6 +34,8 @@ app_config (key/value, no FKs)        schema_migrations (runner bookkeeping)
 | display_name | text | user-set value is never overwritten by login |
 | onboarding_state | text NN default `disclaimer_pending` | `disclaimer_pending\|applicants_pending\|stage_pending\|complete`; server-recomputed only |
 | declared_applicant_count | smallint, 1–99 | Screen 5 intent, not a count |
+| auth_provider | text NN default `firebase` | `firebase\|native` (CHECK) — which issuer vouches for the account; `native` is for the ADR 0013 cutover (0014) |
+| email_verified | boolean NN default false | rewritten from the token at every login (0014) |
 | status | text NN `active\|deleted` | |
 | last_login_at, deleted_at, created_at, updated_at | timestamptz | |
 

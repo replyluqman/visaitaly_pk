@@ -1,7 +1,7 @@
 {
   "applicants": [
     {
-      "id": "96ce6918-5973-41d9-9324-36a5b28d12f5",
+      "id": "31ff8cb8-45f1-4c8d-aff9-4c84c19f83ee",
       "displayName": "Ayesha",
       "relationshipCode": "wife",
       "relationshipLabel": "Wife",
@@ -9,8 +9,8 @@
       "dateOfBirth": null,
       "currentLocation": "pakistan",
       "currentStage": "nulla_osta",
-      "stageUpdatedAt": "2026-10-14T01:31:09.243Z",
-      "caseGeneratedAt": "2026-10-14T01:31:09.243Z",
+      "stageUpdatedAt": "2026-10-14T03:16:28.251Z",
+      "caseGeneratedAt": "2026-10-14T03:16:28.251Z",
       "nullaOsta": {
         "status": "received",
         "issueDate": "2026-08-01",
@@ -31,7 +31,7 @@
         "notApplicableCount": 3,
         "categorySpecificCount": 1
       },
-      "createdAt": "2026-10-14T01:31:09.171Z"
+      "createdAt": "2026-10-14T03:16:28.179Z"
     }
   ],
   "maxApplicants": 10

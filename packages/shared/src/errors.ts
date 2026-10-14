@@ -27,6 +27,7 @@ export const ErrorCode = {
   UPLOAD_REJECTED: 'UPLOAD_REJECTED',             // 422 uploaded object failed size/type verification
 
   // support — added in Module 8
+  APP_UPDATE_REQUIRED: 'APP_UPDATE_REQUIRED',     // 426 app build older than app_config.app.min_app_version (ADR 0013)
   SUPPORT_TOPIC_NOT_ALLOWED: 'SUPPORT_TOPIC_NOT_ALLOWED', // 403 topic not available on this account's tier (PRD §8/§10)
 
   // account — added in Module 10a

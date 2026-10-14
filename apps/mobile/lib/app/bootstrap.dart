@@ -23,7 +23,7 @@ Future<void> bootstrap(Flavor flavor) async {
     overrides: [
       appConfigProvider.overrideWithValue(config),
       authGatewayProvider.overrideWithValue(FirebaseAuthGateway(FirebaseAuth.instance)),
-      appInfoProvider.overrideWithValue(AppInfo(platform: 'android', appVersion: pkg.version)),
+      appInfoProvider.overrideWithValue(AppInfo(platform: 'android', appVersion: pkg.version, packageName: pkg.packageName)),
     ],
     child: const VisaItalyApp(),
   ));

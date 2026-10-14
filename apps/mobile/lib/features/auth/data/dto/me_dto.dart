@@ -12,9 +12,17 @@ abstract class UserDto with _$UserDto {
     String? email,
     String? displayName,
     @JsonKey(unknownEnumValue: OnboardingState.unknown) required OnboardingState onboardingState,
+    @Default(false) bool emailVerified,
     required String createdAt,
   }) = _UserDto;
   factory UserDto.fromJson(Map<String, dynamic> json) => _$UserDtoFromJson(json);
+}
+
+/// ADR 0013: the oldest build the server still accepts. "0.0.0" blocks nobody.
+@freezed
+abstract class AppInfoDto with _$AppInfoDto {
+  const factory AppInfoDto({@Default('0.0.0') String minAppVersion}) = _AppInfoDto;
+  factory AppInfoDto.fromJson(Map<String, dynamic> json) => _$AppInfoDtoFromJson(json);
 }
 
 @freezed
@@ -57,6 +65,7 @@ abstract class ApplicantsSummaryDto with _$ApplicantsSummaryDto {
 abstract class MeResponse with _$MeResponse {
   const factory MeResponse({
     required UserDto user,
+    @Default(AppInfoDto()) AppInfoDto app,
     required EntitlementDto entitlement,
     required DevicesDto devices,
     required LegalStateDto legal,

@@ -38,6 +38,17 @@ void main() {
       expect(SessionInfoDto.fromJson(fixture('auth_session_new_user')['session'] as Map<String, dynamic>).isNewUser, isTrue);
     });
 
+    test('ADR 0013 fields: user.emailVerified and app.minAppVersion decode; old servers without them default safely', () {
+      final me = MeResponse.fromJson(fixture('me_complete'));
+      expect(me.user.emailVerified, isTrue);
+      expect(me.app.minAppVersion, '0.0.0');
+      final old = fixture('me_complete')..remove('app');
+      (old['user'] as Map<String, dynamic>).remove('emailVerified');
+      final decoded = MeResponse.fromJson(old);
+      expect(decoded.app.minAppVersion, '0.0.0'); // blocks nobody
+      expect(decoded.user.emailVerified, isFalse);
+    });
+
     test('an unknown onboarding state decodes to unknown instead of throwing', () {
       final json = fixture('me_complete');
       (json['user'] as Map<String, dynamic>)['onboardingState'] = 'brand_new_state';

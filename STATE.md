@@ -1,5 +1,10 @@
 # State — Modules 1–5, 8, 10a/10b (incl. 3b, 3c, 4a, 4b) built and gated · Module 6 (payments) BLOCKED on owner decision O1
 
+## Phase 9 — ADR 0013 migration-readiness (done)
+
+Migrations `0014` (users.auth_provider / email_verified) and `0015` (app_config.app.min_app_version). **330 API tests + 77 Flutter tests**; round-trip identical (15 migrations); Gate 4 passes.
+426 `APP_UPDATE_REQUIRED` at session registration (nothing written, user stays signed in); `/v1/me` carries `app.minAppVersion` for running builds; Flutter update screen. Still open from the ADR: token-verifier interface for a second issuer (only needed at cutover), per-request version enforcement, monthly MAU watch (ops).
+
 ## Phase 8 — Flutter skeleton F1 (done, unbuilt on Android)
 
 `apps/mobile`, `apps/mobile/MODULE-F1-SKELETON.md`. **68 Flutter tests**, analyze clean, clean-checkout verified; new CI job. Screens 1, 3–8 (splash, login, disclaimer gate, count, applicant form, stage, dashboard), server-driven router, refresh-once / single-flight sign-out, contract tests on real API output (`apps/api/test/mobile-fixtures.test.ts`).

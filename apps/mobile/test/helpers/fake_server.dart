@@ -1,6 +1,9 @@
 import 'package:dio/dio.dart';
+import 'package:visaitaly_pk/core/version.dart';
 
 import 'fakes.dart';
+
+bool isBelow(String a, String b) => isBelowMinimum(a, b);
 
 /// A stateful stand-in for the API's onboarding state machine, built from the REAL captured fixtures. It
 /// answers the way the server does (state recomputed after each write), so flow tests exercise the app's
@@ -11,6 +14,7 @@ class FakeServer {
   String onboardingState = 'disclaimer_pending';
   bool legalPending = true;
   int? declared;
+  String minAppVersion = '0.0.0';
   bool canWrite;
   int maxApplicants;
   final List<Map<String, dynamic>> applicants = [];
@@ -23,6 +27,7 @@ class FakeServer {
   Map<String, dynamic> me() {
     final m = fixture('me_complete');
     (m['user'] as Map<String, dynamic>)['onboardingState'] = onboardingState;
+    m['app'] = {'minAppVersion': minAppVersion};
     m['legal'] = {'requiresAcceptance': legalPending, 'pendingDocTypes': legalPending ? ['disclaimer'] : <String>[]};
     m['applicants'] = {
       'declaredCount': declared,
@@ -74,6 +79,9 @@ class FakeServer {
     final data = o.data is Map ? Map<String, dynamic>.from(o.data as Map) : <String, dynamic>{};
 
     if (key == 'POST /v1/auth/session') {
+      if (isBelow(data['appVersion'] as String, minAppVersion)) {
+        return reply(426, errorBody('APP_UPDATE_REQUIRED', message: 'Please update the app to version $minAppVersion or newer to continue.'));
+      }
       return reply(201, {...me(), 'session': {'evictedDeviceIds': <String>[], 'isNewUser': false}});
     }
     if (key == 'GET /v1/me') return reply(200, me());

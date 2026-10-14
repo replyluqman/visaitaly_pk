@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, smallint, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, smallint, boolean, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
 export const users = pgTable(
   'users',
@@ -15,6 +15,10 @@ export const users = pgTable(
      * lets an abandoned signup resume at the right applicant.
      */
     declaredApplicantCount: smallint('declared_applicant_count'),
+    /** Which issuer vouches for this account: 'firebase' | 'native' (ADR 0013). */
+    authProvider: text('auth_provider').notNull().default('firebase'),
+    /** Whether that issuer verified the email; rewritten from the token at each login. */
+    emailVerified: boolean('email_verified').notNull().default(false),
     /** active | deleted (GDPR soft delete — rows retained, PII cleared) */
     status: text('status').notNull().default('active'),
     lastLoginAt: timestamp('last_login_at', { withTimezone: true }),

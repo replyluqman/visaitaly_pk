@@ -9,12 +9,14 @@ import '../features/applicants/presentation/applicant_form_screen.dart';
 import '../features/applicants/presentation/stage_select_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/auth/presentation/splash_screen.dart';
+import '../features/auth/presentation/update_required_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/legal/presentation/legal_gate_screen.dart';
 import '../features/onboarding/presentation/applicant_count_screen.dart';
 
 abstract final class Routes {
   static const splash = '/splash';
+  static const update = '/update';
   static const login = '/login';
   static const legal = '/legal';
   static const count = '/onboarding/count';
@@ -35,6 +37,8 @@ String? computeRedirect(SessionState s, String location) {
       return location == Routes.splash ? null : Routes.splash;
     case SessionSignedOut():
       return location == Routes.login ? null : Routes.login;
+    case SessionUpdateRequired():
+      return location == Routes.update ? null : Routes.update;
     case SessionReady(:final me):
       String? to(String target) => location == target ? null : target;
       if (me.legal.requiresAcceptance) return to(Routes.legal);
@@ -68,6 +72,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) => computeRedirect(ref.read(sessionControllerProvider), state.matchedLocation),
     routes: [
       GoRoute(path: Routes.splash, builder: (_, _) => const SplashScreen()),
+      GoRoute(path: Routes.update, builder: (_, _) => const UpdateRequiredScreen()),
       GoRoute(path: Routes.login, builder: (_, _) => const LoginScreen()),
       GoRoute(path: Routes.legal, builder: (_, _) => const LegalGateScreen()),
       GoRoute(path: Routes.count, builder: (_, _) => const ApplicantCountScreen()),
