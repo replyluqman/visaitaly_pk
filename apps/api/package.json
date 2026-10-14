@@ -30,6 +30,6 @@
     "@types/pg": "^8.11.10",
     "typescript": "^5.6.3",
     "vitest": "^2",
-    "wrangler": "^3.91.0"
+    "wrangler": "^4.149.0"
   }
 }
