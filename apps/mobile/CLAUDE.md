@@ -1,6 +1,7 @@
 # VisaItaly PK — Flutter app brief
 
-Not started. Read before writing any Dart:
+Skeleton built (`MODULE-F1-SKELETON.md`): flavors, network, session, router guards, auth → legal → onboarding → dashboard.
+Read before writing any Dart:
 
 1. `docs/FLUTTER-ARCHITECTURE.md` — layout, layers, networking, routing (binding)
 2. `docs/API-CONTRACT.md` — every endpoint, error code and client action
@@ -33,8 +34,8 @@ A feature is done when all of the above pass and its screen states match Screens
 ## Commands
 
 ```bash
-flutter pub get
-dart run build_runner build --delete-conflicting-outputs
+flutter pub get                  # also runs gen-l10n (generated l10n + *.g.dart/*.freezed.dart are NOT committed)
+dart run build_runner build
 flutter analyze
 flutter test
 flutter test integration_test --flavor staging -t lib/main_staging.dart

@@ -1,5 +1,11 @@
 # State — Modules 1–5, 8, 10a/10b (incl. 3b, 3c, 4a, 4b) built and gated · Module 6 (payments) BLOCKED on owner decision O1
 
+## Phase 8 — Flutter skeleton F1 (done, unbuilt on Android)
+
+`apps/mobile`, `apps/mobile/MODULE-F1-SKELETON.md`. **68 Flutter tests**, analyze clean, clean-checkout verified; new CI job. Screens 1, 3–8 (splash, login, disclaimer gate, count, applicant form, stage, dashboard), server-driven router, refresh-once / single-flight sign-out, contract tests on real API output (`apps/api/test/mobile-fixtures.test.ts`).
+**Not verified here:** any Android build (no SDK), real Firebase, staging run. **Owner:** application id, 3 Firebase apps + `google-services.json`, `API_BASE_URL` per flavor.
+Next client modules: checklist/item detail/documents, Today, notifications, support, account/privacy; Eligibility Quick Check (Screen 2).
+
 ## Phase 7 — Module 10b Config editor + admin overview (done)
 
 No migration; `apps/api/MODULE-10B-CONFIG-OVERVIEW.md`. **317 tests**; Gate 4 passes (5 new queries). Editable keys are an allow-list of 12 with strict, bounded schemas; writes audited before/after; overview is scope-filtered and shows absent (not zero) for unbuilt modules.

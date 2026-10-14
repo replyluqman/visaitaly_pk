@@ -56,3 +56,6 @@ Owner actions live in `LAUNCH-CHECKLIST.md`. Engineering gates:
 
 iOS · Urdu · payment gateway · live courier tracking · WhatsApp reminders · document vault · OCR · family
 collaboration · more visa categories/countries.
+
+
+**Flutter:** F1 skeleton + Screens 1, 3–8 built (`apps/mobile/MODULE-F1-SKELETON.md`, 68 tests). Android build, Firebase and staging integration are unverified. Remaining screens follow the backend modules above.

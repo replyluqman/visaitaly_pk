@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "UNAUTHENTICATED",
+    "message": "Missing Authorization header.",
+    "requestId": "20936a4c-8f5b-4a06-a7ac-27161ce03e63"
+  }
+}

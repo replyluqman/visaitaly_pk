@@ -1,0 +1,36 @@
+{
+  "applicant": {
+    "id": "96ce6918-5973-41d9-9324-36a5b28d12f5",
+    "displayName": "Ayesha",
+    "relationshipCode": "wife",
+    "relationshipLabel": "Wife",
+    "relationshipCategory": "spouse",
+    "dateOfBirth": null,
+    "currentLocation": "pakistan",
+    "currentStage": "nulla_osta",
+    "stageUpdatedAt": "2026-10-14T01:31:09.243Z",
+    "caseGeneratedAt": "2026-10-14T01:31:09.243Z",
+    "nullaOsta": {
+      "status": "received",
+      "issueDate": "2026-08-01",
+      "expiryDate": "2027-02-01",
+      "daysRemaining": 110
+    },
+    "access": {
+      "level": "free",
+      "canWrite": true,
+      "accessUntil": null,
+      "graceUntil": null
+    },
+    "readiness": {
+      "percent": 0,
+      "applicableCount": 7,
+      "readyCount": 0,
+      "blockingCount": 3,
+      "notApplicableCount": 3,
+      "categorySpecificCount": 1
+    },
+    "createdAt": "2026-10-14T01:31:09.171Z"
+  },
+  "onboardingState": "complete"
+}

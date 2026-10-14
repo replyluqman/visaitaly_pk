@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "DEVICE_EVICTED",
+    "message": "You were signed out because this account reached its device limit.",
+    "requestId": "13b1d324-3e7e-4ccc-abfc-34dfb889ab8c"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "id": "21bcd28e-9869-4f67-99ec-0a17c761005d",
+  "docType": "disclaimer",
+  "locale": "en",
+  "version": "1.0-test",
+  "title": "Disclaimer",
+  "isMandatory": true,
+  "publishedAt": "2026-10-14T01:31:08.887Z",
+  "accepted": false,
+  "bodyMd": "test body"
+}

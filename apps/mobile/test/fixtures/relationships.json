@@ -1,0 +1,40 @@
+{
+  "relationships": [
+    {
+      "code": "wife",
+      "label": "Wife",
+      "category": "spouse",
+      "requiresDob": false
+    },
+    {
+      "code": "husband",
+      "label": "Husband",
+      "category": "spouse",
+      "requiresDob": false
+    },
+    {
+      "code": "son",
+      "label": "Son",
+      "category": "child",
+      "requiresDob": true
+    },
+    {
+      "code": "daughter",
+      "label": "Daughter",
+      "category": "child",
+      "requiresDob": true
+    },
+    {
+      "code": "mother",
+      "label": "Mother",
+      "category": "parent",
+      "requiresDob": true
+    },
+    {
+      "code": "father",
+      "label": "Father",
+      "category": "parent",
+      "requiresDob": true
+    }
+  ]
+}

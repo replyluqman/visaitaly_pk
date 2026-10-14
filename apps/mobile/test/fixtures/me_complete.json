@@ -1,0 +1,27 @@
+{
+  "user": {
+    "id": "bf53f304-2142-4272-8929-592f136adb9d",
+    "email": "2f2d8fee@example.com",
+    "displayName": null,
+    "onboardingState": "complete",
+    "createdAt": "2026-10-14T01:31:08.913Z"
+  },
+  "entitlement": {
+    "premiumApplicantIds": [],
+    "graceApplicantIds": [],
+    "hasAnyPremium": false
+  },
+  "devices": {
+    "maxActive": 2,
+    "activeCount": 1
+  },
+  "legal": {
+    "requiresAcceptance": false,
+    "pendingDocTypes": []
+  },
+  "applicants": {
+    "declaredCount": 1,
+    "total": 1,
+    "awaitingStage": 0
+  }
+}

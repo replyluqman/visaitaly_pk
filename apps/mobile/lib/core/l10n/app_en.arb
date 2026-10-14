@@ -1,0 +1,160 @@
+{
+  "@@locale": "en",
+  "appName": "VisaItaly PK",
+  "commonRetry": "Try again",
+  "commonContinue": "Continue",
+  "commonSave": "Save",
+  "commonCancel": "Cancel",
+  "commonLoading": "Loading…",
+  "errorNetwork": "No connection. Check your internet and try again.",
+  "errorGeneric": "Something went wrong. Please try again.",
+  "errorWithRef": "{message} (ref: {requestId})",
+  "@errorWithRef": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      },
+      "requestId": {
+        "type": "String"
+      }
+    }
+  },
+  "errorReadOnly": "This profile is read-only right now, so changes are turned off.",
+  "errorApplicantLimit": "You have reached the maximum number of applicants.",
+  "errorValidation": "Please check the highlighted fields.",
+  "splashTagline": "Your family reunification checklist",
+  "splashFailed": "We couldn't load your account.",
+  "loginTitle": "Sign in",
+  "signupTitle": "Create account",
+  "loginEmail": "Email",
+  "loginPassword": "Password",
+  "loginSignIn": "Sign in",
+  "loginCreate": "Create account",
+  "loginToSignup": "New here? Create an account",
+  "loginToSignin": "Already have an account? Sign in",
+  "loginInvalidEmail": "Enter a valid email address.",
+  "loginPasswordShort": "Use at least 8 characters.",
+  "authInvalidCredentials": "Email or password is incorrect.",
+  "authUserDisabled": "This account has been disabled.",
+  "authEmailInUse": "An account with this email already exists.",
+  "authWeakPassword": "Choose a stronger password.",
+  "authInvalidEmail": "That email address isn't valid.",
+  "authTooManyRequests": "Too many attempts. Please wait a moment and try again.",
+  "noticeDeviceEvicted": "You were signed out because this account reached its device limit.",
+  "noticeDeviceSignedOut": "You were signed out from another device.",
+  "noticeDeviceUnknown": "This device is no longer registered. Please sign in again.",
+  "noticeAccountDeleted": "This account has been deleted.",
+  "noticeSessionExpired": "Your session expired. Please sign in again.",
+  "legalTitle": "Before you start",
+  "legalIntro": "Please read and accept to continue.",
+  "legalAccept": "I have read and accept",
+  "legalAcceptButton": "Accept and continue",
+  "legalChanged": "These documents were updated. Please review them again.",
+  "countTitle": "Who is applying?",
+  "countQuestion": "How many family members are you applying for?",
+  "countFourPlus": "4 or more",
+  "countHowMany": "Number of applicants",
+  "applicantTitle": "Applicant details",
+  "applicantProgress": "Applicant {current} of {total}",
+  "@applicantProgress": {
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "applicantName": "Name or nickname",
+  "applicantNameRequired": "Enter a name.",
+  "applicantRelationship": "Relationship",
+  "applicantRelationshipRequired": "Choose a relationship.",
+  "applicantDob": "Date of birth",
+  "applicantDobRequired": "Date of birth is required for this relationship.",
+  "applicantDobPick": "Choose date",
+  "applicantLocation": "Where is this person now?",
+  "locationPakistan": "Pakistan",
+  "locationItaly": "Italy",
+  "locationOther": "Somewhere else",
+  "applicantNullaOsta": "Nulla Osta",
+  "nullaNotStarted": "Not started",
+  "nullaInProcess": "In process",
+  "nullaReceived": "Received",
+  "nullaNotApplicable": "Not applicable",
+  "nullaUnknown": "Unknown",
+  "stageTitle": "Where are you in the process?",
+  "stageSubtitle": "For {name}. This only sets your starting point; you can change it later.",
+  "@stageSubtitle": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "stagePlanning": "Planning",
+  "stageNoInProcess": "Nulla Osta in process",
+  "stageNoReceived": "Nulla Osta received",
+  "stageDocuments": "Documents being prepared",
+  "stageAppointment": "Appointment / waiting list",
+  "stageSubmitted": "Submitted",
+  "stageProcessing": "Processing",
+  "stageDecision": "Decision",
+  "journeyEligibility": "Eligibility",
+  "journeyNullaOsta": "Nulla Osta",
+  "journeyDocuments": "Documents",
+  "journeyTranslation": "Translation",
+  "journeyAppointment": "Appointment",
+  "journeyApplication": "Application",
+  "journeyProcessing": "Processing",
+  "journeyDecision": "Decision",
+  "journeyUnknown": "Not set",
+  "homeTitle": "Your family",
+  "homeEmpty": "No applicants yet.",
+  "homeAddApplicant": "Add applicant",
+  "homeLimit": "You can add up to {max} applicants.",
+  "@homeLimit": {
+    "placeholders": {
+      "max": {
+        "type": "int"
+      }
+    }
+  },
+  "homeSignOut": "Sign out",
+  "homeReadiness": "{percent}% ready",
+  "@homeReadiness": {
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
+  },
+  "homeBlocking": "{count, plural, =0{Nothing blocking} =1{1 item blocking submission} other{{count} items blocking submission}}",
+  "@homeBlocking": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "homeCasePreparing": "Your checklist is being prepared.",
+  "homeReadOnlyBanner": "Read-only: your access period has ended, so changes are turned off.",
+  "homeGraceBanner": "Your access is in its read-only grace period.",
+  "homeNullaExpires": "Nulla Osta: {days, plural, =0{expires today} =1{1 day left} other{{days} days left}}",
+  "@homeNullaExpires": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "homeNullaExpired": "Nulla Osta expired {days, plural, =1{1 day ago} other{{days} days ago}}",
+  "@homeNullaExpired": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "homeDisclaimer": "This app helps you organise your application. It is not legal advice and cannot guarantee any outcome."
+}

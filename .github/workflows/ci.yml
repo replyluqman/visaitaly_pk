@@ -18,6 +18,26 @@ permissions:
   contents: read
 
 jobs:
+  mobile:
+    name: Flutter · analyze · test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.7
+          cache: true
+      # Generated code (freezed / json_serializable / l10n) is not committed.
+      - run: flutter pub get
+      - run: dart run build_runner build
+      - run: flutter analyze
+      - run: flutter test
+
   check:
     name: Typecheck · contract · config · migrations
     runs-on: ubuntu-latest

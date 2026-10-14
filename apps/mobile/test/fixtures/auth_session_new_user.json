@@ -1,0 +1,33 @@
+{
+  "user": {
+    "id": "bf53f304-2142-4272-8929-592f136adb9d",
+    "email": "2f2d8fee@example.com",
+    "displayName": null,
+    "onboardingState": "disclaimer_pending",
+    "createdAt": "2026-10-14T01:31:08.913Z"
+  },
+  "entitlement": {
+    "premiumApplicantIds": [],
+    "graceApplicantIds": [],
+    "hasAnyPremium": false
+  },
+  "devices": {
+    "maxActive": 2,
+    "activeCount": 1
+  },
+  "legal": {
+    "requiresAcceptance": true,
+    "pendingDocTypes": [
+      "disclaimer"
+    ]
+  },
+  "applicants": {
+    "declaredCount": null,
+    "total": 0,
+    "awaitingStage": 0
+  },
+  "session": {
+    "evictedDeviceIds": [],
+    "isNewUser": true
+  }
+}
