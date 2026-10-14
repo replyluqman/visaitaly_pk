@@ -426,7 +426,7 @@ describe('dev seed', () => {
   it('every dev template carries the placeholder marker (so preflight blocks it) and covers every type', async () => {
     const { readFileSync } = await import('node:fs');
     const sqlText = readFileSync(new URL('../seed/seed_dev_notifications.sql', import.meta.url), 'utf8');
-    const rules = JSON.parse(readFileSync(new URL('../copy-rules.json', import.meta.url), 'utf8')) as { placeholderMarker: string };
+    const rules = JSON.parse(readFileSync(new URL('../src/lib/copy-rules.json', import.meta.url), 'utf8')) as { placeholderMarker: string };
     const types = Object.keys(JSON.parse(readFileSync(new URL('../src/lib/notification-types.json', import.meta.url), 'utf8'))).filter((t) => !t.startsWith('_'));
     for (const t of types) expect(sqlText).toContain(`('${t}'`);
     const rows = sqlText.split('\n').filter((l) => l.trim().startsWith("('"));
@@ -454,7 +454,7 @@ describe('retention + jobs', () => {
     const boom: PushSender = { send: async () => { throw new Error('fcm exploded'); } };
     const report = await withDb((db) => runScheduledJobs(db, { store, pushSender: boom }));
     expect(Object.keys(report)).toEqual([
-      'requirement_updates', 'reminders', 'push', 'erasures', 'exports', 'next_actions', 'source_hash_sweep', 'document_retention', 'notification_retention',
+      'requirement_updates', 'reminders', 'push', 'erasures', 'exports', 'next_actions', 'source_hash_sweep', 'document_retention', 'notification_retention', 'support_retention',
     ]);
     expect(report.push).toEqual({ ok: false, error: 'fcm exploded' });
     for (const k of ['requirement_updates', 'reminders', 'erasures', 'exports', 'next_actions', 'source_hash_sweep', 'document_retention', 'notification_retention']) {

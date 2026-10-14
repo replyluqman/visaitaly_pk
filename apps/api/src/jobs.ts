@@ -7,6 +7,7 @@ import { purgeStaleDocuments } from './modules/documents/documents.service.js';
 import {
   dispatchPush, dispatchRequirementUpdates, generateReminders, purgeReadNotifications,
 } from './modules/notifications/notifications.service.js';
+import { purgeSupport } from './modules/support/support.service.js';
 import { processErasures, processExports } from './modules/privacy/privacy.service.js';
 import { refreshNextActions } from './modules/today/today.service.js';
 
@@ -43,6 +44,7 @@ export async function runScheduledJobs(db: Db, deps: JobDeps): Promise<JobReport
     ['source_hash_sweep', () => sweepSources(db, deps.fetcher)],
     ['document_retention', () => purgeStaleDocuments(db, deps.store)],
     ['notification_retention', () => purgeReadNotifications(db)],
+    ['support_retention', () => purgeSupport(db, deps.store)],
   ];
   const report: JobReport = {};
   for (const [name, run] of jobs) {

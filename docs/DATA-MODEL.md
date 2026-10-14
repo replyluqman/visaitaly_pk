@@ -122,6 +122,12 @@ link, `is_current` (at most one). Content is CMS/seed only.
 `data_requests` (export/erasure; no FK on `user_id`; 6-year retention; one open export and one erasure per user), `consents` PK `(user_id, purpose)`; `legal_versions` gains an FK to `admins`
 and an immutability trigger; `users_email_lower_idx` (case lookup). **A foreign key needs an unconditional index** — partial indexes do not count (CI/preflight audit).
 
+### Support (0013) — see `apps/api/MODULE-08-SUPPORT.md`
+`support_threads` (one per user; status open|awaiting_support|awaiting_user|closed; `sla_due_at` exists **iff** awaiting_support — CHECK), `support_messages` (sender user|admin|system, body ≤ 4000, topic, `user_id` denormalised so ownership is one-table;
+a user message never carries an admin id — CHECK), `support_attachments` (jpeg/png; pending|attached|deleted), `canned_responses` (code, English body with placeholders). Config: `support`, `sla` (`working_hours_text` is CMS copy, no default).
+Indexes: SLA inbox `(sla_due_at, id) WHERE awaiting_support`, `(status, last_message_at DESC, id)`, thread view `(thread_id, created_at, id)`, unread partial, FK covers (all unconditional). `messages.order_id` has no FK until Module 6.
+Retention: **closed threads deleted `support.retention_months` (24) after the last message** with their R2 attachments; abandoned uploads after 2× the upload TTL. Included in account erasure and the data export.
+
 ### Notifications (0010) — see `apps/api/MODULE-05-NOTIFICATIONS.md`
 `notification_templates` PK `(type, locale)` (CMS/seed content), `notifications` (tab, type, rendered title/body, mandatory `deep_link`, `payload`, unique `(user_id, dedupe_key)`,
 `push_sent_at`/`push_attempts`, `read_at`; ≈ 1M rows/year), `notification_preferences` PK `(user_id, tab, channel)` (in-app cannot be disabled), `notification_dispatch`
@@ -204,6 +210,7 @@ CI asserts every FK has a covering index (leading column).
 | requirements, sources | tens–low hundreds | CMS catalogue; archived, never deleted |
 | source_flags | a few per source per year | resolved rows purged after 24 months |
 | data_requests | tens per 1,000 users | 6 years (proof of compliance) |
+| support_messages | ≈ 10 per support user per year | closed threads deleted 24 months after last message (Cron) |
 | notifications | ≈ 1M / year | read rows deleted after 90 days (batched Cron); unread kept |
 | requirement_versions | tens–hundreds | forever (legal-defence record) |
 | audit_log | ≈ 0.5M / year at a busy-admin volume | 12 months hot (trigger-enforced), then R2 archive |

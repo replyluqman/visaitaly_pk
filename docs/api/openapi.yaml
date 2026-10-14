@@ -584,29 +584,66 @@ paths:
   /v1/support/thread:
     get:
       tags: [support]
-      summary: The user's single thread + SLA (Screen 25)
-      x-status: planned
+      summary: The user's single thread, SLA deadline and allowed topics (Screen 25)
+      x-status: live
       x-module: 8
       responses:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/SupportThread' } } } }
   /v1/support/messages:
     get:
       tags: [support]
-      x-status: planned
+      summary: Messages, newest first (keyset)
+      x-status: live
       x-module: 8
       parameters: [ { $ref: '#/components/parameters/Cursor' }, { $ref: '#/components/parameters/Limit' } ]
       responses:
         '200': { description: ok, content: { application/json: { schema: { $ref: '#/components/schemas/SupportMessageList' } } } }
     post:
       tags: [support]
-      summary: Send. Free users limited to presales topics (PRD §8). Idempotent on clientRequestId.
-      x-status: planned
+      summary: Send. Free accounts are limited to the config topics (PRD §8); hourly rate limit. NOT idempotent — the client disables resend until the response.
+      x-status: live
       x-module: 8
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateSupportMessageInput' } } } }
       responses:
         '201': { description: created, content: { application/json: { schema: { $ref: '#/components/schemas/SupportMessage' } } } }
         '403': { description: 'SUPPORT_TOPIC_NOT_ALLOWED' }
         '429': { $ref: '#/components/responses/RateLimited' }
+  /v1/support/read:
+    post:
+      tags: [support]
+      summary: Opening the thread marks admin replies read
+      x-status: live
+      x-module: 8
+      responses: { '204': { description: marked } }
+  /v1/support/attachments/upload-url:
+    post:
+      tags: [support]
+      summary: Reserve a jpeg/png attachment; returns a signed PUT URL (Worker-mediated, like documents)
+      x-status: live
+      x-module: 8
+      responses: { '200': { description: ok } }
+  /v1/support/attachments/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [support]
+      summary: Short-lived signed view URL for the user's own attachment (404 otherwise)
+      x-status: live
+      x-module: 8
+      responses: { '200': { description: ok } }
+  /v1/support/attachments/{id}/content:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    put:
+      tags: [support]
+      summary: Capability URL (signature + expiry, no session). Verified by size + magic bytes on send.
+      x-status: live
+      x-module: 8
+      responses: { '204': { description: stored }, '404': { description: opaque } }
+    get:
+      tags: [support]
+      summary: Capability URL view (no session)
+      x-status: live
+      x-module: 8
+      responses: { '200': { description: bytes }, '404': { description: opaque } }
 
   # ───────────────────────────────────────── referral
   /v1/referral:
@@ -778,14 +815,34 @@ paths:
   /v1/admin/source-flags/{id}/resolve:
     parameters: [ { $ref: '#/components/parameters/Id' } ]
     post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [verification_manage], x-status: live, x-module: "4b", responses: { '200': { description: ok } } }
+  /v1/admin/support/summary:
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [support_manage], summary: 'Awaiting / breached / unassigned counts', x-status: live, x-module: 8, responses: { '200': { description: ok } } }
   /v1/admin/support/threads:
-    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [support_manage], summary: SLA-sorted inbox, x-status: planned, x-module: 8, responses: { '200': { description: ok } } }
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [support_manage], summary: 'Inbox: awaiting_support sorted by SLA deadline, other states by activity (keyset)', x-status: live, x-module: 8, responses: { '200': { description: ok } } }
+  /v1/admin/support/threads/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [support_manage], summary: 'Thread, messages (keyset) and the user context', x-status: live, x-module: 8, responses: { '200': { description: ok } } }
   /v1/admin/support/threads/{id}/messages:
     parameters: [ { $ref: '#/components/parameters/Id' } ]
-    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [support_manage], description: 'Body OR cannedResponseId. Audit-logged.', x-status: planned, x-module: 8, responses: { '201': { description: created } } }
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [support_manage], summary: 'Reply: free text (needs a topic; verdict phrases rejected) OR cannedResponseId (rendered from real context). Audited without the body.', x-status: live, x-module: 8, responses: { '201': { description: created } } }
+  /v1/admin/support/threads/{id}/assign:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [support_manage], summary: 'Assign / unassign', x-status: live, x-module: 8, responses: { '200': { description: ok } } }
+  /v1/admin/support/threads/{id}/close:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [support_manage], summary: 'Close (audited)', x-status: live, x-module: 8, responses: { '200': { description: ok } } }
+  /v1/admin/support/threads/{id}/reopen:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [support_manage], summary: 'Reopen (audited)', x-status: live, x-module: 8, responses: { '200': { description: ok } } }
+  /v1/admin/support/attachments/{id}/url:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [support_manage], summary: 'Signed view URL for an attachment', x-status: live, x-module: 8, responses: { '200': { description: ok } } }
   /v1/admin/canned-responses:
-    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [support_manage], x-status: planned, x-module: 8, responses: { '200': { description: ok } } }
-    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [support_manage], x-status: planned, x-module: 8, responses: { '201': { description: created } } }
+    get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [support_manage], summary: 'List (?active=true)', x-status: live, x-module: 8, responses: { '200': { description: ok } } }
+    post: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [support_manage], summary: 'Create; English body required; placeholders validated', x-status: live, x-module: 8, responses: { '201': { description: created } } }
+  /v1/admin/canned-responses/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    patch: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [support_manage], summary: 'Edit / deactivate', x-status: live, x-module: 8, responses: { '200': { description: ok } } }
   /v1/admin/refunds:
     get: { tags: [admin], security: [ { firebaseAdmin: [] } ], x-scope: [refund_manage], x-status: planned, x-module: 6, responses: { '200': { description: ok } } }
   /v1/admin/refunds/{id}/decide:
@@ -1367,7 +1424,6 @@ components:
       properties:
         reasonCode: { type: string }
         note: { type: string, maxLength: 1000 }
-        clientRequestId: { type: string, format: uuid }
     RefundRequest:
       type: object
       properties:
@@ -1388,25 +1444,23 @@ components:
     SupportThread:
       type: object
       properties:
-        id: { type: string, format: uuid }
-        status: { type: string, enum: [open, awaiting_support, awaiting_user, closed] }
+        status: { type: string, enum: [none, open, awaiting_support, awaiting_user, closed] }
         tier: { type: string, enum: [free, paid] }
-        replyDueAt: { type: [string, 'null'], format: date-time }
-        workingHoursText: { type: string }
+        slaDueAt: { type: [string, 'null'], format: date-time, description: Working-hours-computed deadline; null unless awaiting_support }
+        workingHoursText: { type: [string, 'null'], description: CMS copy shown beside every SLA statement }
         allowedTopics: { type: array, items: { type: string } }
         unreadCount: { type: integer }
-        disclaimer: { type: string }
     SupportMessage:
       type: object
       properties:
         id: { type: string, format: uuid }
         senderType: { type: string, enum: [user, admin, system] }
         body: { type: string }
-        topic: { type: string }
-        requirementLink: { type: [object, 'null'], properties: { checklistDeepLink: { type: string }, title: { type: string } } }
-        attachment: { type: [object, 'null'], properties: { mime: { type: string }, viewUrl: { type: string } } }
-        orderId: { type: [string, 'null'], format: uuid }
+        topic: { type: [string, 'null'] }
+        applicantId: { type: [string, 'null'], format: uuid }
+        attachment: { type: [object, 'null'], properties: { id: { type: string, format: uuid }, mime: { type: string } } }
         createdAt: { type: string, format: date-time }
+        readByUserAt: { type: [string, 'null'], format: date-time }
     SupportMessageList:
       type: object
       properties:
@@ -1414,14 +1468,12 @@ components:
         nextCursor: { type: [string, 'null'] }
     CreateSupportMessageInput:
       type: object
-      required: [body, topic, clientRequestId]
+      required: [topic]
       properties:
-        body: { type: string, minLength: 1, maxLength: 4000 }
+        body: { type: string, maxLength: 4000, description: Required unless attachmentId is given }
         topic: { type: string, enum: [payment, order, courier, refund, account, app_problem, presales] }
-        orderId: { type: string, format: uuid }
         applicantId: { type: string, format: uuid }
         attachmentId: { type: string, format: uuid }
-        clientRequestId: { type: string, format: uuid }
 
     ReferralSummary:
       type: object

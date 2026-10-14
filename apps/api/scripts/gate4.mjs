@@ -176,6 +176,40 @@ const QUERIES = {
   'privacy: erasure — tombstone users row': [`UPDATE users SET email = NULL, display_name = NULL, firebase_uid = 'deleted:' || id::text WHERE id = $1`, [u.id]],
   'legal admin: acceptances keyset': [`SELECT id, user_id, accepted_at FROM legal_acceptances WHERE legal_version_id = (SELECT id FROM legal_versions LIMIT 1) AND (accepted_at, id) > ('2000-01-01', '00000000-0000-0000-0000-000000000000'::uuid) ORDER BY accepted_at, id LIMIT 51`, []],
   'legal admin: acceptance count': [`SELECT count(*)::int FROM legal_acceptances WHERE legal_version_id = (SELECT id FROM legal_versions LIMIT 1)`, []],
+  'support: my thread + unread (user)': [`
+    SELECT t.id, t.status, t.sla_due_at,
+           (SELECT count(*)::int FROM support_messages m WHERE m.thread_id = t.id AND m.sender_type = 'admin' AND m.read_by_user_at IS NULL)
+      FROM support_threads t WHERE t.user_id = $1`, [u.id]],
+  'support: my messages page (keyset)': [`
+    SELECT m.id, m.body, m.created_at::text,
+           (SELECT a.id FROM support_attachments a WHERE a.message_id = m.id AND a.status = 'attached' LIMIT 1)
+      FROM support_messages m
+     WHERE m.thread_id = (SELECT id FROM support_threads WHERE user_id = $1) AND m.user_id = $1
+       AND (m.created_at, m.id) < (now(), 'ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid)
+     ORDER BY m.created_at DESC, m.id DESC LIMIT 31`, [u.id]],
+  'support: hourly rate-limit probe': [`
+    SELECT count(*)::int FROM support_messages WHERE user_id = $1 AND sender_type = 'user' AND created_at > now() - interval '1 hour'`, [u.id]],
+  'support: attachment ownership': [`
+    SELECT 1 FROM support_attachments WHERE id = (SELECT id FROM support_attachments LIMIT 1) AND user_id = $1 AND status = 'attached'`, [u.id]],
+  'support admin: SLA inbox (awaiting_support, by deadline)': [`
+    SELECT t.id, t.sla_due_at, (t.sla_due_at < now()),
+           (SELECT left(m.body, 120) FROM support_messages m WHERE m.thread_id = t.id AND m.sender_type = 'user' ORDER BY m.created_at DESC, m.id DESC LIMIT 1)
+      FROM support_threads t WHERE t.status = 'awaiting_support' ORDER BY t.sla_due_at, t.id LIMIT 31`, []],
+  'support admin: SLA inbox keyset + unassigned': [`
+    SELECT t.id FROM support_threads t WHERE t.status = 'awaiting_support' AND t.assigned_admin_id IS NULL
+       AND (t.sla_due_at, t.id) > (now(), '00000000-0000-0000-0000-000000000000'::uuid) ORDER BY t.sla_due_at, t.id LIMIT 31`, []],
+  'support admin: other state by activity': [`
+    SELECT t.id FROM support_threads t WHERE t.status = 'awaiting_user' ORDER BY t.last_message_at DESC, t.id DESC LIMIT 31`, []],
+  'support admin: summary counts': [`
+    SELECT count(*)::int, count(*) FILTER (WHERE sla_due_at < now())::int, count(*) FILTER (WHERE assigned_admin_id IS NULL)::int
+      FROM support_threads WHERE status = 'awaiting_support'`, []],
+  'support admin: thread detail messages': [`
+    SELECT m.id FROM support_messages m WHERE m.thread_id = (SELECT id FROM support_threads WHERE user_id = $1)
+     ORDER BY m.created_at DESC, m.id DESC LIMIT 31`, [u.id]],
+  'support: retention victims (closed threads)': [`
+    SELECT id FROM support_threads WHERE status = 'closed' AND last_message_at < now() - make_interval(months => 24) LIMIT 20`, []],
+  'support: abandoned attachments': [`
+    SELECT id, r2_key FROM support_attachments WHERE status <> 'attached' AND created_at < now() - make_interval(secs => 1800) LIMIT 100`, []],
   'notifications: inbox page (keyset)': [`
     SELECT id, tab, type, title, body, deep_link, applicant_id, created_at, created_at::text AS created_at_raw, read_at FROM notifications
      WHERE user_id=$1 AND tab='update' AND (created_at, id) < (now(), 'ffffffff-ffff-ffff-ffff-ffffffffffff'::uuid)

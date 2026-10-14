@@ -12,5 +12,6 @@ INSERT INTO notification_templates (type, locale, title, body) VALUES
   ('nulla_osta_expiring',        'en', '[DEV PLACEHOLDER] Nulla Osta expiry',            '[DEV PLACEHOLDER] {days} days left (until {date}).'),
   ('document_expiring',          'en', '[DEV PLACEHOLDER] A document is expiring',       '[DEV PLACEHOLDER] {title} expires on {date} ({days} days).'),
   ('data_export_ready',          'en', '[DEV PLACEHOLDER] Your data export is ready',    '[DEV PLACEHOLDER] Your export is ready to download.'),
+  ('support_reply',              'en', '[DEV PLACEHOLDER] New reply from support',       '[DEV PLACEHOLDER] You have a new reply.'),
   ('document_expiring_unlinked', 'en', '[DEV PLACEHOLDER] A document is expiring',       '[DEV PLACEHOLDER] A document expires on {date} ({days} days).')
 ON CONFLICT (type, locale) DO NOTHING;

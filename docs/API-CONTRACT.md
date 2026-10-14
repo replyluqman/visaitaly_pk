@@ -50,6 +50,7 @@ only on `VALIDATION_FAILED`. Quote `requestId` in support tickets.
 | `UPLOAD_TOO_LARGE` | 413 | no | File over the per-file cap — message states it. |
 | `UPLOAD_QUOTA_EXCEEDED` | 413 | no | Storage limit reached — offer to delete files. |
 | `UPLOAD_REJECTED` | 422 | no | Object failed verification and was discarded — ask the user to re-pick. |
+| `SUPPORT_TOPIC_NOT_ALLOWED` | 403 | no | Free account chose a Premium topic — show the pre-sales topics / upgrade CTA. |
 | `REAUTH_REQUIRED` | 401 | no | Re-authenticate with Firebase (password/Google), then retry the same call. Not session-terminal. |
 | `ADMIN_FORBIDDEN` | 403 | no (CMS) | Not an active admin / missing the scope — hide the screen. |
 | `ADMIN_MFA_REQUIRED` | 403 | no (CMS) | Prompt second-factor enrolment, then retry. |
@@ -185,6 +186,14 @@ Admins are pre-registered by a super admin and link on first sign-in with a veri
 `DELETE /v1/account` `{confirm:true}` → 202 `{requestId}`; `401 REAUTH_REQUIRED` unless the Firebase sign-in is ≤ 5 minutes old (re-authenticate, retry). After a 202 every call is
 `USER_DELETED` and the data is erased within minutes; signing up again with the same Firebase account creates a new, empty account. Admin: `/v1/admin/legal-versions…`, `/v1/admin/lookup`
 (see `apps/api/MODULE-10A-PRIVACY-LEGAL.md`).
+
+### Support (Module 8) — session-authenticated
+
+`GET /v1/support/thread?locale` → `{status: none|open|awaiting_support|awaiting_user|closed, tier, slaDueAt, unreadCount, workingHoursText, allowedTopics[]}` · `GET /v1/support/messages?cursor&limit(≤50)` → `{items[], nextCursor}` newest first ·
+`POST /v1/support/messages {body?, topic, applicantId?, attachmentId?}` → 201 `SupportMessage` (body or attachment required; free accounts limited to the config topics → `SUPPORT_TOPIC_NOT_ALLOWED`; hourly cap → `RATE_LIMITED`; **not idempotent**) ·
+`POST /v1/support/read` (204, marks admin replies read) · `POST /v1/support/attachments/upload-url {mime: image/jpeg|image/png, sizeBytes}` → signed PUT URL; `GET /v1/support/attachments/:id` → short-lived view URL (404 if not yours).
+`slaDueAt` is working-hours computed and is shown only beside `workingHoursText` (PRD §14a). A message to a closed thread reopens it; a follow-up while awaiting support does not move the deadline.
+Admin (`support_manage`, Screen 35): `GET /v1/admin/support/summary|threads|threads/:id`, `POST …/threads/:id/messages` (free text + topic, or `cannedResponseId`), `…/assign`, `…/close`, `…/reopen`, `GET /v1/admin/canned-responses`, `POST|PATCH …`. See `openapi.yaml`.
 
 ### Notifications (Module 5) — session-authenticated
 

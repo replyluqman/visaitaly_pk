@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { call, rawFetch } from './helpers/app.js';
 import { closePool, q, resetDb, seedCatalogue } from './helpers/db.js';
 
-const rules = JSON.parse(readFileSync(new URL('../copy-rules.json', import.meta.url), 'utf8')) as {
+const rules = JSON.parse(readFileSync(new URL('../src/lib/copy-rules.json', import.meta.url), 'utf8')) as {
   forbiddenPhrases: string[];
   placeholderMarker: string;
 };

@@ -149,6 +149,44 @@ export const PRIVACY_CONFIG_FALLBACK: PrivacyConfigValue = {
   export_row_cap: 5000,
 };
 
+/** app_config['support'] */
+export interface SupportConfigValue {
+  /** Topics a FREE account may use; paid accounts may use all (PRD §8, §10). */
+  topics_free: string[];
+  messages_per_hour: number;
+  attachment_max_bytes: number;
+  attachment_upload_ttl_seconds: number;
+  retention_months: number;
+}
+
+/** app_config['sla'] (PRD §14a). `working_hours_text` is COPY — authored in the CMS, no default. */
+export interface SlaConfigValue {
+  support_paid_hours: number;
+  support_free_hours: number;
+  working_hours_windows: {
+    utc_offset_minutes: number;
+    days: number[];
+    start_minute: number;
+    end_minute: number;
+  };
+  working_hours_text?: Record<string, string>;
+}
+
+export const SUPPORT_CONFIG_FALLBACK: SupportConfigValue = {
+  topics_free: ['presales', 'app_problem', 'account'],
+  messages_per_hour: 20,
+  attachment_max_bytes: 5_242_880,
+  attachment_upload_ttl_seconds: 900,
+  retention_months: 24,
+};
+export const SLA_CONFIG_FALLBACK: SlaConfigValue = {
+  support_paid_hours: 24,
+  support_free_hours: 48,
+  working_hours_windows: { utc_offset_minutes: 300, days: [1, 2, 3, 4, 5, 6], start_minute: 540, end_minute: 1080 },
+  // Declared so readConfig (which only copies keys the fallback knows) keeps the CMS-authored copy; undefined = not set yet.
+  working_hours_text: undefined,
+};
+
 export const AUTH_CONFIG_FALLBACK: AuthConfigValue = { max_active_devices: 2 };
 export const ONBOARDING_CONFIG_FALLBACK: OnboardingConfigValue = { max_applicants: 10 };
 export const CHECKLIST_CONFIG_FALLBACK: ChecklistConfigValue = { free_preview_items: 3 };
@@ -169,6 +207,8 @@ export interface AppConfigMap {
   notifications: NotificationsConfigValue;
   reminders: RemindersConfigValue;
   privacy: PrivacyConfigValue;
+  support: SupportConfigValue;
+  sla: SlaConfigValue;
 }
 
 export type AppConfigKey = keyof AppConfigMap;

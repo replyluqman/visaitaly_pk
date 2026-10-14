@@ -19,7 +19,7 @@ requirements, stages and pricing — additive expand-migrations plus relaxing a 
 | 5 | Notifications — Cron generation + FCM + notification centre | built (0010) | G1–G5 ✓ (FCM adapter + CPU unmeasured) | 13 | — |
 | 6 | Payments — manual proof, one-click approve, SLA, receipts, **refunds** | | | 16, 20–22, 23, 24, 26 | 31, 33, 34, 43 |
 | 7 | Services (translation + courier, appointment) + premium lifecycle (expiry, renewal) | | | 17–19 | 37, 38, 42 |
-| 8 | Support thread + admin inbox + canned responses | | | 25 | 35 |
+| 8 | Support thread + admin inbox + canned responses | built (0013) | G1–G5 ✓ (R2 adapter + CPU unmeasured) | 25 | 35 |
 | 9 | Referral + payouts | | | 27, 28 | 41 |
 | 10 | Admin RBAC + audit log (**4a, 0008**) + case lookup + legal manager + data export/deletion (**10a, 0011–0012**; pricing/config editor, refund/support/renewal/payout lookups remain) | | | 29 | 30, 32, 36, 44, 45 |
 

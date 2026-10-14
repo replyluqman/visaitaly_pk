@@ -125,7 +125,7 @@ async function checkDb(client) {
   if (pubCount[0].n === 0) warn('No published requirements — every new case will be empty.');
 
   // 2b''. Quick Check copy (highest §18 Risk 1 exposure): not a placeholder, no verdict language.
-  const rules = JSON.parse(await readFile(join(ROOT, 'copy-rules.json'), 'utf8'));
+  const rules = JSON.parse(await readFile(join(ROOT, 'src/lib/copy-rules.json'), 'utf8'));
   const { rows: qc } = await client.query(
     `SELECT version, questions::text || summaries::text || disclaimer::text AS copy
        FROM eligibility_check_versions WHERE is_current`);

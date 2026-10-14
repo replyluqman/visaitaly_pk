@@ -207,7 +207,7 @@ async function buildExport(db: Db, userId: string, cap: number): Promise<Record<
     const r = await db.execute<Record<string, unknown>>(q);
     return { rows: r.rows.slice(0, cap), truncated: r.rows.length > cap };
   };
-  const [account, applicants, progress, documents, notifications, devices, acceptances, consents, prefs] = await Promise.all([
+  const [account, applicants, progress, documents, notifications, devices, acceptances, consents, prefs, support] = await Promise.all([
     db.execute(sql`SELECT email, display_name AS "displayName", onboarding_state AS "onboardingState", created_at AS "createdAt" FROM users WHERE id = ${userId}`),
     rows(sql`SELECT id, display_name AS "displayName", relationship_code AS "relationshipCode", to_char(date_of_birth,'YYYY-MM-DD') AS "dateOfBirth",
                     current_location AS "currentLocation", current_stage AS "currentStage", nulla_osta_status AS "nullaOstaStatus",
@@ -227,6 +227,9 @@ async function buildExport(db: Db, userId: string, cap: number): Promise<Record<
                FROM legal_acceptances a JOIN legal_versions v ON v.id = a.legal_version_id WHERE a.user_id = ${userId} ORDER BY a.accepted_at LIMIT ${cap + 1}`),
     rows(sql`SELECT purpose, granted, policy_version AS "policyVersion", updated_at AS "updatedAt" FROM consents WHERE user_id = ${userId}`),
     rows(sql`SELECT tab, channel, enabled FROM notification_preferences WHERE user_id = ${userId}`),
+    rows(sql`SELECT m.sender_type AS "sender", m.body, m.topic, m.created_at AS "createdAt",
+                    EXISTS (SELECT 1 FROM support_attachments a WHERE a.message_id = m.id AND a.status = 'attached') AS "hasAttachment"
+               FROM support_messages m WHERE m.user_id = ${userId} ORDER BY m.created_at LIMIT ${cap + 1}`),
   ]);
   return {
     exportedAt: new Date().toISOString(),
@@ -234,8 +237,8 @@ async function buildExport(db: Db, userId: string, cap: number): Promise<Record<
     account: account.rows[0] ?? null,
     applicants: applicants.rows, checklistProgress: progress.rows, documents: documents.rows,
     notifications: notifications.rows, devices: devices.rows, legalAcceptances: acceptances.rows,
-    consents: consents.rows, notificationPreferences: prefs.rows,
-    truncated: [applicants, progress, documents, notifications, devices, acceptances].some((x) => x.truncated),
+    consents: consents.rows, notificationPreferences: prefs.rows, supportMessages: support.rows,
+    truncated: [applicants, progress, documents, notifications, devices, acceptances, support].some((x) => x.truncated),
   };
 }
 
@@ -284,12 +287,22 @@ export async function processErasures(
         await db.execute(sql`UPDATE data_requests SET r2_export_key = NULL WHERE id = ${e.id}::uuid`);
         budget--;
       }
+      const att = await db.execute<{ id: string; r2_key: string }>(sql`
+        SELECT id, r2_key FROM support_attachments WHERE user_id = ${req.user_id} LIMIT ${Math.max(budget, 0)}
+      `);
+      for (const a of att.rows) {
+        await store.delete(a.r2_key);
+        await db.execute(sql`DELETE FROM support_attachments WHERE id = ${a.id}::uuid`);
+        budget--;
+      }
       const moreDocs = await db.execute(sql`SELECT 1 FROM documents WHERE user_id = ${req.user_id} LIMIT 1`);
       const moreExports = await db.execute(sql`SELECT 1 FROM data_requests WHERE user_id = ${req.user_id} AND r2_export_key IS NOT NULL LIMIT 1`);
-      if (moreDocs.rows.length > 0 || moreExports.rows.length > 0) { out.inProgress++; continue; } // next tick
+      const moreAtt = await db.execute(sql`SELECT 1 FROM support_attachments WHERE user_id = ${req.user_id} LIMIT 1`);
+      if (moreDocs.rows.length > 0 || moreExports.rows.length > 0 || moreAtt.rows.length > 0) { out.inProgress++; continue; } // next tick
 
       // 2. database rows (cascades cover checklist progress, next actions, applicant notifications).
       await db.transaction(async (tx) => {
+        await tx.execute(sql`DELETE FROM support_threads WHERE user_id = ${req.user_id}`); // messages cascade; attachments already gone
         await tx.execute(sql`DELETE FROM applicants WHERE user_id = ${req.user_id}`);
         await tx.execute(sql`DELETE FROM notifications WHERE user_id = ${req.user_id}`);
         await tx.execute(sql`DELETE FROM notification_preferences WHERE user_id = ${req.user_id}`);

@@ -1,4 +1,9 @@
-# State — Modules 1–5, 10a (incl. 3b, 3c, 4a, 4b) built and gated · Module 6 (payments) BLOCKED on owner decision O1
+# State — Modules 1–5, 8, 10a (incl. 3b, 3c, 4a, 4b) built and gated · Module 6 (payments) BLOCKED on owner decision O1
+
+## Phase 6 — Module 8 Support (done)
+
+Migration `0013`; `apps/api/MODULE-08-SUPPORT.md`. **305 tests**; Gate 4 at 15k threads / 150k messages (11 support queries pass). Working-hours SLA (`lib/working-hours.ts`), tier topics, jpeg/png attachments, SLA-sorted admin inbox, canned responses rendered from real context, audited replies, 24-month retention.
+**Not verified here:** R2 adapter against a real bucket; `support_reply` push. **Owner actions:** author `sla.working_hours_text` and the canned responses + `support_reply` template; confirm the working-hours window and SLA hours. No idempotency on send (documented).
 
 ## Phase 5 — Module 10a Privacy rights, legal manager, case lookup (done)
 
@@ -13,7 +18,7 @@ Found+fixed: Drizzle array interpolation (affected CMS array fields). **Not veri
 **Owner actions:** FCM service account → `FCM_SERVICE_ACCOUNT` secret; author + lawyer-review the 5 notification templates (`notification-types.json`).
 
 ### Next: Module 6 (payments + refunds) — blocked
-ERD **O1** (payable currency PKR vs EUR) decides price storage, the bank-transfer flow and receipts; building before it would be guessing. Modules 7 (services + premium lifecycle) depend on 6; 8 (support), 9 (referral) and the rest of 10 (case lookup, data export/deletion, legal manager) are independent of O1 and can proceed.
+ERD **O1** (payable currency PKR vs EUR) decides price storage, the bank-transfer flow and receipts; building before it would be guessing. Modules 7 (services + premium lifecycle) depend on 6; 9 (referral, needs orders) and the rest of 10 (case lookup, data export/deletion, legal manager) are independent of O1 and can proceed.
 
 ## Phase 3b — Module 4b CMS & verification workflow (done)
 

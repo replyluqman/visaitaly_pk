@@ -21,6 +21,7 @@ const STATUS_BY_CODE: Record<ErrorCode, ContentfulStatusCode> = {
   UPLOAD_TOO_LARGE: 413,
   UPLOAD_QUOTA_EXCEEDED: 413,
   UPLOAD_REJECTED: 422,
+  SUPPORT_TOPIC_NOT_ALLOWED: 403,
   REAUTH_REQUIRED: 401,
   ADMIN_FORBIDDEN: 403,
   ADMIN_MFA_REQUIRED: 403,
@@ -176,6 +177,13 @@ export class AppError extends Error {
   static uploadRejected(): AppError {
     return new AppError(
       ErrorCode.UPLOAD_REJECTED, 'That file could not be accepted. Please upload a JPEG, PNG or PDF.',
+    );
+  }
+
+  /** PRD §8: free accounts get pre-sales topics only. The client shows the upgrade path. */
+  static supportTopicNotAllowed(): AppError {
+    return new AppError(
+      ErrorCode.SUPPORT_TOPIC_NOT_ALLOWED, 'This topic is available to Premium accounts. Pick a pre-sales topic or upgrade.',
     );
   }
 

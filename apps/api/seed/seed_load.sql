@@ -1,7 +1,28 @@
 -- seed_load.sql — LOAD-TEST ONLY (docs/TESTING.md Gate 4). Never run in production.
 -- Targets: users 30,000 · applicants 75,000 · devices ~60,000. Run against a
 -- throwaway *_test / *_ci database after `pnpm migrate`:
---   psql "$LOAD_DATABASE_URL" -f apps/api/seed/seed_load.sql && ANALYZE;
+--   psql "$LOAD_DATABASE_URL" -f apps/api/seed/seed_load.sql && 
+-- Module 8: support — 15,000 threads (half the users) in mixed states, 10 messages each (150,000), 3,000 attachments.
+TRUNCATE support_threads, canned_responses RESTART IDENTITY CASCADE;
+INSERT INTO support_threads (user_id, status, tier, sla_due_at, last_message_at, last_user_message_at, closed_at, created_at)
+SELECT u.id, st.s, CASE WHEN st.n % 4 = 0 THEN 'paid' ELSE 'free' END,
+       CASE WHEN st.s = 'awaiting_support' THEN now() + make_interval(mins => ((st.n % 4000) - 1000)::int) END,
+       now() - make_interval(mins => st.n::int), now() - make_interval(mins => st.n::int),
+       CASE WHEN st.s = 'closed' THEN now() - make_interval(mins => st.n::int) END,
+       now() - make_interval(days => 30)
+  FROM (SELECT id, row_number() OVER (ORDER BY id) AS n FROM users) u
+  CROSS JOIN LATERAL (SELECT u.n,
+         (ARRAY['awaiting_support','awaiting_user','open','closed','closed'])[1 + (u.n % 5)::int] AS s) st
+ WHERE u.n <= 15000;
+INSERT INTO support_messages (thread_id, user_id, sender_type, body, topic, read_by_user_at, created_at)
+SELECT t.id, t.user_id, CASE WHEN g % 2 = 0 THEN 'admin' ELSE 'user' END, 'message ' || g, 'presales',
+       CASE WHEN g % 2 = 1 OR g < 8 THEN now() END,
+       now() - make_interval(mins => (11 - g) * 7)
+  FROM support_threads t CROSS JOIN generate_series(1, 10) g;
+INSERT INTO support_attachments (thread_id, user_id, message_id, r2_key, mime, size_bytes, status)
+SELECT m.thread_id, m.user_id, m.id, 'load/support/' || m.id::text, 'image/png', 1000, 'attached'
+  FROM (SELECT id, thread_id, user_id FROM support_messages WHERE sender_type = 'user' LIMIT 3000) m;
+ANALYZE;
 TRUNCATE users, legal_versions, data_requests RESTART IDENTITY CASCADE;
 
 -- Module 4a: 20 admins, 500,000 audit rows (12 months of retention at a busy-admin volume).
@@ -103,4 +124,25 @@ SELECT u.id, (ARRAY['reminder','update','activity'])[1 + g % 3], 'requirement_ch
 UPDATE applicants SET nulla_osta_status = 'received', nulla_osta_issue_date = CURRENT_DATE - 100,
        nulla_osta_expiry_date = CURRENT_DATE + (abs(hashtext(id::text)) % 60)
  WHERE abs(hashtext(id::text)) % 20 = 0;
+
+-- Module 8: support — 15,000 threads (half the users) in mixed states, 10 messages each (150,000), 3,000 attachments.
+TRUNCATE support_threads, canned_responses RESTART IDENTITY CASCADE;
+INSERT INTO support_threads (user_id, status, tier, sla_due_at, last_message_at, last_user_message_at, closed_at, created_at)
+SELECT u.id, st.s, CASE WHEN st.n % 4 = 0 THEN 'paid' ELSE 'free' END,
+       CASE WHEN st.s = 'awaiting_support' THEN now() + make_interval(mins => ((st.n % 4000) - 1000)::int) END,
+       now() - make_interval(mins => st.n::int), now() - make_interval(mins => st.n::int),
+       CASE WHEN st.s = 'closed' THEN now() - make_interval(mins => st.n::int) END,
+       now() - make_interval(days => 30)
+  FROM (SELECT id, row_number() OVER (ORDER BY id) AS n FROM users) u
+  CROSS JOIN LATERAL (SELECT u.n,
+         (ARRAY['awaiting_support','awaiting_user','open','closed','closed'])[1 + (u.n % 5)::int] AS s) st
+ WHERE u.n <= 15000;
+INSERT INTO support_messages (thread_id, user_id, sender_type, body, topic, read_by_user_at, created_at)
+SELECT t.id, t.user_id, CASE WHEN g % 2 = 0 THEN 'admin' ELSE 'user' END, 'message ' || g, 'presales',
+       CASE WHEN g % 2 = 1 OR g < 8 THEN now() END,
+       now() - make_interval(mins => (11 - g) * 7)
+  FROM support_threads t CROSS JOIN generate_series(1, 10) g;
+INSERT INTO support_attachments (thread_id, user_id, message_id, r2_key, mime, size_bytes, status)
+SELECT m.thread_id, m.user_id, m.id, 'load/support/' || m.id::text, 'image/png', 1000, 'attached'
+  FROM (SELECT id, thread_id, user_id FROM support_messages WHERE sender_type = 'user' LIMIT 3000) m;
 ANALYZE;

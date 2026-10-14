@@ -26,6 +26,9 @@ export const ErrorCode = {
   UPLOAD_QUOTA_EXCEEDED: 'UPLOAD_QUOTA_EXCEEDED', // 413 user storage quota would be exceeded
   UPLOAD_REJECTED: 'UPLOAD_REJECTED',             // 422 uploaded object failed size/type verification
 
+  // support — added in Module 8
+  SUPPORT_TOPIC_NOT_ALLOWED: 'SUPPORT_TOPIC_NOT_ALLOWED', // 403 topic not available on this account's tier (PRD §8/§10)
+
   // account — added in Module 10a
   REAUTH_REQUIRED: 'REAUTH_REQUIRED',             // 401 destructive action needs a fresh sign-in (auth_time too old)
 

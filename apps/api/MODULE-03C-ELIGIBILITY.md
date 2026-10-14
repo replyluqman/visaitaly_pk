@@ -31,7 +31,7 @@ Content only in `seed/seed_dev_eligibility.sql` (every string carries `[DEV PLAC
    paywall preview, no second tunable.
 4. A published version that cannot produce a summary (no category question / missing summary) is a content-setup bug →
    opaque 500 + log, never a made-up answer. `preflight` should catch it first.
-5. **Copy guard:** `copy-rules.json` forbidden phrases ("you are eligible", "you qualify", "we advise", …) and the
+5. **Copy guard:** `src/lib/copy-rules.json` forbidden phrases ("you are eligible", "you qualify", "we advise", …) and the
    placeholder marker are checked by `pnpm preflight` against the current version. List to be extended by the lawyer review.
 6. A stale `version` is a 422 with `details.version` — the client reloads the question set and re-asks.
 
