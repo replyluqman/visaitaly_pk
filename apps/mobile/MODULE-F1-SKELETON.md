@@ -38,6 +38,6 @@ Mutation check: removing the legal redirect or the refresh-once guard fails test
 - Dashboard shows readiness/blocking from the server; the checklist screens it links to don't exist yet.
 
 ## 6. Owner actions
-- Decide the application id (see FLUTTER-ARCHITECTURE decisions); create the 3 Firebase Android apps; add `android/app/src/{dev,staging,prod}/google-services.json` (the plugin applies only when all three exist).
+- Application id `pk.visaitaly.app` is approved; create the 3 Firebase Android apps; add `android/app/src/{dev,staging,prod}/google-services.json` (the plugin applies only when all three exist).
 - Build with `--dart-define=API_BASE_URL=https://…` for staging/prod (dev defaults to `http://10.0.2.2:8787`).
 - Enable Email/Password sign-in in each Firebase project.

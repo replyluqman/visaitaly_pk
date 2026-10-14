@@ -125,7 +125,7 @@ registration; keep the API backward-compatible with every version still installe
 | Item | Decision | Why / how to change |
 |---|---|---|
 | Resume refresh window (N) | 30 min, `AppConfig.resumeRefreshAfter` | Was **DECIDE**; suggested value used. One constant. |
-| Application id | `pk.visaitaly.app` (+ `.dev`, `.staging`) | Still **DECIDE** for the owner — must match the Firebase Android app and is permanent after the first Play upload. |
+| Application id | `pk.visaitaly.app` (+ `.dev`, `.staging`) | **Decided (owner approved).** Must match the Firebase Android app; permanent after the first Play upload. |
 | Sign-in methods | Email + password only | Google Sign-In needs `google_sign_in` + SHA-1 registration; add behind `AuthGateway`. |
 | Generated code | `*.g.dart`, `*.freezed.dart`, l10n output are **not committed** | CI and local setup run `flutter pub get` + `dart run build_runner build`. |
 | Contract fixtures | Captured from the API's own handlers by `apps/api/test/mobile-fixtures.test.ts` (`MOBILE_FIXTURES_DIR=../mobile/test/fixtures pnpm test test/mobile-fixtures`) | Replaces "capture from staging"; regenerate after any response-shape change. |
