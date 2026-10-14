@@ -117,7 +117,7 @@ void main() {
     test('no screen creates a BackdropFilter itself — only GlassSurface (lint)', () {
       final offenders = <String>[];
       for (final f in Directory('lib').listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart'))) {
-        if (f.path.endsWith('core/design/glass_surface.dart')) continue;
+        if (f.path.replaceAll('\\', '/').endsWith('core/design/glass_surface.dart')) continue;
         final code = f.readAsLinesSync().where((l) => !l.trimLeft().startsWith('//'));
         if (code.any((l) => l.contains('BackdropFilter'))) offenders.add(f.path);
       }

@@ -9,3 +9,6 @@
 /tmp
 dist/
 node_modules/
+
+# IDE
+.idea/
